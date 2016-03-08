@@ -16,5 +16,7 @@ executable kind-interpreter
   ghc-options:     -Wall
   other-modules:   
                    KindLang.Parser.ModuleParser,
-                   KindLang.Data.AST
+                   KindLang.Data.AST,
+                   KindLang.Parser.Combinators,
+                   KindLang.Util.Control
 
