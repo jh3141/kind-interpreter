@@ -7,6 +7,14 @@ author:         admin
 executable kind-interpreter
   hs-source-dirs:  src
   main-is:         Main.hs
-  build-depends:   base >= 4
+  build-depends:   
+                   base >= 4,
+                   parsec-pratt >=0.1 && <0.2,
+                   parsec3 >=1.0 && <1.1,
+                   containers >= 0.5.6.2 && < 0.6
+                   
   ghc-options:     -Wall
+  other-modules:   
+                   KindLang.Parser.ModuleParser,
+                   KindLang.Data.AST
 
