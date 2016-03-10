@@ -13,8 +13,8 @@ _module_ =
     do
         header <- optionMaybe $ withws _moduleHeader_
         body <- manyTill (withws (_import_ </> _declaration_)) eof
-        case foldr body updateLists ([],[]) of
-            (imports, declarations) -> return Module header imports declarations    
+        case foldr updateLists ([],[]) body of
+            (imports, declarations) -> return $ Module header imports declarations    
     where
         updateLists (Left a)  (listA, listB) = (a:listA, listB)
         updateLists (Right b) (listA, listB) = (listA, b:listB)
@@ -25,7 +25,7 @@ withlws p = _whitespace_ *> p
 withws = withtws . withlws
 
 _identifier_ :: Parsec String u String
-_identifier_ = startChar >>= \x -> continueChar >>= return (x:)
+_identifier_ = startChar >>= \x -> many continueChar >>= \y -> return (x:y)
     where
         startChar = letter <|> oneOf "_~"
         continueChar = startChar <|> digit
@@ -42,7 +42,7 @@ _import_ = do
     string "import" 
     x <- withws _scopedID_
     withtws $ char ';' 
-    return UnqualifiedModuleImport x False
+    return $ UnqualifiedModuleImport x False
 
 _declaration_ :: Parsec String u (String,Definition)
 _declaration_ = _classDeclaration_ 
@@ -50,6 +50,5 @@ _declaration_ = _classDeclaration_
         _classDeclaration_ = do
             withtws $ string "class"
             id <- withtws _identifier_
-            body <- between (char '{') (char '}') (withws _declaration_)
+            body <- between (char '{') (char '}') (many $ withws _declaration_)
             return (id, ClassDefinition body)
-        
