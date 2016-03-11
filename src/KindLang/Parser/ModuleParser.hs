@@ -1,7 +1,7 @@
 module KindLang.Parser.ModuleParser where
 
 import Text.Parsec
-import Control.Applicative ((<*), (*>))
+-- import Control.Applicative ((<*), (*>))
 import Control.Monad
 
 import KindLang.Data.AST
@@ -18,11 +18,6 @@ _module_ =
     where
         updateLists (Left a)  (listA, listB) = (a:listA, listB)
         updateLists (Right b) (listA, listB) = (listA, b:listB)
-
-_whitespace_ = optional spaces
-withtws p = p <* _whitespace_
-withlws p = _whitespace_ *> p
-withws = withtws . withlws
 
 _identifier_ :: Parsec String u String
 _identifier_ = startChar >>= \x -> many continueChar >>= \y -> return (x:y)
@@ -44,11 +39,33 @@ _import_ = do
     withtws $ char ';' 
     return $ UnqualifiedModuleImport x False
 
-_declaration_ :: Parsec String u (String,Definition)
-_declaration_ = _classDeclaration_ 
-    where
-        _classDeclaration_ = do
-            withtws $ string "class"
-            id <- withtws _identifier_
-            body <- between (char '{') (char '}') (many $ withws _declaration_)
-            return (id, ClassDefinition body)
+type DeclarationP u = Parsec String u (String,Definition)
+_declaration_ :: DeclarationP u
+_declaration_ = _classDeclaration_ <|> _variableDeclaration_ -- <|> _functionDeclaration
+
+_classDeclaration_ :: DeclarationP u
+_classDeclaration_ = do
+    withtws $ string "class"
+    ident <- withtws _identifier_
+    body <- between (char '{') (char '}') (many $ withws _declaration_)
+    return (ident, ClassDefinition body)
+
+_variableDeclaration_ :: DeclarationP u
+_variableDeclaration_ = do
+    ident <- withtws _identifier_
+    withtws $ char ':'
+    typeName <- withtws _typeDescriptor_
+    constructorArgs <- optionMaybe $ withtws _functionApplication_
+    char ';'
+    return (ident, VariableDefinition typeName constructorArgs)
+
+_typeDescriptor_ :: Parsec String u TypeDescriptor
+_typeDescriptor_ = fmap SimpleType _scopedID_  -- or type expression
+
+_functionApplication_ :: Parsec String u [Expr]                      
+_functionApplication_ = between (withtws $ char '(') (char ')')
+                                (sepBy (withtws _expr_) (withtws $ char ','))
+_expr_ :: Parsec String u Expr
+_expr_ = do -- FIXME!
+    ident <- _identifier_
+    return $ VarRef ident
