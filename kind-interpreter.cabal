@@ -1,22 +1,47 @@
 name:           kind-interpreter
 version:        0.1
-cabal-version:  >=1.2
+cabal-version:  >=1.18
 build-type:     Simple
-author:         admin
-
-executable kind-interpreter
-  hs-source-dirs:  src
-  main-is:         Main.hs
-  build-depends:   
-                   base >= 4,
-                   parsec-pratt >=0.1 && <0.2,
-                   parsec >= 3.1 && <4,
-                   containers >= 0.5.6.2 && < 0.6
+author:         Julian Hall
+stability:      experimental
+synopsis:       An experimental implementation of an interpreter for the Kind language
+description:    The Kind language is an object-functional language aimed at
+                enterprise and application development.  Although the language
+                is intended to be compilable, this version only contains an
+                interpreter. It is intended for rapid development of
+                experimental features, particularly type-system experiments.
+category:                       
+                
+library
+  default-language: Haskell2010
+  hs-source-dirs:   src
+  build-depends:    base >= 4,
+                    parsec-pratt >=0.1 && <0.2,
+                    parsec >= 3.1 && <4,
+                    containers >= 0.5.6.2 && < 0.6
                    
-  ghc-options:     -Wall -fno-warn-unused-do-bind
-  other-modules:   
-                   KindLang.Parser.ModuleParser,
-                   KindLang.Data.AST,
-                   KindLang.Parser.Combinators,
-                   KindLang.Util.Control
+  ghc-options:      -Wall -fno-warn-unused-do-bind
+  exposed-modules:  KindLang.Parser.ModuleParser,
+                    KindLang.Data.AST
+  other-modules:    KindLang.Parser.Combinators,
+                    KindLang.Util.Control
 
+executable runkind
+  default-language:Haskell2010
+  hs-source-dirs:  runkind                             
+  main-is:         Main.hs
+  build-depends:   base >= 4,
+                   kind-interpreter
+                                     
+test-suite kind-tests
+  default-language:Haskell2010
+  hs-source-dirs:  tests
+  type:            exitcode-stdio-1.0
+  main-is:         Main.hs
+  build-depends:   base >= 4,
+                   tasty >= 0.11,
+                   tasty-hunit >= 0.9,
+                   parsec >= 3.1 && < 4,
+                   kind-interpreter
+  other-modules:   ParserTests.Module
+                                                                        

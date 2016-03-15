@@ -1,0 +1,8 @@
+*.a
+*.o
+*.dep
+*~
+*.bak
+*.tmp
+core
+dist
