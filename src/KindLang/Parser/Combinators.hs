@@ -2,7 +2,7 @@
 module KindLang.Parser.Combinators where
 
 import Control.Applicative
-import Text.Parsec (Parsec,ParsecT,Stream)
+import Text.Parsec (ParsecT,Stream)
 import qualified Text.Parsec as P
 
 -- | @a </> b@ parses @a@ and, if successful, returns its result
@@ -14,18 +14,18 @@ import qualified Text.Parsec as P
 left </> right = fmap Left left <|> fmap Right right
 
 -- | Definition of whitespace used by later parser combinators
-_whitespace_ :: Parsec String u ()
+_whitespace_ :: Stream s m Char => ParsecT s u m ()
 _whitespace_ = P.optional P.spaces
 
 -- | @withtws a@ parses @a@ followed by whitespace, then returns @a@'s result
-withtws :: Parsec String u r -> Parsec String u r
+withtws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 withtws p = p <* _whitespace_
 -- | @withlws a@ parses whitespace followed by @a@, then returns @a@'s result
-withlws :: Parsec String u r -> Parsec String u r
+withlws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 withlws p = _whitespace_ *> p
 -- | @withws a@ parses whitespace, then @a@, then whitespace, and returns
 -- @a@'s result.
-withws :: Parsec String u r -> Parsec String u r
+withws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 withws = withtws . withlws
 
 -- | Equivalent to 'sepBy1', except that if an item is followed by a
