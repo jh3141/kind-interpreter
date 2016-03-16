@@ -3,6 +3,7 @@ module KindLang.Parser.ModuleParser where
 import Text.Parsec
 -- import Control.Applicative ((<*), (*>))
 import Control.Monad
+import Data.Maybe
 
 import KindLang.Data.AST
 import KindLang.Util.Control
@@ -24,9 +25,13 @@ _identifier_ = startChar >>= \x -> many continueChar >>= \y -> return (x:y)
     where
         startChar = letter <|> oneOf "_~"
         continueChar = startChar <|> digit
-        
+
+_scopeOp_ :: Parsec String u String
+_scopeOp_ = string "::"
+            
 _scopedID_ :: Parsec String u ScopedID
-_scopedID_ = liftM (foldrn QualifiedID UnqualifiedID) $ sepBy1 (withtws _identifier_) (withtws $ string "::")
+_scopedID_ = liftM (foldrn QualifiedID UnqualifiedID) $
+                   sepBy1Lazy (withtws _identifier_) (withtws _scopeOp_)
 
 _moduleHeader_ :: Parsec String u ScopedID
 _moduleHeader_ = string "module" >> withlws _scopedID_ <* char ';'
@@ -36,8 +41,10 @@ _import_ :: Parsec String u ModuleImport
 _import_ = do
     string "import" 
     x <- withws _scopedID_
-    withtws $ char ';' 
-    return $ UnqualifiedModuleImport x False
+    wildcard <- optionMaybe $ string "::" >> withws (char '*')
+    withtws $ char ';'
+    return $ UnqualifiedModuleImport x (isJust wildcard)
+
 
 type DeclarationP u = Parsec String u (String,Definition)
 _declaration_ :: DeclarationP u

@@ -35,5 +35,27 @@ moduleParserTests =
         testCase "whole-namespace import declaration parsed" $
                  parseMod "import id1::*;" @=?
                           Module Nothing [UnqualifiedModuleImport
-                                              (UnqualifiedID "id1") True] []
+                                              (UnqualifiedID "id1") True] [],
+
+        -- fixme:
+        -- testGroup "Import error handling" [
+           -- testCase "error if import not followed by id"
+           -- testCase "error if non-identifier in imported scoped id"
+           -- testCase "error if EOF after import"
+           -- testCase "error if EOF after import id"
+           -- testCase "error on import *"
+           -- testCase "resync after 'import *;'
+           -- testCase "error if no semicolon after import statement"
+           -- testCase "error if wildcard in middle of scoped id"
+        -- ]
+
+        -- fixme: import qualified
+        testCase "module name and several import lines" $
+                 parseMod "module a;\nimport b::*;import c::*;" @=?
+                          Module (Just $ UnqualifiedID "a")
+                                 [UnqualifiedModuleImport
+                                      (UnqualifiedID "b") True,
+                                  UnqualifiedModuleImport
+                                      (UnqualifiedID "c") True] []
+                                  
     ]                     
