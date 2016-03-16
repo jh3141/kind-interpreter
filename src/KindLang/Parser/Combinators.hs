@@ -1,20 +1,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 module KindLang.Parser.Combinators where
 
-import Text.Parsec
-import Control.Applicative (liftA2)
+import Control.Applicative
+import Text.Parsec (Parsec,ParsecT,Stream)
+import qualified Text.Parsec as P
 
 -- | @a </> b@ parses @a@ and, if successful, returns its result
 -- wrapped in 'Left'.  Otherwise, parses @b@ and returns its result wrapped
 -- in 'Right'.  It is thus similar to '(<|>)' except that the return types
 -- of the parsers may vary, and it is later possible to identify which
 -- path was taken.
-(</>) :: ParsecT s u m a -> ParsecT s u m b -> ParsecT s u m (Either a b)
+(</>) :: Alternative f =>  f a -> f b -> f (Either a b)
 left </> right = fmap Left left <|> fmap Right right
 
 -- | Definition of whitespace used by later parser combinators
 _whitespace_ :: Parsec String u ()
-_whitespace_ = optional spaces
+_whitespace_ = P.optional P.spaces
 
 -- | @withtws a@ parses @a@ followed by whitespace, then returns @a@'s result
 withtws :: Parsec String u r -> Parsec String u r
@@ -36,12 +37,13 @@ sepBy1Lazy :: Stream s m t =>
               ParsecT s u m a -> ParsecT s u m b -> ParsecT s u m [a]
 sepBy1Lazy item sep = liftA2 (:)
                              item
-                             (manyTill sepItem
-                                       (notFollowedBy $ ignoreResult sepItem))
+                             (P.manyTill
+                                 sepItem
+                                 (P.notFollowedBy $ ignoreResult sepItem))
                       where sepItem = sep *> item
 
--- | Apply a given parser and ignore the result
-ignoreResult :: Stream s m t =>  ParsecT s u m a -> ParsecT s u m ()
-ignoreResult p = p *> (return ())
+-- | Apply a given process and ignore the result
+ignoreResult :: Applicative f =>  f a -> f ()
+ignoreResult p = p *> (pure ())
                  
                  
