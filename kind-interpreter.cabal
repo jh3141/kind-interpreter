@@ -23,6 +23,7 @@ library
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser,
                     KindLang.Data.AST
+                    KindLang.Internal
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
@@ -44,4 +45,7 @@ test-suite kind-tests
                    parsec >= 3.1 && < 4,
                    kind-interpreter
   other-modules:   ParserTests.Module
+                   ParserTests.Util
+                   ParserTests.CombinatorTests
+                   
                                                                         

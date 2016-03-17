@@ -1,4 +1,4 @@
-module ParserTests.Module where
+module ParserTests.Module (moduleParserTests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -6,10 +6,8 @@ import KindLang.Parser.ModuleParser
 import KindLang.Data.AST
 import Text.Parsec
     
-parseString :: Parsec String () r -> String -> r
-parseString parser toParse = case parse parser "test" toParse of
-                               Right x -> x
-                               Left  e -> error $ show e
+import ParserTests.Util
+    
 parseMod :: String -> Module
 parseMod = parseString _module_
            
