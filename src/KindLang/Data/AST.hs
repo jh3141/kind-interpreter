@@ -17,14 +17,25 @@ data Module = Module {
 } deriving (Show, Eq)
 
 data Definition =
-     ClassDefinition[(String,Definition)]|
-     FunctionDefinition [(String,TypeDescriptor)] [Expr]|
-     VariableDefinition TypeDescriptor (Maybe [Expr])
+     ClassDefinition [ClassMember] |
+     FunctionDefinition [(String,TypeDescriptor)] [Expr] |
+     VariableDefinition TypeDescriptor VariableInitializer
      deriving (Show, Eq)
 
+data ClassMember = ClassMember String Visibility Definition
+     deriving (Show, Eq)
+
+data Visibility = Public | Protected | Private
+     deriving (Show, Eq)
+              
 data TypeDescriptor = SimpleType ScopedID
      deriving (Show, Eq)
 
 data Expr = VarRef String
      deriving (Show, Eq)
 
+data VariableInitializer =
+     VarInitNone |
+     VarInitExpr Expr |
+     VarInitConstruct [Expr]
+     deriving (Show, Eq)

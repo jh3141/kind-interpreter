@@ -54,17 +54,31 @@ _classDeclaration_ :: DeclarationP u
 _classDeclaration_ = do
     withtws $ string "class"
     ident <- withtws _identifier_
-    body <- between (char '{') (char '}') (many $ withws _declaration_)
+    body <- between (char '{') (char '}')
+            (many $ fmap (declarationToClassMember Public)
+                         (withws _declaration_))
     return (ident, ClassDefinition body)
 
+declarationToClassMember :: Visibility -> (String,Definition) -> ClassMember
+declarationToClassMember v (n,d) = ClassMember n v d
+                                   
 _variableDeclaration_ :: DeclarationP u
 _variableDeclaration_ = do
     ident <- withtws _identifier_
     withtws $ char ':'
     typeName <- withtws _typeDescriptor_
-    constructorArgs <- optionMaybe $ withtws _functionApplication_
+    initopt <- optionMaybe $ withtws (_functionApplication_ </> _initExpr_)
+    
     char ';'
-    return (ident, VariableDefinition typeName constructorArgs)
+    return (ident, VariableDefinition typeName
+                     (makeVarInit initopt))
+    where
+      makeVarInit :: Maybe (Either [Expr] Expr) -> VariableInitializer
+      makeVarInit Nothing             = VarInitNone
+      makeVarInit (Just (Left args))  = VarInitConstruct args
+      makeVarInit (Just (Right expr)) = VarInitExpr expr
+
+    
 
 _typeDescriptor_ :: Parsec String u TypeDescriptor
 _typeDescriptor_ = fmap SimpleType _scopedID_  -- or type expression
@@ -76,3 +90,6 @@ _expr_ :: Parsec String u Expr
 _expr_ = do -- FIXME!
     ident <- _identifier_
     return $ VarRef ident
+
+_initExpr_ :: Parsec String u Expr
+_initExpr_ = char '=' >> withlws _expr_

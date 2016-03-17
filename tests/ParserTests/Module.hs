@@ -54,6 +54,28 @@ moduleParserTests =
                                  [UnqualifiedModuleImport
                                       (UnqualifiedID "b") True,
                                   UnqualifiedModuleImport
-                                      (UnqualifiedID "c") True] []
+                                      (UnqualifiedID "c") True] [],
+        testCase "variable declaration" $
+                 parseMod "varname : T;" @=?
+                          Module Nothing []
+                                 [("varname",
+                                   VariableDefinition
+                                       (SimpleType $ UnqualifiedID "T")
+                                       VarInitNone)],
+        testCase "variable declaration with initialiser" $
+                 parseMod "varname : T = a;" @=?
+                          Module Nothing []
+                                 [("varname",
+                                   VariableDefinition
+                                       (SimpleType $ UnqualifiedID "T")
+                                       (VarInitExpr $ VarRef "a"))],
+        testCase "variable declaration with constructor" $
+                 parseMod "varname : T(a,b);" @=?
+                          Module Nothing []
+                                 [("varname",
+                                   VariableDefinition
+                                       (SimpleType $ UnqualifiedID "T")
+                                       (VarInitConstruct [VarRef "a",
+                                                          VarRef "b"]))]
                                   
     ]                     
