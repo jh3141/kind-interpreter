@@ -2,6 +2,7 @@
 module KindLang.Parser.Combinators where
 
 import Control.Applicative
+import KindLang.Util.Control
 import Text.Parsec (ParsecT,Stream)
 import qualified Text.Parsec as P
 
@@ -47,3 +48,15 @@ ignoreResult :: Applicative f =>  f a -> f ()
 ignoreResult p = p *> (pure ())
                  
                  
+-- | sequential merging of application results into a list, where the right
+-- hand side is already a list
+(<:>) :: Applicative f => f a -> f [a] -> f [a]
+infixr 0 <:>         
+a1 <:> a2 = liftA2 (:) a1 a2
+              
+-- | sequential merging of application results into a list, where the right
+-- hand side is not already a list
+(<::>) :: Applicative f => f a -> f a -> f [a]
+infixr 0 <::>         
+a1 <::> a2 = a1 <:> (fmap singleton a2)
+

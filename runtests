@@ -1,0 +1,1 @@
+cabal build kind-tests && dist/build/kind-tests/kind-tests

@@ -11,3 +11,8 @@ module KindLang.Util.Control where
 foldrn :: (a -> b -> b) -> (a -> b) -> [a] -> b
 foldrn _ g [x]      = g x
 foldrn f g (x : xs) = f x (foldrn f g xs)
+
+-- | construct a list containing a single item
+singleton :: a -> [a]
+singleton item = [item]
+                 
