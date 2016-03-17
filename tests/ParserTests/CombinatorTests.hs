@@ -32,9 +32,11 @@ parserCombinatorTests =
                  @=? "a1",
         testCase "building complex list with <:> and <::>" $
                  parseString (letter <:> letter<|>digit <::> digit) "aa2"
-                 @=? "aa2"
-                     
-        --testCase "sepBy1Lazy not followed by separator" $
-        --         parseString (sepBy1Lazy digit space
-                             
+                 @=? "aa2",                     
+        testCase "sepBy1Lazy not followed by separator" $
+                 parseString (sepBy1Lazy digit space <::> many anyToken)
+                     "1 2 3ab" @=? ["123","ab"],
+        testCase "sepBy1Lazy followed by separator" $
+                 parseString (sepBy1Lazy digit space <::> many anyToken)
+                     "1 2 3 ab" @=? ["123"," ab"]                      
     ]
