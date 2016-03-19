@@ -76,6 +76,12 @@ moduleParserTests =
                                    VariableDefinition
                                        (SimpleType $ UnqualifiedID "T")
                                        (VarInitConstruct [VarRef "a",
-                                                          VarRef "b"]))]
+                                                          VarRef "b"]))],
+        testCase "function declaration" $
+                 parseMod "testFunction(){}" @=?
+                          Module Nothing []
+                                 [("testFunction",
+                                   FunctionDefinition [] InferableType [])]
+                                   
                                   
     ]                     

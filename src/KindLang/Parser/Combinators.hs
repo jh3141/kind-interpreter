@@ -60,3 +60,19 @@ a1 <:> a2 = liftA2 (:) a1 a2
 infixr 0 <::>         
 a1 <::> a2 = a1 <:> (fmap singleton a2)
 
+-- | merging of two application results into a pair
+(<&>) :: Applicative f => f a -> f b -> f (a,b)
+infixr 0 <&>         
+a1 <&> a2 = liftA2 (,) a1 a2
+            
+bracketedBy :: Stream s m Char =>
+               Char -> Char -> ParsecT s u m a -> ParsecT s u m a
+bracketedBy l r = P.between (withtws $ P.char l) (P.char r)
+bracketed :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
+bracketed = bracketedBy '(' ')'
+braced :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
+braced = bracketedBy '{' '}'
+squareBracketed :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
+squareBracketed = bracketedBy '[' ']'
+                  
+         
