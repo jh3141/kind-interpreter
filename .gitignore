@@ -6,3 +6,4 @@
 *.tmp
 core
 dist
+/.dist-buildwrapper/
