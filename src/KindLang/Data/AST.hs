@@ -18,7 +18,11 @@ data Module = Module {
 
 data Definition =
      ClassDefinition [ClassMember] |
-     FunctionDefinition [(String,TypeDescriptor)] TypeDescriptor [Expr] |
+     FunctionDefinition {
+         fnDefParams :: [(String,TypeDescriptor)],
+         fnDefReturnType :: TypeDescriptor,
+         fnDefBody :: [Expr]
+     } |
      VariableDefinition TypeDescriptor VariableInitializer
      deriving (Show, Eq)
 

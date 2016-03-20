@@ -48,5 +48,6 @@ test-suite kind-tests
   other-modules:   ParserTests.Module
                    ParserTests.Util
                    ParserTests.CombinatorTests
+                   ParserTests.Function
                    
                                                                         
