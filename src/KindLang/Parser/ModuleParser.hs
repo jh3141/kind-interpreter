@@ -86,7 +86,7 @@ functionDeclaration_ =
                (withtws parameterDeclaration_ `sepBy` withtws comma))
            (maybeOrInferable <$>
                optionMaybe (withtws colon >> withtws typeDescriptor_))
-           (braced $ withtws expr_ `sepBy` withtws semicolon)
+           (braced $ many $ withtws expr_  <* withtws semicolon)
 
 parameterDeclaration_ :: Parsec String u (String,TypeDescriptor)
 parameterDeclaration_ =
