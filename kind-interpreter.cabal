@@ -22,8 +22,9 @@ library
                    
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser,
-                    KindLang.Data.AST
-                    KindLang.Internal
+                    KindLang.Data.AST,
+                    KindLang.Internal,
+                    KindLang.Parser.BasicTokens
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 

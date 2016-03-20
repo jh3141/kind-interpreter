@@ -9,7 +9,7 @@ import Text.Parsec
 import ParserTests.Util
     
 parseMod :: String -> Module
-parseMod = parseString _module_
+parseMod = parseString module_
            
 moduleParserTests :: TestTree
 moduleParserTests =

@@ -15,15 +15,15 @@ import qualified Text.Parsec as P
 left </> right = fmap Left left <|> fmap Right right
 
 -- | Definition of whitespace used by later parser combinators
-_whitespace_ :: Stream s m Char => ParsecT s u m ()
-_whitespace_ = P.optional P.spaces
+whitespace_ :: Stream s m Char => ParsecT s u m ()
+whitespace_ = P.optional P.spaces
 
 -- | @withtws a@ parses @a@ followed by whitespace, then returns @a@'s result
 withtws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
-withtws p = p <* _whitespace_
+withtws p = p <* whitespace_
 -- | @withlws a@ parses whitespace followed by @a@, then returns @a@'s result
 withlws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
-withlws p = _whitespace_ *> p
+withlws p = whitespace_ *> p
 -- | @withws a@ parses whitespace, then @a@, then whitespace, and returns
 -- @a@'s result.
 withws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
