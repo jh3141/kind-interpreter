@@ -19,5 +19,11 @@ expressionParserTests =
         testCase "bracketed term" $
                  parseExpr "(a)" @=? VarRef "a",
         testCase "integer literal" $
-                 parseExpr "123" @=? IntLiteral 123
+                 parseExpr "123" @=? IntLiteral 123,
+        testCase "basic operators" $
+                 parseExpr "a + b*2 - c" @=?
+                 BinOp "-" (BinOp "+" (VarRef "a")
+                                      (BinOp "*" (VarRef "b")
+                                                 (IntLiteral 2)))
+                           (VarRef "c")
     ]                       

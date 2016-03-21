@@ -16,8 +16,37 @@ expr_ = buildPrattParser
           operatorList prefixOperatorList whitespace_ operator_ term_
 
 operatorList :: [OperatorInfo String ParseState ParseMonad Expr String]
-operatorList = []
+operatorList =
+    [
+        OperatorInfo "*"  (LAssoc 120) binOpLed,
+        OperatorInfo "/"  (LAssoc 120) binOpLed,
+        OperatorInfo "%"  (LAssoc 120) binOpLed,
+                     
+        OperatorInfo "+"  (LAssoc 110) binOpLed,
+        OperatorInfo "-"  (LAssoc 110) binOpLed,
 
+        OperatorInfo "<<" (LAssoc 100) binOpLed,
+        OperatorInfo ">>" (LAssoc 100) binOpLed,
+
+        OperatorInfo "!=" (LAssoc  80) binOpLed,
+        OperatorInfo "<"  (LAssoc  90) binOpLed,
+        OperatorInfo "<=" (LAssoc  90) binOpLed,
+        OperatorInfo ">"  (LAssoc  90) binOpLed,
+        OperatorInfo ">=" (LAssoc  90) binOpLed,
+        OperatorInfo "==" (LAssoc  80) binOpLed,
+
+        OperatorInfo "&"  (LAssoc  70) binOpLed,
+        OperatorInfo "^"  (LAssoc  60) binOpLed,                     
+        OperatorInfo "|"  (LAssoc  50) binOpLed,
+        OperatorInfo "&&" (LAssoc  40) binOpLed,
+        OperatorInfo "^^" (LAssoc  35) binOpLed,  -- deviates from c++ version
+        OperatorInfo "||" (LAssoc  30) binOpLed
+
+    ]
+
+binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
+binOpLed (OperatorInfo name prec _) lhs pp = (BinOp name lhs) <$> (pp prec)
+    
 prefixOperatorList :: [PrefixOperatorInfo Expr String]
 prefixOperatorList = []
 

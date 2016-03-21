@@ -37,7 +37,8 @@ data TypeDescriptor = SimpleType ScopedID | InferableType
 
 data Expr =
      VarRef String |
-     IntLiteral Int
+     IntLiteral Int |
+     BinOp String Expr Expr
      deriving (Show, Eq)
 
 data VariableInitializer =
