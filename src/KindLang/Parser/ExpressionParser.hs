@@ -18,6 +18,7 @@ expr_ = buildPrattParser
 operatorList :: [OperatorInfo String ParseState ParseMonad Expr String]
 operatorList =
     [
+        OperatorInfo "("  (LAssoc 150) functionApplicationLed,
         OperatorInfo "*"  (LAssoc 120) binOpLed,
         OperatorInfo "/"  (LAssoc 120) binOpLed,
         OperatorInfo "%"  (LAssoc 120) binOpLed,
@@ -40,23 +41,31 @@ operatorList =
         OperatorInfo "|"  (LAssoc  50) binOpLed,
         OperatorInfo "&&" (LAssoc  40) binOpLed,
         OperatorInfo "^^" (LAssoc  35) binOpLed,  -- deviates from c++ version
-        OperatorInfo "||" (LAssoc  30) binOpLed
+        OperatorInfo "||" (LAssoc  30) binOpLed,
 
+        OperatorInfo ","  (LAssoc  10) binOpLed
     ]
 
 binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
 binOpLed (OperatorInfo name prec _) lhs pp = (BinOp name lhs) <$> (pp prec)
-    
-prefixOperatorList :: [PrefixOperatorInfo Expr String]
+
+functionApplicationLed :: LeftDenotation String ParseState ParseMonad Expr String
+functionApplicationLed _ lhs pp =
+    (FunctionApplication lhs) <$>
+             ((withtws (pp (LAssoc 10)) `sepBy` withtws comma) <*
+              withtws (char ')'))
+
+prefixOperatorList :: [PrefixOperatorInfo String ParseState ParseMonad Expr String]
 prefixOperatorList =
     [
-        PrefixOperatorInfo "-" prefixOpBinder,
-        PrefixOperatorInfo "~" prefixOpBinder,
-        PrefixOperatorInfo "!" prefixOpBinder
+        SimplePrefixOperator "-" prefixOpBinder,
+        SimplePrefixOperator "~" prefixOpBinder,
+        SimplePrefixOperator "!" prefixOpBinder
     ]
 
-prefixOpBinder :: PrefixBinder Expr String
-prefixOpBinder (PrefixOperatorInfo name _) rhs = PrefixOp name rhs
+prefixOpBinder :: PrefixBinder String ParseState ParseMonad Expr String
+prefixOpBinder (SimplePrefixOperator name _) rhs = PrefixOp name rhs
+prefixOpBinder _ _ = error "binder should only be called on simple prefix operators"
     
 term_ :: PrecedenceParser String ParseState ParseMonad Expr -> ExprP
 term_ parseSub = varRef_ <|>

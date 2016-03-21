@@ -28,5 +28,17 @@ expressionParserTests =
                            (VarRef "c"),
         testCase "prefix operators" $
                  parseExpr "! - ~4" @=?
-                 PrefixOp "!" (PrefixOp "-" (PrefixOp "~" (IntLiteral 4)))
+                 PrefixOp "!" (PrefixOp "-" (PrefixOp "~" (IntLiteral 4))),
+        testCase "function application" $
+                 parseExpr "fname (1)" @=?
+                 FunctionApplication (VarRef "fname") [IntLiteral 1],
+        testCase "function application with funky whitespace" $
+                 parseExpr "fname(  1   )" @=?
+                 FunctionApplication (VarRef "fname") [IntLiteral 1],
+        testCase "function application with multiple parameters" $
+                 parseExpr "fname (1,2,3)" @=?
+                 FunctionApplication (VarRef "fname")
+                                     [IntLiteral 1, IntLiteral 2, IntLiteral 3],
+        testCase "comma operator" $
+                 parseExpr "a,b" @=? BinOp "," (VarRef "a") (VarRef "b")
     ]                       

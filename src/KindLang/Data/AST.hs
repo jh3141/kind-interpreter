@@ -39,7 +39,8 @@ data Expr =
      VarRef String |
      IntLiteral Int |
      BinOp String Expr Expr |
-     PrefixOp String Expr
+     PrefixOp String Expr |
+     FunctionApplication Expr [Expr]
      deriving (Show, Eq)
 
 data VariableInitializer =
