@@ -48,8 +48,15 @@ binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
 binOpLed (OperatorInfo name prec _) lhs pp = (BinOp name lhs) <$> (pp prec)
     
 prefixOperatorList :: [PrefixOperatorInfo Expr String]
-prefixOperatorList = []
+prefixOperatorList =
+    [
+        PrefixOperatorInfo "-" prefixOpBinder,
+        PrefixOperatorInfo "~" prefixOpBinder,
+        PrefixOperatorInfo "!" prefixOpBinder
+    ]
 
+prefixOpBinder :: PrefixBinder Expr String
+prefixOpBinder (PrefixOperatorInfo name _) rhs = PrefixOp name rhs
     
 term_ :: PrecedenceParser String ParseState ParseMonad Expr -> ExprP
 term_ parseSub = varRef_ <|>

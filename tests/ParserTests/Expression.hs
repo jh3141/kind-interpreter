@@ -25,5 +25,8 @@ expressionParserTests =
                  BinOp "-" (BinOp "+" (VarRef "a")
                                       (BinOp "*" (VarRef "b")
                                                  (IntLiteral 2)))
-                           (VarRef "c")
+                           (VarRef "c"),
+        testCase "prefix operators" $
+                 parseExpr "! - ~4" @=?
+                 PrefixOp "!" (PrefixOp "-" (PrefixOp "~" (IntLiteral 4)))
     ]                       
