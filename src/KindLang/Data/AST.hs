@@ -35,7 +35,9 @@ data Visibility = Public | Protected | Private
 data TypeDescriptor = SimpleType ScopedID | InferableType
      deriving (Show, Eq)
 
-data Expr = VarRef String
+data Expr =
+     VarRef String |
+     IntLiteral Int
      deriving (Show, Eq)
 
 data VariableInitializer =

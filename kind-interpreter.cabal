@@ -18,13 +18,16 @@ library
   build-depends:    base >= 4,
                     parsec-pratt >=0.1 && <0.2,
                     parsec >= 3.1 && <4,
-                    containers >= 0.5.6.2 && < 0.6
+                    containers >= 0.5.6.2 && < 0.6,
+                    mtl >= 2
                    
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser,
                     KindLang.Data.AST,
                     KindLang.Internal,
-                    KindLang.Parser.BasicTokens
+                    KindLang.Parser.BasicTokens,
+                    KindLang.Parser.ExpressionParser,
+                    KindLang.Parser.State
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
@@ -49,5 +52,6 @@ test-suite kind-tests
                    ParserTests.Util
                    ParserTests.CombinatorTests
                    ParserTests.Function
+                   ParserTests.Expression
                    
                                                                         
