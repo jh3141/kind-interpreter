@@ -16,8 +16,20 @@ left </> right = fmap Left left <|> fmap Right right
 
 -- | Definition of whitespace used by later parser combinators
 whitespace_ :: Stream s m Char => ParsecT s u m ()
-whitespace_ = P.optional P.spaces
+whitespace_ = P.skipMany (P.space </> comment_)
 
+-- | Parse comments (in this module as used in defintion of whitespace)      
+comment_ :: Stream s m Char => ParsecT s u m String
+comment_ = P.try (P.string "//") *>
+           untilAny P.anyToken
+                        [ignoreResult $ P.char '\n', P.eof]
+
+-- | @p `untilAny` [a,b,...]@ will repeatedly parse @p@ until any of the
+-- parsers in the list @a, b, ...@ succeeds. Note that any parser in that
+-- list that can fail while consuming input should be wrapped in 'try'.
+untilAny :: Stream s m t => ParsecT s u m a -> [ParsecT s u m ()] -> ParsecT s u m [a]
+untilAny p ends = P.manyTill p (P.choice ends)
+                           
 -- | @withtws a@ parses @a@ followed by whitespace, then returns @a@'s result
 withtws :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 withtws p = p <* whitespace_
