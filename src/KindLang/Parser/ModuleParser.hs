@@ -58,11 +58,12 @@ variableDeclaration_ = do
     ident <- withtws identifier_
     withtws colon
     typeName <- withtws typeDescriptor_
-    initopt <- optionMaybe $ withtws (functionApplication_ </> initExpr_)
+    initopt <- makeVarInit <$> (optionMaybe
+                                $ withtws (functionApplication_
+                                           </> initExpr_))
     
     semicolon
-    return (ident, VariableDefinition typeName
-                     (makeVarInit initopt))
+    return (ident, VariableDefinition typeName initopt)
     where
       makeVarInit :: Maybe (Either [Expr] Expr) -> VariableInitializer
       makeVarInit Nothing             = VarInitNone
@@ -73,7 +74,11 @@ typeDescriptor_ :: Parser TypeDescriptor
 typeDescriptor_ = fmap SimpleType scopedID_  -- or type expression
 
 functionApplication_ :: Parser [Expr]                      
-functionApplication_ = bracketed (withtws expr_ `sepBy` withtws comma)
+functionApplication_ =
+    breakCommas <$> bracketed (withtws expr_)
+    where
+      breakCommas (BinOp "," a b) = a:(breakCommas b)
+      breakCommas a               = [a]
                         
 initExpr_ :: Parser Expr
 initExpr_ = char '=' >> withlws expr_
