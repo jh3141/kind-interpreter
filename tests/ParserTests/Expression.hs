@@ -38,7 +38,13 @@ expressionParserTests =
         testCase "function application with multiple parameters" $
                  parseExpr "fname (1,2,3)" @=?
                  FunctionApplication (VarRef "fname")
-                                     [IntLiteral 1, IntLiteral 2, IntLiteral 3],
+                                 [IntLiteral 1, IntLiteral 2, IntLiteral 3],
         testCase "comma operator" $
-                 parseExpr "a,b" @=? BinOp "," (VarRef "a") (VarRef "b")
+                 parseExpr "a,b" @=? BinOp "," (VarRef "a") (VarRef "b"),
+        testCase "dot operator" $
+                 parseExpr "a.b" @=?
+                 ORef (VarRef "a") (UnqualifiedID "b"),
+        testCase "object method call fusion" $
+                 parseExpr "a.b(c)" @=?
+                 OMethod (VarRef "a") (UnqualifiedID "b") [VarRef "c"]
     ]                       

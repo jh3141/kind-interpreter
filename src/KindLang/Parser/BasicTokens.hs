@@ -31,7 +31,8 @@ scopedID_ = liftM (foldrn QualifiedID UnqualifiedID) $
 operator_ :: Parser String
 operator_  = (many1 $ oneOf "!$%^&*-+=~#<>:@\\|") <|>
              string "(" <|>
-             string ","
+             string "," <|>
+             string "."
 
 intLiteral_ :: Parser Expr
 intLiteral_ = many1 digit >>= return . IntLiteral . read 

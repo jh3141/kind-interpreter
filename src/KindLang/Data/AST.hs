@@ -40,7 +40,9 @@ data Expr =
      IntLiteral Int |
      BinOp String Expr Expr |
      PrefixOp String Expr |
-     FunctionApplication Expr [Expr]
+     FunctionApplication Expr [Expr] |
+     ORef Expr ScopedID |
+     OMethod Expr ScopedID [Expr]
      deriving (Show, Eq)
 
 data VariableInitializer =

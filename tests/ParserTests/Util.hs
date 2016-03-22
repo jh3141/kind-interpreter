@@ -5,6 +5,7 @@ import Control.Arrow
     
 parseString :: Parsec String () r -> String -> r
 parseString parser toParse =
-    either (show >>> error) id $ parse parser "test" toParse
+    either (show >>> error) id $
+           parse (parser <* eof) "test" toParse
 
     
