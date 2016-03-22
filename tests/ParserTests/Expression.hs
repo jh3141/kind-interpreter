@@ -46,5 +46,7 @@ expressionParserTests =
                  ORef (VarRef "a") (UnqualifiedID "b"),
         testCase "object method call fusion" $
                  parseExpr "a.b(c)" @?=
-                 OMethod (VarRef "a") (UnqualifiedID "b") [VarRef "c"]
+                 OMethod (VarRef "a") (UnqualifiedID "b") [VarRef "c"],
+        testCase "string literal" $
+                 parseExpr "\"hello\"" @?= StringLiteral "hello"
     ]                       

@@ -78,7 +78,8 @@ prefixOpBinder _ _ = error "binder should only be called on simple prefix operat
 term_ :: PrecedenceParser String ParseState ParseMonad Expr -> ExprP
 term_ parseSub = varRef_ <|>
                  (bracketed $ parseSub (LAssoc 0)) <|>
-                 intLiteral_ 
+                 intLiteral_ <|>
+                 stringLiteral_
 
 varRef_ :: ExprP
 varRef_ = fmap VarRef identifier_

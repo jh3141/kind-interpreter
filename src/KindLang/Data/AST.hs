@@ -38,6 +38,7 @@ data TypeDescriptor = SimpleType ScopedID | InferableType
 data Expr =
      VarRef String |
      IntLiteral Int |
+     StringLiteral String |
      BinOp String Expr Expr |
      PrefixOp String Expr |
      FunctionApplication Expr [Expr] |

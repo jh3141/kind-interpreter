@@ -37,6 +37,10 @@ operator_  = (many1 $ oneOf "!$%^&*-+=~#<>:@\\|") <|>
 intLiteral_ :: Parser Expr
 intLiteral_ = many1 digit >>= return . IntLiteral . read 
 
+-- fixme escapes, etc.
+stringLiteral_ :: Parser Expr
+stringLiteral_ = StringLiteral <$> (char '"' *> manyTill anyChar (char '"'))
+                 
 -- fixme - this should be in its own module
 typeDescriptor_ :: Parser TypeDescriptor
 typeDescriptor_ = SimpleType <$> scopedID_  -- or type expression
