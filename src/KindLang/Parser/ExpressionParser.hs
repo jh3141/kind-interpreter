@@ -45,7 +45,7 @@ operatorList =
         OperatorInfo "^^" (LAssoc  35) binOpLed,  -- deviates from c++ version
         OperatorInfo "||" (LAssoc  30) binOpLed,
 
-        OperatorInfo ","  (LAssoc  10) binOpLed
+        OperatorInfo ","  (RAssoc  10) binOpLed
     ]
 
 binOpLed :: LeftDenotation String ParseState ParseMonad Expr String

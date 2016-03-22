@@ -46,7 +46,8 @@ data Expr =
      deriving (Show, Eq)
 
 data Statement =
-     Expression Expr
+     Expression Expr |
+     VarDeclStatement String TypeDescriptor VariableInitializer
      deriving (Show, Eq)
               
 data VariableInitializer =
@@ -54,3 +55,8 @@ data VariableInitializer =
      VarInitExpr Expr |
      VarInitConstruct [Expr]
      deriving (Show, Eq)
+
+
+-- functions for common manipulations of the AST
+maybeOrInferable :: Maybe TypeDescriptor -> TypeDescriptor
+maybeOrInferable = maybe InferableType id
