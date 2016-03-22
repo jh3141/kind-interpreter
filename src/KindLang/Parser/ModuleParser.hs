@@ -67,7 +67,11 @@ variableDeclaration_ = do
 functionDeclaration_ :: DeclarationP
 functionDeclaration_ =
     withtws identifier_ <&>
-    liftM3 FunctionDefinition
+            (FunctionDefinition <$>
+             ((withtws functionInstance_) `sepBy1` (withtws comma)))
+    
+functionInstance_ :: Parser FunctionInstance            
+functionInstance_ = liftM3 FunctionInstance
            (withtws $ bracketed
                (withtws parameterDeclaration_ `sepBy` withtws comma))
            (maybeOrInferable <$>

@@ -81,7 +81,8 @@ moduleParserTests =
                  parseMod "testFunction(){}" @?=
                           Module Nothing []
                                  [("testFunction",
-                                   FunctionDefinition [] InferableType [])]
+                                   FunctionDefinition [
+                                    FunctionInstance [] InferableType []])]
                                    
                                   
     ]                     

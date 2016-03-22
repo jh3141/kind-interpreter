@@ -16,13 +16,16 @@ data Module = Module {
      moduleDeclarationList :: [(String,Definition)]
 } deriving (Show, Eq)
 
-data Definition =
-     ClassDefinition [ClassMember] |
-     FunctionDefinition {
+data FunctionInstance = FunctionInstance {
          fnDefParams :: [(String,TypeDescriptor)],
          fnDefReturnType :: TypeDescriptor,
          fnDefBody :: [Statement]
-     } |
+     }
+     deriving (Show, Eq)
+              
+data Definition =
+     ClassDefinition [ClassMember] |
+     FunctionDefinition [FunctionInstance] |
      VariableDefinition TypeDescriptor VariableInitializer
      deriving (Show, Eq)
 
@@ -61,3 +64,8 @@ data VariableInitializer =
 -- functions for common manipulations of the AST
 maybeOrInferable :: Maybe TypeDescriptor -> TypeDescriptor
 maybeOrInferable = maybe InferableType id
+
+fnDefInstances :: Definition -> [FunctionInstance]
+fnDefInstances (FunctionDefinition i) = i
+fnDefInstances _ = []
+                   

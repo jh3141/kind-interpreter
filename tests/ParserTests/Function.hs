@@ -9,8 +9,11 @@ import Control.Arrow
     
 import ParserTests.Util
 
-parseFn :: String -> Definition
-parseFn = parseString functionDeclaration_ >>> snd
+parseFn :: String -> FunctionInstance
+parseFn = parseFnM >>> head
+
+parseFnM :: String -> [FunctionInstance]
+parseFnM = parseString functionDeclaration_ >>> snd >>> fnDefInstances
 
 functionParserTests :: TestTree
 functionParserTests =
@@ -32,5 +35,21 @@ functionParserTests =
                  [Expression $ VarRef "b"],
         testCase "Body with two expressions" $
                  (fnDefBody $ parseFn "a(b,c){b;c;}") @?=
-                 [Expression $ VarRef "b", Expression $ VarRef "c"]
+                 [Expression $ VarRef "b", Expression $ VarRef "c"],
+        testCase "Function with multiple instances" $
+                 (parseFnM "a(b){b;},(b,c){b+c;} , (b,c,d){b+c+d;}") @?=
+                 [FunctionInstance [("b",InferableType)]
+                                   InferableType
+                                   [Expression $ VarRef "b"],
+                  FunctionInstance [("b",InferableType),("c",InferableType)]
+                                   InferableType
+                                   [Expression $ BinOp "+"
+                                               (VarRef "b") (VarRef "c")],
+                  FunctionInstance [("b",InferableType),("c",InferableType),
+                                    ("d",InferableType)]
+                                   InferableType
+                                   [Expression $ BinOp "+"
+                                               (BinOp "+" (VarRef "b")
+                                                          (VarRef "c"))
+                                               (VarRef "d")]]
     ]                         
