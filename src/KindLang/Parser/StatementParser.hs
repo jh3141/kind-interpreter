@@ -11,18 +11,28 @@ import KindLang.Parser.ExpressionParser (expr_)
 type StatementP = Parser Statement
 
 stmt_ :: StatementP
-stmt_ =
+stmt_ = do
     -- a variable declaration needs lookahead before it can be
-    -- identified, so use 'try' around it, and put it first (as
-    -- the expression it could be confused with would be slower
-    -- to parse)
-    withtws $ try $ varDeclStmt_ <* semicolon <|>
-    (Expression <$> withtws expr_ <* semicolon)
+    -- identified, so check for the start of a variable declaration
+    maybeIdent <- tryOpenVarDeclStmt_
+    case maybeIdent of
+       Just ident -> withtws (varDeclStmt_ ident) <* semicolon
+       Nothing    -> simpleStatement_
 
-varDeclStmt_ :: StatementP
-varDeclStmt_ = do
-    ident <- withtws identifier_
-    withtws colon
+simpleStatement_ :: StatementP
+simpleStatement_ = Expression <$> withtws expr_ <* semicolon
+                       
+-- attempt to parse the beginning of a variable declaration (up to the,
+-- whitespace following the colon) and return the identifier if successful
+-- or Nothing if unsuccessful:
+tryOpenVarDeclStmt_ :: Parser (Maybe String)
+tryOpenVarDeclStmt_ =
+    optionMaybe (try (withtws identifier_ <* withtws colon))
+
+-- given the identifier returned from tryOpenVarDeclStmt_, parse the
+-- remainder of the statement
+varDeclStmt_ :: String -> StatementP
+varDeclStmt_ ident = do
     typeDescriptor <- maybeOrInferable <$>
                       (optionMaybe $ withtws typeDescriptor_)
     varInit <- variableInitializer_
