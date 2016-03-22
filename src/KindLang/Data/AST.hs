@@ -21,7 +21,7 @@ data Definition =
      FunctionDefinition {
          fnDefParams :: [(String,TypeDescriptor)],
          fnDefReturnType :: TypeDescriptor,
-         fnDefBody :: [Expr]
+         fnDefBody :: [Statement]
      } |
      VariableDefinition TypeDescriptor VariableInitializer
      deriving (Show, Eq)
@@ -45,6 +45,10 @@ data Expr =
      OMethod Expr ScopedID [Expr]
      deriving (Show, Eq)
 
+data Statement =
+     Expression Expr
+     deriving (Show, Eq)
+              
 data VariableInitializer =
      VarInitNone |
      VarInitExpr Expr |

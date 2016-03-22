@@ -10,6 +10,7 @@ import KindLang.Parser.Combinators
 import KindLang.Parser.BasicTokens
 import KindLang.Parser.State
 import KindLang.Parser.ExpressionParser
+import KindLang.Parser.StatementParser
 
 module_ :: Parser Module
 module_ = 
@@ -85,7 +86,7 @@ functionDeclaration_ =
                (withtws parameterDeclaration_ `sepBy` withtws comma))
            (maybeOrInferable <$>
                optionMaybe (withtws colon >> withtws typeDescriptor_))
-           (braced $ many $ withtws expr_  <* withtws semicolon)
+           (braced $ many $ withtws stmt_)
 
 parameterDeclaration_ :: Parser (String,TypeDescriptor)
 parameterDeclaration_ =

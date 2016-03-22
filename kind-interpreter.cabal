@@ -27,7 +27,8 @@ library
                     KindLang.Internal,
                     KindLang.Parser.BasicTokens,
                     KindLang.Parser.ExpressionParser,
-                    KindLang.Parser.State
+                    KindLang.Parser.State,
+                    KindLang.Parser.StatementParser
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
@@ -53,5 +54,6 @@ test-suite kind-tests
                    ParserTests.CombinatorTests
                    ParserTests.Function
                    ParserTests.Expression
+                   ParserTests.Statement
                    
                                                                         

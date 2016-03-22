@@ -16,20 +16,21 @@ functionParserTests :: TestTree
 functionParserTests =
     testGroup "Function definitions" [
         testCase "Parameter definitions" $
-                 (fnDefParams $ parseFn "a(b,c) {}")  @=?
+                 (fnDefParams $ parseFn "a(b,c) {}")  @?=
                          [("b", InferableType), ("c", InferableType)],
         testCase "Parameter definitions with types" $
-                 (fnDefParams $ parseFn "a (b : Module::Type) {}")  @=?
+                 (fnDefParams $ parseFn "a (b : Module::Type) {}")  @?=
                  [("b", SimpleType (QualifiedID "Module" $
                                     UnqualifiedID "Type"))],
         testCase "Return type" $
-                 (fnDefReturnType $ parseFn "a () : Out {}") @=?
+                 (fnDefReturnType $ parseFn "a () : Out {}") @?=
                  (SimpleType $ UnqualifiedID "Out"),
         testCase "Unspecified return type" $
-                 (fnDefReturnType $ parseFn "a(){}") @=? InferableType,
+                 (fnDefReturnType $ parseFn "a(){}") @?= InferableType,
         testCase "Body" $
-                 (fnDefBody $ parseFn "a(b){b;}") @=? [VarRef "b"],
+                 (fnDefBody $ parseFn "a(b){b;}") @?=
+                 [Expression $ VarRef "b"],
         testCase "Body with two expressions" $
-                 (fnDefBody $ parseFn "a(b,c){b;c;}") @=?
-                 [VarRef "b", VarRef "c"]
+                 (fnDefBody $ parseFn "a(b,c){b;c;}") @?=
+                 [Expression $ VarRef "b", Expression $ VarRef "c"]
     ]                         
