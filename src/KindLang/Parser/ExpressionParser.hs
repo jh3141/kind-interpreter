@@ -18,8 +18,10 @@ expr_ = buildPrattParser
 operatorList :: [OperatorInfo String ParseState ParseMonad Expr String]
 operatorList =
     [
+        OperatorInfo "->" (RAssoc 150) reverseFunctionApplicationLed,
         OperatorInfo "("  (LAssoc 150) functionApplicationLed,
         OperatorInfo "."  (LAssoc 150) orefLed,
+        OperatorInfo "\\" (LAssoc 150) binOpLed,
                      
         OperatorInfo "*"  (LAssoc 120) binOpLed,
         OperatorInfo "/"  (LAssoc 120) binOpLed,
@@ -42,7 +44,7 @@ operatorList =
         OperatorInfo "^"  (LAssoc  60) binOpLed,                     
         OperatorInfo "|"  (LAssoc  50) binOpLed,
         OperatorInfo "&&" (LAssoc  40) binOpLed,
-        OperatorInfo "^^" (LAssoc  35) binOpLed,  -- deviates from c++ version
+        OperatorInfo "^^" (LAssoc  30) binOpLed,
         OperatorInfo "||" (LAssoc  30) binOpLed,
 
         OperatorInfo ","  (RAssoc  10) binOpLed
@@ -51,14 +53,21 @@ operatorList =
 binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
 binOpLed (OperatorInfo name prec _) lhs pp = (BinOp name lhs) <$> (pp prec)
 
-functionApplicationLed :: LeftDenotation String ParseState ParseMonad Expr String
+reverseFunctionApplicationLed :: LeftDenotation
+                                 String ParseState ParseMonad Expr String
+reverseFunctionApplicationLed (OperatorInfo _ prec _) lhs pp =
+    (\ rhs -> mkFusedFunction rhs [lhs]) <$> (pp prec)
+                                         
+functionApplicationLed :: LeftDenotation
+                          String ParseState ParseMonad Expr String
 functionApplicationLed _ lhs pp =
     (mkFusedFunction lhs) <$>
              ((withtws (pp (LAssoc 10)) `sepBy` withtws comma) <*
               withtws (char ')'))
-    where
-      mkFusedFunction (ORef obj sid) exprs = OMethod obj sid exprs
-      mkFusedFunction fn exprs = FunctionApplication fn exprs
+
+mkFusedFunction :: Expr -> [Expr] -> Expr
+mkFusedFunction (ORef obj sid) exprs = OMethod obj sid exprs
+mkFusedFunction fn exprs = FunctionApplication fn exprs
 
 orefLed :: LeftDenotation String ParseState ParseMonad Expr String
 orefLed _ lhs _ = (ORef lhs) <$> scopedID_

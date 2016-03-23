@@ -48,5 +48,11 @@ expressionParserTests =
                  parseExpr "a.b(c)" @?=
                  OMethod (VarRef "a") (UnqualifiedID "b") [VarRef "c"],
         testCase "string literal" $
-                 parseExpr "\"hello\"" @?= StringLiteral "hello"
+                 parseExpr "\"hello\"" @?= StringLiteral "hello",
+        testCase "function partial and left application" $
+                 parseExpr "\"world\" -> testfn\\\"hello\"" @?=
+                 FunctionApplication
+                     (BinOp "\\" (VarRef "testfn") (StringLiteral "hello"))
+                     [StringLiteral "world"]
+                     
     ]                       
