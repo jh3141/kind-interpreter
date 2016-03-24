@@ -55,5 +55,6 @@ test-suite kind-tests
                    ParserTests.Function
                    ParserTests.Expression
                    ParserTests.Statement
+                   AnalysisTests.TypeResolution
                    
                                                                         

@@ -6,6 +6,7 @@ import ParserTests.CombinatorTests
 import ParserTests.Function
 import ParserTests.Expression
 import ParserTests.Statement
+import AnalysisTests.TypeResolution
     
 main :: IO ()
 main = defaultMain tests
@@ -18,6 +19,9 @@ tests = testGroup "Tests" [
                    functionParserTests :
                    expressionParserTests :
                    statementParserTests :
+                   []
+         testGroup "Analysis" $
+                   typeResolutionTests :
                    []
         ]
 
