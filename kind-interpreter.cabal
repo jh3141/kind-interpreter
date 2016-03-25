@@ -28,7 +28,8 @@ library
                     KindLang.Parser.BasicTokens,
                     KindLang.Parser.ExpressionParser,
                     KindLang.Parser.State,
-                    KindLang.Parser.StatementParser
+                    KindLang.Parser.StatementParser,
+                    KindLang.Analysis.ResolveTypes
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
