@@ -1,5 +1,7 @@
 module KindLang.Data.AST where
 
+import Data.Maybe
+
 data ScopedID = 
      UnqualifiedID String |
      QualifiedID String ScopedID
@@ -63,7 +65,7 @@ data VariableInitializer =
 
 -- functions for common manipulations of the AST
 maybeOrInferable :: Maybe TypeDescriptor -> TypeDescriptor
-maybeOrInferable = maybe InferableType id
+maybeOrInferable = fromMaybe InferableType
 
 fnDefInstances :: Definition -> [FunctionInstance]
 fnDefInstances (FunctionDefinition i) = i

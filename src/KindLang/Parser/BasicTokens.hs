@@ -35,7 +35,7 @@ operator_  = (many1 $ oneOf "!$%^&*-+=~#<>:@\\|") <|>
              string "."
 
 intLiteral_ :: Parser Expr
-intLiteral_ = many1 digit >>= return . IntLiteral . read 
+intLiteral_ = IntLiteral . read <$> many1 digit  
 
 -- fixme escapes, etc.
 stringLiteral_ :: Parser Expr

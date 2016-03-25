@@ -51,17 +51,17 @@ operatorList =
     ]
 
 binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
-binOpLed (OperatorInfo name prec _) lhs pp = (BinOp name lhs) <$> (pp prec)
+binOpLed (OperatorInfo name prec _) lhs pp = BinOp name lhs <$> pp prec
 
 reverseFunctionApplicationLed :: LeftDenotation
                                  String ParseState ParseMonad Expr String
 reverseFunctionApplicationLed (OperatorInfo _ prec _) lhs pp =
-    (\ rhs -> mkFusedFunction rhs [lhs]) <$> (pp prec)
+    (\ rhs -> mkFusedFunction rhs [lhs]) <$> pp prec
                                          
 functionApplicationLed :: LeftDenotation
                           String ParseState ParseMonad Expr String
 functionApplicationLed _ lhs pp =
-    (mkFusedFunction lhs) <$>
+    mkFusedFunction lhs <$>
              ((withtws (pp (LAssoc 10)) `sepBy` withtws comma) <*
               withtws (char ')'))
 
@@ -70,7 +70,7 @@ mkFusedFunction (ORef obj sid) exprs = OMethod obj sid exprs
 mkFusedFunction fn exprs = FunctionApplication fn exprs
 
 orefLed :: LeftDenotation String ParseState ParseMonad Expr String
-orefLed _ lhs _ = (ORef lhs) <$> scopedID_
+orefLed _ lhs _ = ORef lhs <$> scopedID_
                    
 prefixOperatorList :: [PrefixOperatorInfo String ParseState ParseMonad Expr String]
 prefixOperatorList =

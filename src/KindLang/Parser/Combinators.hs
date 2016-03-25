@@ -57,7 +57,7 @@ sepBy1Lazy item sep = liftA2 (:)
 
 -- | Apply a given process and ignore the result
 ignoreResult :: Applicative f =>  f a -> f ()
-ignoreResult p = p *> (pure ())
+ignoreResult p = p *> pure ()
                  
                  
 -- | sequential merging of application results into a list, where the right
@@ -70,7 +70,7 @@ a1 <:> a2 = liftA2 (:) a1 a2
 -- hand side is not already a list
 (<::>) :: Applicative f => f a -> f a -> f [a]
 infixr 0 <::>         
-a1 <::> a2 = a1 <:> (fmap singleton a2)
+a1 <::> a2 = a1 <:> fmap singleton a2
 
 -- | merging of two application results into a pair
 (<&>) :: Applicative f => f a -> f b -> f (a,b)

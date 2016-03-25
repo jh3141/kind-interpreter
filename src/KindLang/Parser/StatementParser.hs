@@ -59,7 +59,7 @@ functionApplication_ :: Parser [Expr]
 functionApplication_ =
     breakCommas <$> bracketed (withtws expr_)
     where
-      breakCommas (BinOp "," a b) = a:(breakCommas b)
+      breakCommas (BinOp "," a b) = a:breakCommas b
       breakCommas a               = [a]
                         
 initExpr_ :: Parser Expr

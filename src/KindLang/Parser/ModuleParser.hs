@@ -36,7 +36,7 @@ type DeclarationP = Parser (String,Definition)
 declaration_ :: DeclarationP
 declaration_ =
     classDeclaration_ <|>
-    (try variableDeclaration_) <|>
+    try variableDeclaration_ <|>
     functionDeclaration_
     --fixme eliminating the try here would speed things up a bit
 
@@ -68,7 +68,7 @@ functionDeclaration_ :: DeclarationP
 functionDeclaration_ =
     withtws identifier_ <&>
             (FunctionDefinition <$>
-             ((withtws functionInstance_) `sepBy1` (withtws comma)))
+             (withtws functionInstance_ `sepBy1` withtws comma))
     
 functionInstance_ :: Parser FunctionInstance            
 functionInstance_ = liftM3 FunctionInstance
