@@ -24,12 +24,14 @@ library
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser,
                     KindLang.Data.AST,
+                    KindLang.Data.Error,
                     KindLang.Internal,
                     KindLang.Parser.BasicTokens,
                     KindLang.Parser.ExpressionParser,
                     KindLang.Parser.State,
                     KindLang.Parser.StatementParser,
-                    KindLang.Analysis.ResolveTypes
+                    KindLang.Analysis.ResolveTypes,
+                    KindLang.Analysis.BuildTypeCatalogue
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
@@ -49,13 +51,15 @@ test-suite kind-tests
                    tasty >= 0.10,
                    tasty-hunit >= 0.9,
                    parsec >= 3.1 && < 4,
-                   kind-interpreter
+                   kind-interpreter,
+                   containers >= 0.5.6.2 && < 0.6                   
   other-modules:   ParserTests.Module
                    ParserTests.Util
                    ParserTests.CombinatorTests
                    ParserTests.Function
                    ParserTests.Expression
                    ParserTests.Statement
+                   AnalysisTests.TypeCatalogue
                    AnalysisTests.TypeResolution
                    
                                                                         
