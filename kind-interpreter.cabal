@@ -46,7 +46,7 @@ test-suite kind-tests
   type:            exitcode-stdio-1.0
   main-is:         Main.hs
   build-depends:   base >= 4,
-                   tasty >= 0.11,
+                   tasty >= 0.10,
                    tasty-hunit >= 0.9,
                    parsec >= 3.1 && < 4,
                    kind-interpreter

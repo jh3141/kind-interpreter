@@ -6,3 +6,8 @@ import KindLang.Data.AST
 import KindLang.Analysis.ResolveTypes
 
     
+typeResolutionTests :: TestTree
+typeResolutionTests =
+    testGroup "Type resolution"
+    [
+    ]

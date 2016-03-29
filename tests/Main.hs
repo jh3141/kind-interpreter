@@ -19,7 +19,7 @@ tests = testGroup "Tests" [
                    functionParserTests :
                    expressionParserTests :
                    statementParserTests :
-                   []
+                   [],
          testGroup "Analysis" $
                    typeResolutionTests :
                    []
