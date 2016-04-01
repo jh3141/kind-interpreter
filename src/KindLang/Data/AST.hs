@@ -71,3 +71,6 @@ fnDefInstances :: Definition -> [FunctionInstance]
 fnDefInstances (FunctionDefinition i) = i
 fnDefInstances _ = []
                    
+qualifiedBy :: ScopedID -> ScopedID -> ScopedID
+i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
+i `qualifiedBy` (QualifiedID s s') = QualifiedID s (i `qualifiedBy` s')

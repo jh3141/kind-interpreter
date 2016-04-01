@@ -17,4 +17,7 @@ buildCatalogues loader m =
     where
       definitionMap = Map.fromList $ moduleDeclarationList m
       addScopedIds = Map.mapWithKey (\k v -> (scopedIdFor k, v)) 
-      scopedIdFor string = UnqualifiedID string -- fixme
+      scopedIdFor string =
+          case moduleName m of
+            Just mid -> (UnqualifiedID string) `qualifiedBy`mid
+            Nothing  -> (UnqualifiedID string)

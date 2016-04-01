@@ -27,7 +27,23 @@ catalogueTests =
                    nullLoader
                    (Module Nothing []
                         [("MyClass", ClassDefinition[])])) ! "MyClass") @?=
-                 (UnqualifiedID "MyClass", ClassDefinition [])
+                 (UnqualifiedID "MyClass", ClassDefinition []),
+        testCase "Catalogue contains module function definition" $
+                 (moduleCataloguePublic (buildAndGetCat
+                   nullLoader
+                   (Module Nothing []
+                        [("myFunction", FunctionDefinition [])]))
+                  ! "myFunction") @?=
+                 (UnqualifiedID "myFunction", FunctionDefinition []),
+        testCase "Catalogue items qualified when module has name" $
+                 (moduleCataloguePublic (buildAndGetCat
+                   nullLoader
+                   (Module (Just $ QualifiedID "My" $ UnqualifiedID "Module")
+                        []
+                        [("MyClass", ClassDefinition[])])) ! "MyClass") @?=
+                 (QualifiedID "My" $ QualifiedID "Module" $
+                              UnqualifiedID "MyClass", ClassDefinition [])
+        
                                                   
         
     ]
