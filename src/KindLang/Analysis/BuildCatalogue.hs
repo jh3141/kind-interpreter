@@ -12,5 +12,9 @@ data ModuleCatalogues = ModuleCatalogues {
       } deriving (Show, Eq)
                  
 buildCatalogues :: ModuleLoader -> Module -> Either KindError ModuleCatalogues
-buildCatalogues loader m = Right $ ModuleCatalogues Map.empty Map.empty
-                      
+buildCatalogues loader m =
+    Right $ ModuleCatalogues (addScopedIds definitionMap) Map.empty
+    where
+      definitionMap = Map.fromList $ moduleDeclarationList m
+      addScopedIds = Map.mapWithKey (\k v -> (scopedIdFor k, v)) 
+      scopedIdFor string = UnqualifiedID string -- fixme
