@@ -6,7 +6,7 @@ import ParserTests.CombinatorTests
 import ParserTests.Function
 import ParserTests.Expression
 import ParserTests.Statement
-import AnalysisTests.TypeCatalogue
+import AnalysisTests.Catalogue
 import AnalysisTests.TypeResolution
     
 main :: IO ()
@@ -22,7 +22,7 @@ tests = testGroup "Tests" [
                    statementParserTests :
                    [],
          testGroup "Analysis" $
-                   typeCatalogueTests :
+                   catalogueTests :
                    typeResolutionTests :
                    []
         ]

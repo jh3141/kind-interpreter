@@ -31,7 +31,7 @@ library
                     KindLang.Parser.State,
                     KindLang.Parser.StatementParser,
                     KindLang.Analysis.ResolveTypes,
-                    KindLang.Analysis.BuildTypeCatalogue
+                    KindLang.Analysis.BuildCatalogue
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 
@@ -59,7 +59,7 @@ test-suite kind-tests
                    ParserTests.Function
                    ParserTests.Expression
                    ParserTests.Statement
-                   AnalysisTests.TypeCatalogue
+                   AnalysisTests.Catalogue
                    AnalysisTests.TypeResolution
                    
                                                                         
