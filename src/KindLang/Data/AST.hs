@@ -74,3 +74,15 @@ fnDefInstances _ = []
 qualifiedBy :: ScopedID -> ScopedID -> ScopedID
 i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
 i `qualifiedBy` (QualifiedID s s') = QualifiedID s (i `qualifiedBy` s')
+
+qualifierOf :: ScopedID -> Maybe ScopedID
+qualifierOf (UnqualifiedID _) = Nothing
+qualifierOf (QualifiedID s (UnqualifiedID _)) = Just $ UnqualifiedID s
+qualifierOf (QualifiedID s s') = Just (QualifiedID s
+                                       (fromJust $ qualifierOf s'))
+unscopedIdOf :: ScopedID -> String
+unscopedIdOf (UnqualifiedID s) = s
+unscopedIdOf (QualifiedID _ s') = unscopedIdOf s'
+                                  
+                                 
+      

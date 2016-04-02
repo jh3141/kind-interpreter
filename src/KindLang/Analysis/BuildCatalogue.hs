@@ -45,7 +45,25 @@ importModules loader (moduleImport:imports) imported =
 importModule :: ModuleLoader -> ModuleImport ->
                 Either KindError Catalogue
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
+importModule loader (UnqualifiedModuleImport sid False) =
+    case qualifierOf sid of
+      Just msid -> (`catalogueWithOnly` [unscopedIdOf sid]) <$> loader msid
+      Nothing   -> Left $ InvalidImport sid
+                  "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"
+      
 importModule _ imp =
     Left $ InvalidImport (UnqualifiedID "*")
                          ("Unimplemented import type " ++ (show imp))
          
+
+-- this implementation has a complexity that grows linearly
+-- with the number of ids to retain.  It would be possible to
+-- implement it so that the complexity grows more slowly than this,
+-- but it is not entirely clear that this is useful.
+-- also consider what existing typeclasses could be used instead of
+-- a list of strings, in order to allow for the caller to decide what
+-- is the most appropriate structure for them.
+catalogueWithOnly :: Catalogue -> [String] -> Catalogue
+catalogueWithOnly cat identifiers =
+    Map.filterWithKey (\k _ -> elem k identifiers) cat
+       

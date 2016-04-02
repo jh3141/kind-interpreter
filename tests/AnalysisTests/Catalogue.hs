@@ -48,7 +48,20 @@ catalogueTests =
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
                     myModuleWithImports)) ! "MyClass") @?=
-                 (myClassSID, ClassDefinition [])
+                 (myClassSID, ClassDefinition []),
+        testCase "Imported module with filter contains included item" $
+                 ((moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithFilteredImports)) ! "MyClass") @?=
+                 (myClassSID, ClassDefinition []),
+        testCase "Item filtered from import not in map" $
+                 (Map.lookup "MyOtherClass"
+                  (moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithFilteredImports))) @?=
+                 Nothing
                                                   
         
     ]
@@ -57,7 +70,9 @@ myModuleId :: ScopedID
 myModuleId = QualifiedID "My" $ UnqualifiedID "Module"
              
 myModule :: Module
-myModule = Module (Just myModuleId) [] [("MyClass", ClassDefinition[])]
+myModule = Module (Just myModuleId) []
+           [("MyClass", ClassDefinition[]),
+            ("MyOtherClass", ClassDefinition[])]
 
 myClassSID :: ScopedID
 myClassSID = QualifiedID "My" $ QualifiedID "Module" $ UnqualifiedID "MyClass"
@@ -73,3 +88,9 @@ myModuleWithImports :: Module
 myModuleWithImports = Module (Nothing)
                       [UnqualifiedModuleImport myModuleId True] []
                                                                 
+myModuleWithFilteredImports :: Module
+myModuleWithFilteredImports =
+    Module (Nothing)
+           [UnqualifiedModuleImport
+            ((UnqualifiedID "MyClass") `qualifiedBy` myModuleId)
+            False] []
