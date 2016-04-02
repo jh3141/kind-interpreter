@@ -3,12 +3,13 @@ module AnalysisTests.Catalogue (catalogueTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
+import KindLang.Data.Error
 import KindLang.Analysis.BuildCatalogue
 import qualified Data.Map as Map
 import Data.Map ((!))
     
 nullLoader :: ModuleLoader
-nullLoader = const Nothing
+nullLoader sid = Left $ InvalidImport sid "Could not find module"
 
 buildAndGetCat :: ModuleLoader -> Module -> ModuleCatalogues
 buildAndGetCat l m = case buildCatalogues l m of
@@ -36,14 +37,39 @@ catalogueTests =
                   ! "myFunction") @?=
                  (UnqualifiedID "myFunction", FunctionDefinition []),
         testCase "Catalogue items qualified when module has name" $
-                 (moduleCataloguePublic (buildAndGetCat
-                   nullLoader
-                   (Module (Just $ QualifiedID "My" $ UnqualifiedID "Module")
-                        []
-                        [("MyClass", ClassDefinition[])])) ! "MyClass") @?=
-                 (QualifiedID "My" $ QualifiedID "Module" $
-                              UnqualifiedID "MyClass", ClassDefinition [])
-        
+                 ((moduleCataloguePublic
+                   (buildAndGetCat nullLoader myModule)) ! "MyClass") @?=
+                 (myClassSID, ClassDefinition []),
+        testCase "Error importing unknown module" $
+                 (buildCatalogues nullLoader myModuleWithImports) @?=
+                 (Left $ InvalidImport myModuleId "Could not find module"),
+        testCase "Imported module items in private list" $
+                 ((moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithImports)) ! "MyClass") @?=
+                 (myClassSID, ClassDefinition [])
                                                   
         
     ]
+
+myModuleId :: ScopedID
+myModuleId = QualifiedID "My" $ UnqualifiedID "Module"
+             
+myModule :: Module
+myModule = Module (Just myModuleId) [] [("MyClass", ClassDefinition[])]
+
+myClassSID :: ScopedID
+myClassSID = QualifiedID "My" $ QualifiedID "Module" $ UnqualifiedID "MyClass"
+             
+-- nb this definition does not break circular dependencies!
+loaderForModule :: ScopedID -> Module -> ModuleLoader
+loaderForModule sid m sidQ | sid == sidQ
+                               = moduleCataloguePublic <$>
+                                 buildCatalogues nullLoader m
+loaderForModule _ _ sid        = nullLoader sid
+                            
+myModuleWithImports :: Module
+myModuleWithImports = Module (Nothing)
+                      [UnqualifiedModuleImport myModuleId True] []
+                                                                
