@@ -6,6 +6,7 @@ import KindLang.Parser.State
 import Control.Monad
 import KindLang.Util.Control
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
     
 -- common separator characters
 semicolon :: Parser Char

@@ -1,17 +1,17 @@
 module KindLang.Analysis.BuildCatalogue where
 
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
 import KindLang.Data.Error
+import KindLang.Data.Catalogue
 import qualified Data.Map as Map
 
-type ModuleLoader = ScopedID -> Either KindError Catalogue
-type Catalogue = Map.Map String (ScopedID, Definition)
 data ModuleCatalogues = ModuleCatalogues {
       moduleCataloguePublic :: Catalogue,
       moduleCataloguePrivate :: Catalogue
       } deriving (Show, Eq)
                  
-buildCatalogues :: ModuleLoader -> Module -> Either KindError ModuleCatalogues
+buildCatalogues :: ModuleLoader -> Module -> KErr ModuleCatalogues
 buildCatalogues loader m =
     case importModules loader (moduleImportList m) Map.empty  of
       Left err ->
@@ -30,7 +30,7 @@ buildCatalogues loader m =
 -- fixme this could be implemented as  a fold, but I'm too lazy to work
 -- out how right now.
 importModules :: ModuleLoader -> [ModuleImport] -> Catalogue ->
-                 Either KindError Catalogue
+                 KErr Catalogue
                         
 importModules _ [] imported =
     Right imported
@@ -42,8 +42,7 @@ importModules loader (moduleImport:imports) imported =
           importModules loader imports
                         (Map.union imported importedDefinitions)
 
-importModule :: ModuleLoader -> ModuleImport ->
-                Either KindError Catalogue
+importModule :: ModuleLoader -> ModuleImport -> KErr Catalogue
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) =
     case qualifierOf sid of
@@ -56,14 +55,3 @@ importModule _ imp =
                          ("Unimplemented import type " ++ (show imp))
          
 
--- this implementation has a complexity that grows linearly
--- with the number of ids to retain.  It would be possible to
--- implement it so that the complexity grows more slowly than this,
--- but it is not entirely clear that this is useful.
--- also consider what existing typeclasses could be used instead of
--- a list of strings, in order to allow for the caller to decide what
--- is the most appropriate structure for them.
-catalogueWithOnly :: Catalogue -> [String] -> Catalogue
-catalogueWithOnly cat identifiers =
-    Map.filterWithKey (\k _ -> elem k identifiers) cat
-       

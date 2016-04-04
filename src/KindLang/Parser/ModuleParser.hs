@@ -6,10 +6,10 @@ import Data.Maybe
 import Data.Either
 
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
 import KindLang.Parser.Combinators
 import KindLang.Parser.BasicTokens
 import KindLang.Parser.State
-import KindLang.Parser.ExpressionParser
 import KindLang.Parser.StatementParser
 
 module_ :: Parser Module

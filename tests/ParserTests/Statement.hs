@@ -3,6 +3,7 @@ module ParserTests.Statement (statementParserTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
 import KindLang.Parser.StatementParser
 import Text.Parsec
     

@@ -3,6 +3,7 @@ module ParserTests.Expression (expressionParserTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
 import KindLang.Parser.ExpressionParser
 import Text.Parsec
     

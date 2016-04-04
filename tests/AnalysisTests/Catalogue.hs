@@ -3,7 +3,9 @@ module AnalysisTests.Catalogue (catalogueTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
+import KindLang.Data.BasicTypes
 import KindLang.Data.Error
+import KindLang.Data.Catalogue
 import KindLang.Analysis.BuildCatalogue
 import qualified Data.Map as Map
 import Data.Map ((!))
@@ -61,7 +63,15 @@ catalogueTests =
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
                     myModuleWithFilteredImports))) @?=
-                 Nothing
+                 Nothing,
+        testCase "Import qualified" $
+                 (lookupHierarchical
+                  (moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithQualifiedImports))
+                  myClassSID) @?= Right (myClassSID, ClassDefinition [])
+                                           
                                                   
         
     ]
@@ -94,3 +104,11 @@ myModuleWithFilteredImports =
            [UnqualifiedModuleImport
             ((UnqualifiedID "MyClass") `qualifiedBy` myModuleId)
             False] []
+
+myModuleWithQualifiedImports :: Module
+myModuleWithQualifiedImports =
+    Module (Nothing)
+           [QualifiedModuleImport
+            ((UnqualifiedID "MyClass") `qualifiedBy` myModuleId)
+            False
+            Nothing] []

@@ -1,15 +1,11 @@
 module KindLang.Data.AST where
 
 import Data.Maybe
-
-data ScopedID = 
-     UnqualifiedID String |
-     QualifiedID String ScopedID
-     deriving (Show, Eq, Ord)
+import KindLang.Data.BasicTypes
     
 data ModuleImport = 
      UnqualifiedModuleImport ScopedID Bool |
-     QualifiedModuleImport ScopedID Bool ScopedID
+     QualifiedModuleImport ScopedID Bool (Maybe ScopedID)
      deriving (Show, Eq)
      
 data Module = Module {
@@ -28,9 +24,11 @@ data FunctionInstance = FunctionInstance {
 data Definition =
      ClassDefinition [ClassMember] |
      FunctionDefinition [FunctionInstance] |
-     VariableDefinition TypeDescriptor VariableInitializer
+     VariableDefinition TypeDescriptor VariableInitializer |
+     Namespace (IdentMap Definition)
      deriving (Show, Eq)
-
+type IdentDefinition = Identified Definition
+    
 data ClassMember = ClassMember String Visibility Definition
      deriving (Show, Eq)
 
@@ -71,18 +69,4 @@ fnDefInstances :: Definition -> [FunctionInstance]
 fnDefInstances (FunctionDefinition i) = i
 fnDefInstances _ = []
                    
-qualifiedBy :: ScopedID -> ScopedID -> ScopedID
-i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
-i `qualifiedBy` (QualifiedID s s') = QualifiedID s (i `qualifiedBy` s')
-
-qualifierOf :: ScopedID -> Maybe ScopedID
-qualifierOf (UnqualifiedID _) = Nothing
-qualifierOf (QualifiedID s (UnqualifiedID _)) = Just $ UnqualifiedID s
-qualifierOf (QualifiedID s s') = Just (QualifiedID s
-                                       (fromJust $ qualifierOf s'))
-unscopedIdOf :: ScopedID -> String
-unscopedIdOf (UnqualifiedID s) = s
-unscopedIdOf (QualifiedID _ s') = unscopedIdOf s'
-                                  
                                  
-      
