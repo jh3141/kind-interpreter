@@ -25,10 +25,25 @@ lookupHierarchical :: Catalogue -> ScopedID -> KErr IdentDefinition
 lookupHierarchical cat sid@(QualifiedID s s') =
     case Map.lookup s cat of
       Nothing -> Left $ IdentifierNotFound sid
-      Just (gsid, Namespace cat2) ->
+      Just (_, Namespace cat2) ->
           case lookupHierarchical cat2 s' of
             Left (IdentifierNotFound _) -> Left $ IdentifierNotFound sid
             r -> r
       Just (gsid, _) -> Left $ NotNamespace gsid s'
-                        
+lookupHierarchical cat sid@(UnqualifiedID s) =
+    maybe (Left $ IdentifierNotFound sid) Right $ Map.lookup s cat
                                            
+makeNamespace :: ScopedID -> Catalogue -> Catalogue
+makeNamespace sid cat =
+    recurse sid [] 
+    where
+      recurse (QualifiedID s s') qualifiers =
+          Map.singleton s
+             (s `qualifiedByStrings` qualifiers,
+              Namespace $ recurse s' (s:qualifiers))
+      recurse (UnqualifiedID s) qualifiers =
+          Map.singleton s
+             (s `qualifiedByStrings` qualifiers,
+              Namespace cat)
+             
+                                      

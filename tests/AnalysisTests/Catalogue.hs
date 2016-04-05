@@ -108,7 +108,5 @@ myModuleWithFilteredImports =
 myModuleWithQualifiedImports :: Module
 myModuleWithQualifiedImports =
     Module (Nothing)
-           [QualifiedModuleImport
-            ((UnqualifiedID "MyClass") `qualifiedBy` myModuleId)
-            False
-            Nothing] []
+           [QualifiedModuleImport myModuleId True Nothing]
+           []

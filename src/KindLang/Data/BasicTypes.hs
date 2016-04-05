@@ -15,6 +15,9 @@ qualifiedBy :: ScopedID -> ScopedID -> ScopedID
 i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
 i `qualifiedBy` (QualifiedID s s') = QualifiedID s (i `qualifiedBy` s')
 
+qualifiedByStrings :: String -> [String] -> ScopedID
+qualifiedByStrings s q = foldr QualifiedID (UnqualifiedID s) q
+                       
 qualifierOf :: ScopedID -> Maybe ScopedID
 qualifierOf (UnqualifiedID _) = Nothing
 qualifierOf (QualifiedID s (UnqualifiedID _)) = Just $ UnqualifiedID s

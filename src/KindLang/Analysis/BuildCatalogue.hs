@@ -42,6 +42,7 @@ importModules loader (moduleImport:imports) imported =
           importModules loader imports
                         (Map.union imported importedDefinitions)
 
+-- fixme refactor this - there's a lot of duplication here.
 importModule :: ModuleLoader -> ModuleImport -> KErr Catalogue
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) =
@@ -49,7 +50,10 @@ importModule loader (UnqualifiedModuleImport sid False) =
       Just msid -> (`catalogueWithOnly` [unscopedIdOf sid]) <$> loader msid
       Nothing   -> Left $ InvalidImport sid
                   "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"
-      
+
+importModule loader (QualifiedModuleImport sid True Nothing) =
+    either Left (Right . makeNamespace sid) (loader sid)
+                  
 importModule _ imp =
     Left $ InvalidImport (UnqualifiedID "*")
                          ("Unimplemented import type " ++ (show imp))
