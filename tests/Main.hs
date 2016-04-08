@@ -8,6 +8,7 @@ import ParserTests.Expression
 import ParserTests.Statement
 import AnalysisTests.Catalogue
 import AnalysisTests.TypeResolution
+import TypeTests.ScopedID
     
 main :: IO ()
 main = defaultMain tests
@@ -24,6 +25,9 @@ tests = testGroup "Tests" [
          testGroup "Analysis" $
                    catalogueTests :
                    typeResolutionTests :
+                   [],
+         testGroup "Type tests" $
+                   scopedIDTests :
                    []
         ]
 
