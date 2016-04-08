@@ -6,7 +6,7 @@ import qualified Data.Map as Map
 data ScopedID = 
      UnqualifiedID String |
      QualifiedID String ScopedID
-     deriving (Show, Eq, Ord)
+     deriving (Eq, Ord)
 
 type Identified o = (ScopedID, o)
 type IdentMap o = Map.Map String (Identified o)
@@ -26,4 +26,11 @@ qualifierOf (QualifiedID s s') = Just (QualifiedID s
 unscopedIdOf :: ScopedID -> String
 unscopedIdOf (UnqualifiedID s) = s
 unscopedIdOf (QualifiedID _ s') = unscopedIdOf s'
-                                  
+
+scopedIdToList :: ScopedID -> [String]
+scopedIdToList (UnqualifiedID s) = [s]
+scopedIdToList (QualifiedID s s') = s:(scopedIdToList s')
+
+instance Show ScopedID where
+    show s = "(ScopedID " ++ show (foldl1 (\ a b -> a ++ "::" ++ b)
+                                          (scopedIdToList s)) ++ ")"
