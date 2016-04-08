@@ -70,10 +70,15 @@ catalogueTests =
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedImports))
-                  myClassSID) @?= Right (myClassSID, ClassDefinition [])
-                                           
-                                                  
-        
+                  myClassSID) @?= Right (myClassSID, ClassDefinition []),
+        testCase "Import qualified with renaming" $
+                 (lookupHierarchical
+                  (moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithRenamedImports))
+                  (QualifiedID "I" $ UnqualifiedID "MyClass"))
+                 @?= Right (myClassSID, ClassDefinition [])
     ]
 
 myModuleId :: ScopedID
@@ -109,4 +114,10 @@ myModuleWithQualifiedImports :: Module
 myModuleWithQualifiedImports =
     Module (Nothing)
            [QualifiedModuleImport myModuleId True Nothing]
+           []
+
+myModuleWithRenamedImports :: Module
+myModuleWithRenamedImports =
+    Module (Nothing)
+           [QualifiedModuleImport myModuleId True (Just (UnqualifiedID "I"))]
            []

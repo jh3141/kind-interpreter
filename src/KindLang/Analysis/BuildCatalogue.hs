@@ -51,8 +51,8 @@ importModule loader (UnqualifiedModuleImport sid False) =
       Nothing   -> Left $ InvalidImport sid
                   "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"
 
-importModule loader (QualifiedModuleImport sid True Nothing) =
-    either Left (Right . makeNamespace sid) (loader sid)
+importModule loader (QualifiedModuleImport sid True reqid) =
+    either Left (Right . makeNamespace (maybe sid id reqid)) (loader sid)
                   
 importModule _ imp =
     Left $ InvalidImport (UnqualifiedID "*")
