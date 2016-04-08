@@ -1,5 +1,7 @@
 module KindLang.Analysis.BuildCatalogue where
 
+import Data.Maybe
+    
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
@@ -45,17 +47,16 @@ importModules loader (moduleImport:imports) imported =
 -- fixme refactor this - there's a lot of duplication here.
 importModule :: ModuleLoader -> ModuleImport -> KErr Catalogue
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
-importModule loader (UnqualifiedModuleImport sid False) =
+importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
+importModule loader (QualifiedModuleImport sid True reqid) =
+    either Left (Right . makeNamespace (maybe sid id reqid)) (loader sid)
+importModule loader (QualifiedModuleImport sid False reqid) =
+    either Left (Right . makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid)) (loadItem loader sid)
+
+-- load a single item from the module identified by its qualified id
+loadItem :: ModuleLoader -> ScopedID -> KErr Catalogue                         
+loadItem loader sid =
     case qualifierOf sid of
       Just msid -> (`catalogueWithOnly` [unscopedIdOf sid]) <$> loader msid
       Nothing   -> Left $ InvalidImport sid
                   "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"
-
-importModule loader (QualifiedModuleImport sid True reqid) =
-    either Left (Right . makeNamespace (maybe sid id reqid)) (loader sid)
-                  
-importModule _ imp =
-    Left $ InvalidImport (UnqualifiedID "*")
-                         ("Unimplemented import type " ++ (show imp))
-         
-

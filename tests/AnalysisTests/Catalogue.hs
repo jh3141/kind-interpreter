@@ -78,7 +78,23 @@ catalogueTests =
                     (loaderForModule myModuleId myModule)
                     myModuleWithRenamedImports))
                   (QualifiedID "I" $ UnqualifiedID "MyClass"))
-                 @?= Right (myClassSID, ClassDefinition [])
+                 @?= Right (myClassSID, ClassDefinition []),
+        testCase "Qualified filtered imports includes requested item" $
+                 (lookupHierarchical
+                  (moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithQualifiedFilteredImports))
+                  myClassSID) @?= Right (myClassSID, ClassDefinition []),
+        testCase "Qualified filtered imports excludes unrequested item" $
+                 (lookupHierarchical
+                  (moduleCataloguePrivate
+                   (buildAndGetCat
+                    (loaderForModule myModuleId myModule)
+                    myModuleWithQualifiedFilteredImports))
+                  myOtherClassSID) @?=
+                 Left (IdentifierNotFound myOtherClassSID)
+                 
     ]
 
 myModuleId :: ScopedID
@@ -91,6 +107,10 @@ myModule = Module (Just myModuleId) []
 
 myClassSID :: ScopedID
 myClassSID = QualifiedID "My" $ QualifiedID "Module" $ UnqualifiedID "MyClass"
+
+myOtherClassSID :: ScopedID
+myOtherClassSID = QualifiedID "My" $ QualifiedID "Module" $
+                  UnqualifiedID "MyOtherClass"
              
 -- nb this definition does not break circular dependencies!
 loaderForModule :: ScopedID -> Module -> ModuleLoader
@@ -106,9 +126,7 @@ myModuleWithImports = Module (Nothing)
 myModuleWithFilteredImports :: Module
 myModuleWithFilteredImports =
     Module (Nothing)
-           [UnqualifiedModuleImport
-            ((UnqualifiedID "MyClass") `qualifiedBy` myModuleId)
-            False] []
+           [UnqualifiedModuleImport myClassSID False] []
 
 myModuleWithQualifiedImports :: Module
 myModuleWithQualifiedImports =
@@ -121,3 +139,10 @@ myModuleWithRenamedImports =
     Module (Nothing)
            [QualifiedModuleImport myModuleId True (Just (UnqualifiedID "I"))]
            []
+
+myModuleWithQualifiedFilteredImports :: Module
+myModuleWithQualifiedFilteredImports =
+    Module (Nothing)
+           [QualifiedModuleImport myClassSID False Nothing]
+           []
+           
