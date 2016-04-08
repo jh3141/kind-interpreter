@@ -62,5 +62,6 @@ test-suite kind-tests
                    AnalysisTests.Catalogue
                    AnalysisTests.TypeResolution
                    TypeTests.ScopedID
+                   TypeTests.Catalogue
                    
                                                                         
