@@ -7,23 +7,28 @@ import KindLang.Data.Error
 import KindLang.Data.AST
     
 type ModuleLoader = ScopedID -> KErr Catalogue
+-- The type of catalogues.  Catalogues are a map from a hierarchical
+-- "resolvable id" to tuples containing a "canonical id" and a "definition".
 type Catalogue = IdentMap Definition
 
 -- | An empty catalogue.
 newCatalogue :: Catalogue
 newCatalogue = Map.empty
 
--- | Add a new item to a catalogue, creating new namespaces as necessary.
+-- | @catAdd c rid cid def@ adds a new item for definition @def@ with the
+-- resolvable id @rid@ and canonical id @cid@ to a catalogue @c@, creating
+-- new namespaces as necessary, and returning the updated catalogue.
+-- 
 -- May fail with an 'error' if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition,
 -- therefore callers should be careful to avoid this situation or to catch
 -- it in the IO monad.
-catAdd :: Catalogue -> ScopedID -> Definition -> Catalogue
-catAdd cat sid def =
-    updatedCat cat sid []
+catAdd :: Catalogue -> ScopedID -> ScopedID -> Definition -> Catalogue
+catAdd cat rid cid def =
+    updatedCat cat rid []
     where
       updatedCat c' (UnqualifiedID s) _ =
-          Map.insert s (sid,def) c'
+          Map.insert s (cid,def) c'
       updatedCat c' (QualifiedID s s') qualifiers | s `Map.notMember` c' =
           Map.insert s (s `qualifiedByStrings` qualifiers,
                         Namespace $ updatedCat newCatalogue s' (s:qualifiers)) c'
@@ -35,14 +40,22 @@ catAdd cat sid def =
                         Namespace $ updatedCat nscat s' (s:qualifiers))
                        c'
             _ -> error ("attempted to insert item into non-namespace definition "
-                        ++ "of catalogue " ++ show sid)
+                        ++ "of catalogue " ++ show rid)
 
--- | An operator for invoking 'catAdd'.  Second argument is a tuple
--- of the second and third arguments to catAdd (i.e. these arguments are
--- uncurried). Binds more tightly than |@|.
+-- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
+-- @cat |+| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
+-- Binds more tightly than |@|.
 (|+|) :: Catalogue -> (ScopedID, Definition) -> Catalogue
-(|+|) c = uncurry $ catAdd c
+c |+| (sid,def) = catAdd c sid sid def
 infixl 6 |+|
+
+-- | An operator for invoking 'catAdd' with different resolvable and canonical
+-- ids. @cat |++| (rid,cid,def)@ adds resolvable identifier @rid@ for
+-- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
+-- level as |+|.
+(|++|) :: Catalogue -> (ScopedID, ScopedID, Definition) -> Catalogue
+c |++| (rid, cid, def) = catAdd c rid cid def
+infixl 6 |++|
     
 -- | Filter a catalogue to contain only the items specified in a list
 -- of string identifiers.  Only examines top-level identifiers in the catalogue,

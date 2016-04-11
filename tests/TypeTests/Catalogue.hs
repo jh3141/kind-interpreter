@@ -43,7 +43,10 @@ catalogueTypeTests =
                  (catFlatten $
                   newCatalogue |+| (qid, def)
                                |+| (qid2, def)) @?=
-                 [ (qid2, qid2, def), (qid, qid, def) ] -- qid2 < qid
+                 [ (qid2, qid2, def), (qid, qid, def) ], -- qid2 < qid
+        testCase "Add item with canonical id different to resolvable id" $
+                 (catFlatten $ newCatalogue |++| (nqid, qid, def)) @?=
+                 [ (nqid, qid, def) ]
     ]
 
 def :: Definition
