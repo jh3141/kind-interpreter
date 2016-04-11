@@ -2,6 +2,7 @@ module KindLang.Data.BasicTypes where
 
 import Data.Maybe
 import qualified Data.Map as Map
+import KindLang.Util.Control
     
 data ScopedID = 
      UnqualifiedID String |
@@ -31,6 +32,9 @@ scopedIdToList :: ScopedID -> [String]
 scopedIdToList (UnqualifiedID s) = [s]
 scopedIdToList (QualifiedID s s') = s:(scopedIdToList s')
 
+listToScopedID :: [String] -> ScopedID
+listToScopedID = foldrn QualifiedID UnqualifiedID
+                 
 instance Show ScopedID where
     show s = "(ScopedID " ++ show (foldl1 (\ a b -> a ++ "::" ++ b)
                                           (scopedIdToList s)) ++ ")"
