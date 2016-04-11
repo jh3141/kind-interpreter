@@ -48,7 +48,8 @@ data TypeDescriptor =
      deriving (Show, Eq)
 
 data Expr =
-     VarRef String |
+     Annotated AExpr |
+     VarRef ScopedID |
      IntLiteral Int |
      StringLiteral String |
      BinOp String Expr Expr |
@@ -58,6 +59,26 @@ data Expr =
      OMethod Expr ScopedID [Expr]
      deriving (Show, Eq)
 
+data AExpr =
+     AVarRef ExprAnnotation ScopedID |
+     AIntLiteral ExprAnnotation Int |
+     AStringLiteral ExprAnnotation String |
+     ABinOp ExprAnnotation String AExpr AExpr |
+     APrefixOp ExprAnnotation String AExpr |
+     AFunctionApplication ExprAnnotation AExpr [AExpr] |
+     AORef ExprAnnotation AExpr ScopedID |
+     AOMethod ExprAnnotation AExpr ScopedID [AExpr]
+     deriving (Show, Eq)
+
+data ExprAnnotation =
+     ExprAnnotation TypeDescriptor [(String,ExprAnnotationData)]
+     deriving (Show, Eq)
+
+data ExprAnnotationData =
+     EADOptionTrue |
+     EADId ScopedID
+     deriving (Show, Eq)
+              
 data Statement =
      Expression Expr |
      VarDeclStatement String TypeDescriptor VariableInitializer
@@ -79,3 +100,9 @@ fnDefInstances (FunctionDefinition i) = i
 fnDefInstances _ = []
                    
                                  
+definitionTypeName :: Definition -> String
+definitionTypeName (ClassDefinition _) = "class"
+definitionTypeName (FunctionDefinition _) = "function"
+definitionTypeName (VariableDefinition _ _) = "variable"
+definitionTypeName (Namespace _) = "namespace"
+                                   

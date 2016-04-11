@@ -91,7 +91,7 @@ term_ parseSub = varRef_ <|>
                  stringLiteral_
 
 varRef_ :: ExprP
-varRef_ = fmap VarRef identifier_
+varRef_ = fmap VarRef scopedID_
 
     
 

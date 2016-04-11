@@ -6,7 +6,9 @@ import KindLang.Data.AST
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
-    
+
+-- fixme self-resolution of catalogues with references between themselves (if
+-- this is even necessary?)
 typeResolutionTests :: TestTree
 typeResolutionTests =
     testGroup "Type resolution"
@@ -37,7 +39,12 @@ typeResolutionTests =
                           (ClassMember "v" Public
                            (VariableDefinition
                             (ResolvedType simpleClass simpleClass def)
-                            VarInitNone))]))]
+                            VarInitNone))]))],
+        testCase "resolve variable reference expressions" $
+                 (resolveExpr testCatalogue $ VarRef simpleVar) @?=
+                 (Right $ AVarRef (ExprAnnotation
+                           (ResolvedType simpleClass simpleClass def)
+                           [("CanonicalID", EADId simpleVar)]) simpleVar)
     ]
 
 simpleClass :: ScopedID
@@ -50,13 +57,18 @@ renamedClass :: ScopedID
 renamedClass = listToScopedID ["renamed", "RenamedClass" ]
 originalClass :: ScopedID
 originalClass = listToScopedID ["original", "RenamedClass" ]
-                 
+simpleVar :: ScopedID
+simpleVar = listToScopedID ["simpleVar"]
+         
 testCatalogue :: Catalogue
 testCatalogue =
     newCatalogue |+| (simpleClass, ClassDefinition [])
                  |+| (simpleFn, FunctionDefinition [])
                  |+| (qualifiedClass, ClassDefinition [])
                  |++| (renamedClass, originalClass, ClassDefinition [])
+                 |+| (simpleVar, VariableDefinition
+                                   (ResolvedType simpleClass simpleClass def)
+                                   VarInitNone)
 
                    
 def :: Definition

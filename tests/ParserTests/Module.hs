@@ -68,16 +68,17 @@ moduleParserTests =
                           Module Nothing []
                                  [("varname",
                                    VariableDefinition
-                                       (SimpleType $ UnqualifiedID "T")
-                                       (VarInitExpr $ VarRef "a"))],
+                                     (SimpleType $ UnqualifiedID "T")
+                                     (VarInitExpr $ VarRef (UnqualifiedID "a")))],
         testCase "variable declaration with constructor" $
                  parseMod "varname : T(a,b);" @?=
                           Module Nothing []
                                  [("varname",
                                    VariableDefinition
-                                       (SimpleType $ UnqualifiedID "T")
-                                       (VarInitConstruct [VarRef "a",
-                                                          VarRef "b"]))],
+                                     (SimpleType $ UnqualifiedID "T")
+                                     (VarInitConstruct [
+                                       VarRef $ UnqualifiedID "a",
+                                       VarRef $ UnqualifiedID "b"]))],
         testCase "function declaration" $
                  parseMod "testFunction(){}" @?=
                           Module Nothing []

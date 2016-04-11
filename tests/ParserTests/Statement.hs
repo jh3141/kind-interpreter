@@ -21,7 +21,8 @@ statementParserTests =
                  Expression (BinOp "+" (IntLiteral 2) (IntLiteral 2)),
         testCase "Variable references allowed in expressions" $
                  parseStmt "a+1;" @?=
-                 Expression (BinOp "+" (VarRef "a") (IntLiteral 1)),
+                 Expression (BinOp "+" (VarRef $ UnqualifiedID "a")
+                                       (IntLiteral 1)),
         testGroup "Variable declarations"
         [
             testCase "With inferred type and init expression" $
