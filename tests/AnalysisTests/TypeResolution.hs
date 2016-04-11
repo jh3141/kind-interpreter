@@ -17,8 +17,15 @@ typeResolutionTests =
                           (SimpleType simpleClass)
                           VarInitNone))]) @?=
                  [("v", (VariableDefinition 
-                         (ResolvedType simpleClass
-                                       simpleClass (ClassDefinition []))
+                         (ResolvedType simpleClass simpleClass def)
+                         VarInitNone))],
+        testCase "resolve variable with renamed type" $
+                 (resolveDeflistTypes testCatalogue
+                  [("v", (VariableDefinition
+                          (SimpleType renamedClass)
+                          VarInitNone))]) @?=
+                 [("v", (VariableDefinition
+                         (ResolvedType renamedClass originalClass def)
                          VarInitNone))]
     ]
 
@@ -41,3 +48,5 @@ testCatalogue =
                  |++| (renamedClass, originalClass, ClassDefinition [])
 
                    
+def :: Definition
+def = (ClassDefinition [])       
