@@ -14,21 +14,19 @@ catalogueTypeTests =
         testCase "Empty catalogue is empty" $
                  Map.size newCatalogue @?= 0,
         testCase "Add item to catalogue" $
-                 (catAdd newCatalogue nqid def) |@| nqid @?=
-                 (Right $ ClassDefinition []),
+                 (newCatalogue |+| (nqid, def)) |@| nqid @?=
+                 (Right def),
         testCase "Add qualified item to catalogue" $
-                 (catAdd newCatalogue qid def) |@| qid @?=
-                 (Right $ ClassDefinition []),
+                 (newCatalogue |+| (qid, def)) |@| qid @?=
+                 (Right def),
         testCase "Add qualified item to catalogue in existing namespace" $
-                 (catAdd
-                  (catAdd newCatalogue qid def)
-                  qid2 (FunctionDefinition [])) |@| qid2 @?=
-                 (Right $ FunctionDefinition []),
+                 (newCatalogue |+| (qid, def)
+                               |+| (qid2, def2)) |@| qid2 @?=
+                 (Right def2),
         testCase "Adding item to existing namespace doesn't affect other items" $
-                 (catAdd
-                  (catAdd newCatalogue qid def)
-                  qid2 (FunctionDefinition [])) |@| qid @?=
-                 (Right $ ClassDefinition []),
+                 (newCatalogue |+| (qid, def)
+                               |+| (qid2, def2)) |@| qid @?=
+                 (Right def),
         testCase "Items with multiple levels of qualification" $
                  catFlatten
                  (newCatalogue
@@ -50,6 +48,8 @@ catalogueTypeTests =
 
 def :: Definition
 def = ClassDefinition []
+def2 :: Definition
+def2 = FunctionDefinition []        
 nqid :: ScopedID
 nqid = UnqualifiedID "nqid"
 nqid2 :: ScopedID
