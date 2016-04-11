@@ -2,6 +2,8 @@ module KindLang.Data.AST where
 
 import Data.Maybe
 import KindLang.Data.BasicTypes
+
+type DefList = [(String,Definition)]
     
 data ModuleImport = 
      UnqualifiedModuleImport ScopedID Bool |
@@ -11,7 +13,7 @@ data ModuleImport =
 data Module = Module {
      moduleName :: Maybe ScopedID,
      moduleImportList :: [ModuleImport],
-     moduleDeclarationList :: [(String,Definition)]
+     moduleDeclarationList :: DefList     -- FIXME shouldn't this be called moduleDefinitionList?
 } deriving (Show, Eq)
 
 data FunctionInstance = FunctionInstance {
@@ -35,7 +37,14 @@ data ClassMember = ClassMember String Visibility Definition
 data Visibility = Public | Protected | Private
      deriving (Show, Eq)
               
-data TypeDescriptor = SimpleType ScopedID | InferableType
+data TypeDescriptor =
+     SimpleType ScopedID |
+     InferableType |
+     ResolvedType {
+         resolvedTypeRID :: ScopedID,
+         resolvedTypeCanonicalID :: ScopedID,
+         resolvedTypeDefinition :: Definition
+     }
      deriving (Show, Eq)
 
 data Expr =
