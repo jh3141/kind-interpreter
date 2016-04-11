@@ -6,7 +6,8 @@ import Test.Tasty.HUnit
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
-
+import KindLang.Util.Control
+    
 catalogueTypeTests :: TestTree
 catalogueTypeTests =
     testGroup "Catalogue" [
@@ -29,8 +30,12 @@ catalogueTypeTests =
                   qid2 (FunctionDefinition [])) |@| qid @?=
                  (Right $ ClassDefinition []),
         testCase "Items with multiple levels of qualification" $
-                 catFlatten (catAdd newCatalogue mqid def) @?=
-                 [ (mqid, mqid, def) ],
+                 catFlatten
+                 (newCatalogue
+                      |+| (mqid, def)
+                      |+| (mmqid2, def)
+                      |+| (mmqid, def)) @?=
+                 [ (mmqid, mmqid, def), (mmqid2, mmqid2, def), (mqid, mqid, def) ],
         testCase "Flatten catalogue with only unqualified items" $
                  (catFlatten $
                   newCatalogue |+| (nqid, def)
@@ -55,3 +60,8 @@ qid2 :: ScopedID
 qid2 = QualifiedID "qid_a" $ UnqualifiedID "qid2_b"
 mqid :: ScopedID
 mqid = QualifiedID "qid_a" $ QualifiedID "qid3_b" $ UnqualifiedID "qid3_c"
+mmqid :: ScopedID
+mmqid = foldrn QualifiedID UnqualifiedID ["a","b","c","d","e","f"]
+mmqid2 :: ScopedID
+mmqid2 = foldrn QualifiedID UnqualifiedID ["a","b","c","g","h","i"]
+        
