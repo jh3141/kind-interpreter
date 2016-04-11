@@ -9,10 +9,15 @@ import KindLang.Data.AST
 type ModuleLoader = ScopedID -> KErr Catalogue
 type Catalogue = IdentMap Definition
 
-
+-- | An empty catalogue.
 newCatalogue :: Catalogue
 newCatalogue = Map.empty
 
+-- | Add a new item to a catalogue, creating new namespaces as necessary.
+-- May fail with an 'error' if an attempt is made to insert an item into
+-- a namespace but the namespace already exists as a non-namespace definition,
+-- therefore callers should be careful to avoid this situation or to catch
+-- it in the IO monad.
 catAdd :: Catalogue -> ScopedID -> Definition -> Catalogue
 catAdd cat sid def =
     updatedCat cat sid []
@@ -32,8 +37,18 @@ catAdd cat sid def =
             _ -> error ("attempted to insert item into non-namespace definition "
                         ++ "of catalogue " ++ show sid)
 
-                         
--- this implementation has a complexity that grows linearly
+-- | An operator for invoking 'catAdd'.  Second argument is a tuple
+-- of the second and third arguments to catAdd (i.e. these arguments are
+-- uncurried). Binds more tightly than |@|.
+(|+|) :: Catalogue -> (ScopedID, Definition) -> Catalogue
+(|+|) c = uncurry $ catAdd c
+infixl 6 |+|
+    
+-- | Filter a catalogue to contain only the items specified in a list
+-- of string identifiers.  Only examines top-level identifiers in the catalogue,
+-- so not useful for operating across scope levels.
+--
+-- This implementation has a complexity that grows linearly
 -- with the number of ids to retain.  It would be possible to
 -- implement it so that the complexity grows more slowly than this,
 -- but it is not entirely clear that this is useful.
@@ -43,7 +58,10 @@ catAdd cat sid def =
 catalogueWithOnly :: Catalogue -> [String] -> Catalogue
 catalogueWithOnly cat identifiers =
     Map.filterWithKey (\k _ -> elem k identifiers) cat
-       
+
+-- | Look up an identifier in a catalogue, returning a tuple of the the
+-- canonical identifier and definition for the item found, or an error
+-- otherwise.
 lookupHierarchical :: Catalogue -> ScopedID -> KErr IdentDefinition
 lookupHierarchical cat sid@(QualifiedID s s') =
     case Map.lookup s cat of
@@ -56,11 +74,15 @@ lookupHierarchical cat sid@(QualifiedID s s') =
 lookupHierarchical cat sid@(UnqualifiedID s) =
     maybe (Left $ IdentifierNotFound sid) Right $ Map.lookup s cat
 
--- like lookupHierarchical, but don't include the ID.
+-- | Like lookupHierarchical, but don't include the canonical ID in the result,
+-- just the definition. Binds at level (infixl 5), i.e. stronger than
+-- comparisons, but looser than arithmetic.
 (|@|) :: Catalogue -> ScopedID -> KErr Definition
 c |@| i =  (either Left $ Right . snd) (lookupHierarchical c i)
-infixl 5 |@| -- binds more strongly than comparisons, but less than arithmetic
+infixl 5 |@|
 
+-- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue
+-- 'cat', returning the modified catalogue.
 makeNamespace :: ScopedID -> Catalogue -> Catalogue
 makeNamespace sid cat =
     recurse sid [] 
@@ -74,4 +96,17 @@ makeNamespace sid cat =
              (s `qualifiedByStrings` qualifiers,
               Namespace cat)
              
-                                      
+
+-- | Map a catalogue to a list of tuples containing the identifier by
+-- which the item may be referenced, the canonical identifier of the item,
+-- and its definition.
+catFlatten :: Catalogue -> [(ScopedID,ScopedID,Definition)]
+catFlatten =
+    Map.foldWithKey (processItem []) []
+    where
+      processItem :: [String] -> String -> IdentDefinition ->
+                     [(ScopedID,ScopedID,Definition)] ->
+                     [(ScopedID,ScopedID,Definition)]
+      processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
+      processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
+                              
