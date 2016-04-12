@@ -123,3 +123,12 @@ catFlatten =
       processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
       processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
                               
+-- FIXME document and test these:
+resolveType :: Catalogue -> ScopedID -> KErr TypeDescriptor
+resolveType cat sid =
+    makeResolvedType sid <$> lookupHierarchical cat sid
+
+makeResolvedType :: ScopedID -> IdentDefinition -> TypeDescriptor
+makeResolvedType sid (cid, def) = ResolvedType sid cid def                    
+                                    
+                                

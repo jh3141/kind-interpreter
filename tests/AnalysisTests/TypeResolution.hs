@@ -6,7 +6,8 @@ import KindLang.Data.AST
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
-
+import KindLang.Lib.CoreTypes
+    
 -- fixme self-resolution of catalogues with references between themselves (if
 -- this is even necessary?)
 typeResolutionTests :: TestTree
@@ -44,7 +45,18 @@ typeResolutionTests =
                  (resolveExpr testCatalogue $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation
                            (ResolvedType simpleClass simpleClass def)
-                           [("CanonicalID", EADId simpleVar)]) simpleVar)
+                           [("CanonicalID", EADId simpleVar)]) simpleVar),
+        testCase "resolve int literals" $
+                 (resolveExpr testCatalogue $ IntLiteral 1) @?=
+                 (Right $ AIntLiteral
+                            (ExprAnnotation rtKindInt [])
+                            1),
+        testCase "resolve string literals" $
+                 (resolveExpr testCatalogue $ StringLiteral "foo") @?=
+                 (Right $ AStringLiteral
+                            (ExprAnnotation rtKindString [])
+                            "foo")
+                                       
     ]
 
 simpleClass :: ScopedID
@@ -62,13 +74,13 @@ simpleVar = listToScopedID ["simpleVar"]
          
 testCatalogue :: Catalogue
 testCatalogue =
-    newCatalogue |+| (simpleClass, ClassDefinition [])
-                 |+| (simpleFn, FunctionDefinition [])
-                 |+| (qualifiedClass, ClassDefinition [])
-                 |++| (renamedClass, originalClass, ClassDefinition [])
-                 |+| (simpleVar, VariableDefinition
-                                   (ResolvedType simpleClass simpleClass def)
-                                   VarInitNone)
+    coreTypes |+| (simpleClass, ClassDefinition [])
+              |+| (simpleFn, FunctionDefinition [])
+              |+| (qualifiedClass, ClassDefinition [])
+              |++| (renamedClass, originalClass, ClassDefinition [])
+              |+| (simpleVar, VariableDefinition
+                                (ResolvedType simpleClass simpleClass def)
+                                VarInitNone)
 
                    
 def :: Definition

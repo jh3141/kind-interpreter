@@ -32,6 +32,7 @@ library
                     KindLang.Parser.StatementParser,
                     KindLang.Analysis.ResolveTypes,
                     KindLang.Analysis.BuildCatalogue
+                    KindLang.Lib.CoreTypes
   other-modules:    KindLang.Parser.Combinators,
                     KindLang.Util.Control
 

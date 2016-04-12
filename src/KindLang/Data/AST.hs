@@ -27,7 +27,8 @@ data Definition =
      ClassDefinition [ClassMember] |
      FunctionDefinition [FunctionInstance] |
      VariableDefinition TypeDescriptor VariableInitializer |
-     Namespace (IdentMap Definition)
+     Namespace (IdentMap Definition) |
+     InternalTypeDefinition
      deriving (Show, Eq)
 type IdentDefinition = Identified Definition
     

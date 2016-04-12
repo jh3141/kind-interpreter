@@ -5,7 +5,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
-    
+import KindLang.Lib.CoreTypes    
  
 resolveTypes :: Module -> Module
 resolveTypes m = m
@@ -21,7 +21,7 @@ resolveClassMember cat (ClassMember n v d) = ClassMember n v
 
 resolveDefinition :: Catalogue -> Definition -> Definition
 resolveDefinition cat (VariableDefinition (SimpleType sid) i) =
-    case lookupHierarchical cat sid of
+    case lookupHierarchical cat sid of -- fixme how do we use resolveType here?
       Left err -> error $ show err -- FIXME
       Right (cid, def) -> VariableDefinition (ResolvedType sid cid def) i
                           
@@ -30,7 +30,6 @@ resolveDefinition cat (ClassDefinition cdlist) =
                     
 resolveDefinition _ nonMatching = nonMatching
 
-                                    
 resolveExpr :: Catalogue -> Expr -> KErr AExpr
 resolveExpr cat (VarRef sid) =
     case makeAnnotationForDefinition of
@@ -50,3 +49,6 @@ resolveExpr cat (VarRef sid) =
                 Left $ TypeError cid ("referenced as a variable but is a " ++
                          (definitionTypeName def))
                                
+resolveExpr cat (IntLiteral v) = Right $ AIntLiteral eaKindInt v
+resolveExpr cat (StringLiteral v) = Right $ AStringLiteral eaKindString v
+                                 
