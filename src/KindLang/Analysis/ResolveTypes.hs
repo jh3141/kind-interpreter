@@ -1,5 +1,6 @@
 module KindLang.Analysis.ResolveTypes where
 
+import Data.List
 import Control.Arrow
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
@@ -31,6 +32,12 @@ resolveDefinition cat (ClassDefinition cdlist) =
 resolveDefinition _ nonMatching = nonMatching
 
 resolveExpr :: Catalogue -> Expr -> KErr AExpr
+-- pre-annotated expressions can simply be returned                
+resolveExpr _ (Annotated aexpr) = Right aexpr
+-- literals have predefined types                                  
+resolveExpr cat (IntLiteral v) = Right $ AIntLiteral eaKindInt v
+resolveExpr cat (StringLiteral v) = Right $ AStringLiteral eaKindString v
+                                    
 resolveExpr cat (VarRef sid) =
     case makeAnnotationForDefinition of
       Left err -> Left err
@@ -38,17 +45,41 @@ resolveExpr cat (VarRef sid) =
     where
       makeAnnotationForDefinition :: KErr ExprAnnotation
       makeAnnotationForDefinition =
-          case lookupHierarchical cat sid of
-            Left err -> Left err
-            Right (cid, VariableDefinition rt@(ResolvedType _ _ _) _) ->
-                Right $ ExprAnnotation rt [("CanonicalID", EADId cid)]
-            Right (cid, VariableDefinition rt _) ->
-                Left $ InternalError
-                         (show cid ++ " is not resolved (" ++ show rt ++")")
-            Right (cid, def) ->
-                Left $ TypeError cid ("referenced as a variable but is a " ++
-                         (definitionTypeName def))
+          lookupHierarchical cat sid >>= identDefToExprAnnotation
+
+resolveExpr cat (ORef oexpr sid) = do
+    aoexpr <- resolveExpr cat oexpr
+    (cid, refType) <- resolveTypeRef cat (aexprType aoexpr) sid
+    return $ AORef (ExprAnnotation refType [("CanonicalID", EADId cid)])
+                   aoexpr sid
+    
+                             
+identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
+identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
+    Right $ ExprAnnotation rt [("CanonicalID", EADId cid)]
+identDefToExprAnnotation (cid, VariableDefinition rt _) =
+    Left $ InternalError (show cid ++ " is not resolved (" ++ show rt ++")")
+identDefToExprAnnotation (cid, def) =
+    Left $ TypeError cid ("referenced as a variable but is a " ++
+                          (definitionTypeName def))
                                
-resolveExpr cat (IntLiteral v) = Right $ AIntLiteral eaKindInt v
-resolveExpr cat (StringLiteral v) = Right $ AStringLiteral eaKindString v
-                                 
+
+resolveTypeRef :: Catalogue -> TypeDescriptor -> ScopedID ->
+                  KErr (Identified TypeDescriptor)
+resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
+                 sid@(UnqualifiedID memberId) = 
+    -- fixme may be better if classdef has a map rather than a list?
+    case find ((== memberId) . classMemberName) members of
+      Nothing -> Left $ IdentifierNotFound $ fqid
+      Just (ClassMember _ Public def) -> do
+          (ExprAnnotation rt _) <- identDefToExprAnnotation (fqid, def)
+          return (fqid, rt)
+    where
+      fqid = sid `qualifiedBy` cid
+    -- fixme what to do with qualified member references?
+resolveTypeRef _ (ResolvedType _ cid def) sid =
+    Left $ TypeError (sid `qualifiedBy` cid)
+             ((scopedIDString sid) ++ " is a " ++ (definitionTypeName def))
+resolveTypeRef _ t _ =
+    Left $ InternalError ("dereferenced object is not resolved (" ++ show t ++ ")")
+         

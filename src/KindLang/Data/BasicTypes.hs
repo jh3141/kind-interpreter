@@ -35,6 +35,8 @@ scopedIdToList (QualifiedID s s') = s:(scopedIdToList s')
 listToScopedID :: [String] -> ScopedID
 listToScopedID = foldrn QualifiedID UnqualifiedID
                  
+scopedIDString :: ScopedID -> String
+scopedIDString = foldl1 (\ a b -> a ++ "::" ++ b) . scopedIdToList
+                 
 instance Show ScopedID where
-    show s = "(ScopedID " ++ show (foldl1 (\ a b -> a ++ "::" ++ b)
-                                          (scopedIdToList s)) ++ ")"
+    show s = "(ScopedID " ++ show (scopedIDString s) ++ ")"

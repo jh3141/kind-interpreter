@@ -50,24 +50,24 @@ data TypeDescriptor =
 
 data Expr =
      Annotated AExpr |
-     VarRef ScopedID |
      IntLiteral Int |
      StringLiteral String |
+     VarRef ScopedID |
+     ORef Expr ScopedID |
      BinOp String Expr Expr |
      PrefixOp String Expr |
      FunctionApplication Expr [Expr] |
-     ORef Expr ScopedID |
      OMethod Expr ScopedID [Expr]
      deriving (Show, Eq)
 
 data AExpr =
-     AVarRef ExprAnnotation ScopedID |
      AIntLiteral ExprAnnotation Int |
      AStringLiteral ExprAnnotation String |
-     ABinOp ExprAnnotation String AExpr AExpr |
-     APrefixOp ExprAnnotation String AExpr |
-     AFunctionApplication ExprAnnotation AExpr [AExpr] |
+     AVarRef ExprAnnotation ScopedID |
      AORef ExprAnnotation AExpr ScopedID |
+     -- operators are transformed to function/method applications during
+     -- type annotation so do not appear here.
+     AFunctionApplication ExprAnnotation AExpr [AExpr] |
      AOMethod ExprAnnotation AExpr ScopedID [AExpr]
      deriving (Show, Eq)
 
@@ -106,4 +106,22 @@ definitionTypeName (ClassDefinition _) = "class"
 definitionTypeName (FunctionDefinition _) = "function"
 definitionTypeName (VariableDefinition _ _) = "variable"
 definitionTypeName (Namespace _) = "namespace"
+definitionTypeName (InternalTypeDefinition) = "internal-type"
                                    
+aexprAnnotation :: AExpr -> ExprAnnotation
+aexprAnnotation (AIntLiteral a _) = a
+aexprAnnotation (AStringLiteral a _) = a
+aexprAnnotation (AVarRef a _) = a
+aexprAnnotation (AORef a _ _) = a                      
+aexprAnnotation (AFunctionApplication a _ _) = a
+aexprAnnotation (AOMethod a _ _ _) = a
+
+exprAnnotationType :: ExprAnnotation -> TypeDescriptor
+exprAnnotationType (ExprAnnotation t _) = t
+                                                
+aexprType :: AExpr -> TypeDescriptor
+aexprType = exprAnnotationType . aexprAnnotation
+
+
+classMemberName :: ClassMember -> String
+classMemberName (ClassMember name _ _) = name

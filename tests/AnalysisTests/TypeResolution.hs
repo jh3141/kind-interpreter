@@ -39,12 +39,12 @@ typeResolutionTests =
                  [("C", (ClassDefinition [
                           (ClassMember "v" Public
                            (VariableDefinition
-                            (ResolvedType simpleClass simpleClass def)
+                            rtSimpleClass
                             VarInitNone))]))],
         testCase "resolve variable reference expressions" $
                  (resolveExpr testCatalogue $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation
-                           (ResolvedType simpleClass simpleClass def)
+                           rtSimpleClass
                            [("CanonicalID", EADId simpleVar)]) simpleVar),
         testCase "resolve int literals" $
                  (resolveExpr testCatalogue $ IntLiteral 1) @?=
@@ -55,12 +55,28 @@ typeResolutionTests =
                  (resolveExpr testCatalogue $ StringLiteral "foo") @?=
                  (Right $ AStringLiteral
                             (ExprAnnotation rtKindString [])
-                            "foo")
-                                       
+                            "foo"),
+        testCase "pre-resolved expressions returned" $
+                 (resolveExpr testCatalogue
+                                  (Annotated $ AIntLiteral eaKindInt 42)) @?=
+                 (Right $ AIntLiteral eaKindInt 42),
+        testCase "resolve object reference" $
+                 (resolveExpr testCatalogue $
+                              ORef (VarRef ccInst) (UnqualifiedID "v")) @?=
+                 (Right $ AORef
+                  (ExprAnnotation rtSimpleClass
+                   [("CanonicalID", EADId $ listToScopedID ["ComplexClass","v"])])
+                  (AVarRef (ExprAnnotation rtComplexClass
+                                           [("CanonicalID", EADId ccInst)])
+                   ccInst) (UnqualifiedID "v"))
     ]
 
 simpleClass :: ScopedID
 simpleClass = listToScopedID ["SimpleClass"]
+complexClass :: ScopedID
+complexClass = listToScopedID ["ComplexClass"]
+ccInst :: ScopedID
+ccInst = listToScopedID ["complexClass"]
 simpleFn :: ScopedID
 simpleFn = listToScopedID ["simpleFn"]
 qualifiedClass :: ScopedID
@@ -75,13 +91,21 @@ simpleVar = listToScopedID ["simpleVar"]
 testCatalogue :: Catalogue
 testCatalogue =
     coreTypes |+| (simpleClass, ClassDefinition [])
+              |+| (complexClass,
+                   ClassDefinition
+                     [ClassMember "v" Public
+                                  (VariableDefinition rtSimpleClass VarInitNone)])
+              |+| (ccInst, VariableDefinition rtComplexClass VarInitNone)
               |+| (simpleFn, FunctionDefinition [])
               |+| (qualifiedClass, ClassDefinition [])
               |++| (renamedClass, originalClass, ClassDefinition [])
-              |+| (simpleVar, VariableDefinition
-                                (ResolvedType simpleClass simpleClass def)
-                                VarInitNone)
+              |+| (simpleVar, VariableDefinition rtSimpleClass VarInitNone)
 
                    
 def :: Definition
 def = (ClassDefinition [])       
+rtSimpleClass :: TypeDescriptor
+rtSimpleClass = ResolvedType simpleClass simpleClass def
+rtComplexClass :: TypeDescriptor
+rtComplexClass = either (error "internal error") id $
+                 resolveType testCatalogue complexClass

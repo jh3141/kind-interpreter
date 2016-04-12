@@ -14,3 +14,6 @@ data KindError =
 
 type KErr a = Either KindError a
              
+-- nb KErr is a monad because (Either a) is a monad. no need to define an instance
+-- here.
+
