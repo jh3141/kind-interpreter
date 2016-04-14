@@ -3,15 +3,22 @@ module KindLang.Lib.CoreTypes where
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
-    
+import KindLang.Util.Control
+import qualified Data.Map as Map
+
+-- | Function to create an ID in the core module given a string
+coreId :: String -> ScopedID
+coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
+          
 coreTypes :: Catalogue
-coreTypes =
-    newCatalogue |++| (sidInt, sidKindInt, InternalTypeDefinition)
-                 |++| (sidString, sidKindString, InternalTypeDefinition)
+coreTypes = namespaceCatalogue $
+              rightOrFail "kind::* undefined" (coreTypesQualified |@| sidKind)
 
 coreTypesQualified :: Catalogue
 coreTypesQualified =
-    newCatalogue |+| (sidKind, Namespace coreTypes)
+    newCatalogue |+| (sidKindInt, InternalTypeDefinition)
+                 |+| (sidKindString, InternalTypeDefinition)
+                 |+| (coreId "(+)", InternalObject fnIntIntInt)
         
 -- note convention of naming of kind types:
 --   namespaces - lower case
@@ -32,14 +39,17 @@ sidKindString = sidString `qualifiedBy` sidKind
 
 -- fixme should these be qualified or unqualified?
 rtKindInt :: TypeDescriptor
-rtKindInt = either (error "Internal error: int not defined") id $
+rtKindInt = rightOrFail "Internal error: int not defined" $
             resolveType coreTypes sidInt
 eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
             
 rtKindString :: TypeDescriptor
-rtKindString = either (error "Internal error: string not defined") id $
+rtKindString = rightOrFail "Internal error: string not defined" $
                resolveType coreTypes sidString
 eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []
                
+fnIntIntInt :: TypeDescriptor
+fnIntIntInt = FunctionType [rtKindInt,rtKindInt] rtKindInt
+              

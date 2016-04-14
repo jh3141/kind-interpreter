@@ -58,6 +58,15 @@ resolveExpr cat (ORef oexpr sid) = do
     aoexpr <- resolveExpr cat oexpr
     (cid, refType) <- resolveTypeRef cat (aexprType aoexpr) sid
     return $ AORef (crefAnnotation cid refType) aoexpr sid
+-- operators
+resolveExpr cat (BinOp operator l r) = do
+    al <- resolveExpr cat l
+    ar <- resolveExpr cat r
+    operatorDef <- findBinaryOperator operator (aexprType al) (aexprType ar)
+    annotation <- makeFunctionCallAnnotation
+                    (aexprType operatorDef)
+                    ([(aexprType al), (aexprType ar)])
+    return $ AFunctionApplication annotation operatorDef [al, ar]
 -- function application
 resolveExpr cat (FunctionApplication fnExpr paramExprs) = do
     rFnExpr <- resolveExpr cat fnExpr
@@ -135,3 +144,11 @@ makeFunctionCallAnnotation ftype _  = Left  $ TypeMismatch ftype "function"
 -- True or False.
 typesCompatible :: [TypeDescriptor] -> [TypeDescriptor] -> Bool
 typesCompatible = (==)   -- fixme - subtypes?
+
+-- fixme this should be in a file by itself, not stuck down here.
+-- fixme it should also work, rather than hack a result for the tests!
+findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KErr AExpr
+findBinaryOperator "+" t1 t2 =
+    Right $ AInternalRef
+              (ExprAnnotation (FunctionType [t1, t2] t2) [])
+              (coreId "(+)")

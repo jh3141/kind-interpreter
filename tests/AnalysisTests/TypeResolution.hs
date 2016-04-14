@@ -81,7 +81,14 @@ typeResolutionTests =
                    simpleFn)
                   [(AVarRef
                     (ExprAnnotation rtSimpleClass
-                                    [("CanonicalID", EADId scInst)]) scInst)])
+                                    [("CanonicalID", EADId scInst)]) scInst)]),
+        testCase "resolve binary operator" $
+                 (resolveExpr testCatalogue $
+                              BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
+                 (Right $ AFunctionApplication eaKindInt
+                  (AInternalRef (ExprAnnotation tdFIntIntInt []) (coreId "(+)"))
+                    -- fixme overloads
+                  [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)])
     ]
 
 simpleClass :: ScopedID
@@ -133,4 +140,6 @@ simpleFnInstance = FunctionInstance
                      [] -- nb not a valid instance as lacks result expression.
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
-             
+tdFIntIntInt :: TypeDescriptor
+tdFIntIntInt = FunctionType [rtKindInt, rtKindInt] rtKindInt
+               

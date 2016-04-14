@@ -28,7 +28,8 @@ data Definition =
      FunctionDefinition [FunctionInstance] |
      VariableDefinition TypeDescriptor VariableInitializer |
      Namespace (IdentMap Definition) |
-     InternalTypeDefinition
+     InternalTypeDefinition | -- fixme make this go away
+     InternalObject TypeDescriptor {- fixme add execution stub -}
      deriving (Show, Eq)
 type IdentDefinition = Identified Definition
     
@@ -69,7 +70,9 @@ data AExpr =
      -- operators are transformed to function/method applications during
      -- type annotation so do not appear here.
      AFunctionApplication ExprAnnotation AExpr [AExpr] |
-     AOMethod ExprAnnotation AExpr ScopedID [AExpr]
+     AOMethod ExprAnnotation AExpr ScopedID [AExpr] |
+     -- internal references generated during resolution, e.g. internal functions
+     AInternalRef ExprAnnotation ScopedID
      deriving (Show, Eq)
 
 data ExprAnnotation =
@@ -108,7 +111,8 @@ definitionTypeName (FunctionDefinition _) = "function"
 definitionTypeName (VariableDefinition _ _) = "variable"
 definitionTypeName (Namespace _) = "namespace"
 definitionTypeName (InternalTypeDefinition) = "internal-type"
-                                   
+definitionTypeName (InternalObject _) = "internal-object"
+                                      
 aexprAnnotation :: AExpr -> ExprAnnotation
 aexprAnnotation (AIntLiteral a _) = a
 aexprAnnotation (AStringLiteral a _) = a
@@ -116,7 +120,8 @@ aexprAnnotation (AVarRef a _) = a
 aexprAnnotation (AORef a _ _) = a                      
 aexprAnnotation (AFunctionApplication a _ _) = a
 aexprAnnotation (AOMethod a _ _ _) = a
-
+aexprAnnotation (AInternalRef a _) = a
+                                     
 exprAnnotationType :: ExprAnnotation -> TypeDescriptor
 exprAnnotationType (ExprAnnotation t _) = t
                                                 
@@ -126,3 +131,7 @@ aexprType = exprAnnotationType . aexprAnnotation
 
 classMemberName :: ClassMember -> String
 classMemberName (ClassMember name _ _) = name
+
+namespaceCatalogue :: Definition -> IdentMap Definition
+namespaceCatalogue (Namespace cat) = cat
+namespaceCatalogue t = error ("not a namespace: " ++ definitionTypeName t)

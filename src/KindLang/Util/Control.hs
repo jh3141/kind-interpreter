@@ -16,3 +16,8 @@ foldrn f g (x : xs) = f x (foldrn f g xs)
 singleton :: a -> [a]
 singleton item = [item]
                  
+-- | return value from Right if present, or produce error if not.
+rightOrFail :: String -> Either a b -> b
+rightOrFail _ (Right r) = r
+rightOrFail e _         = error e
+                          
