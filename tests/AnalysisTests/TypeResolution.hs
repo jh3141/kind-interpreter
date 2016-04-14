@@ -68,13 +68,28 @@ typeResolutionTests =
                    [("CanonicalID", EADId $ listToScopedID ["ComplexClass","v"])])
                   (AVarRef (ExprAnnotation rtComplexClass
                                            [("CanonicalID", EADId ccInst)])
-                   ccInst) (UnqualifiedID "v"))
+                   ccInst) (UnqualifiedID "v")),
+        testCase "resolve function call" $
+                 (resolveExpr testCatalogue $
+                              FunctionApplication
+                                (VarRef simpleFn)
+                                [(VarRef scInst)]) @?=
+                 (Right $ AFunctionApplication
+                  (ExprAnnotation rtComplexClass [])
+                  (AVarRef
+                   (ExprAnnotation tdSimpleFn [("CanonicalID", EADId simpleFn)])
+                   simpleFn)
+                  [(AVarRef
+                    (ExprAnnotation rtSimpleClass
+                                    [("CanonicalID", EADId scInst)]) scInst)])
     ]
 
 simpleClass :: ScopedID
 simpleClass = listToScopedID ["SimpleClass"]
 complexClass :: ScopedID
 complexClass = listToScopedID ["ComplexClass"]
+scInst :: ScopedID
+scInst = listToScopedID ["simpleClass"]
 ccInst :: ScopedID
 ccInst = listToScopedID ["complexClass"]
 simpleFn :: ScopedID
@@ -95,8 +110,9 @@ testCatalogue =
                    ClassDefinition
                      [ClassMember "v" Public
                                   (VariableDefinition rtSimpleClass VarInitNone)])
+              |+| (scInst, VariableDefinition rtSimpleClass VarInitNone)
               |+| (ccInst, VariableDefinition rtComplexClass VarInitNone)
-              |+| (simpleFn, FunctionDefinition [])
+              |+| (simpleFn, FunctionDefinition [simpleFnInstance])
               |+| (qualifiedClass, ClassDefinition [])
               |++| (renamedClass, originalClass, ClassDefinition [])
               |+| (simpleVar, VariableDefinition rtSimpleClass VarInitNone)
@@ -109,3 +125,12 @@ rtSimpleClass = ResolvedType simpleClass simpleClass def
 rtComplexClass :: TypeDescriptor
 rtComplexClass = either (error "internal error") id $
                  resolveType testCatalogue complexClass
+
+simpleFnInstance :: FunctionInstance
+simpleFnInstance = FunctionInstance
+                     [("a", rtSimpleClass)]
+                     rtComplexClass
+                     [] -- nb not a valid instance as lacks result expression.
+tdSimpleFn :: TypeDescriptor
+tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
+             

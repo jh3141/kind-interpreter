@@ -1,7 +1,8 @@
 module KindLang.Data.Error where
 
 import KindLang.Data.BasicTypes
-
+import KindLang.Data.AST
+    
 type Reason = String
 
 data KindError =
@@ -9,8 +10,10 @@ data KindError =
     InvalidImport ScopedID Reason |
     IdentifierNotFound ScopedID |
     NotNamespace ScopedID ScopedID |
-    TypeError ScopedID Reason
-    deriving (Show, Ord, Eq)
+    TypeError ScopedID Reason |
+    InvalidApplication [TypeDescriptor] [TypeDescriptor] |
+    TypeMismatch TypeDescriptor String
+    deriving (Show, Eq)
 
 type KErr a = Either KindError a
              

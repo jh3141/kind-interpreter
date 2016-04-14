@@ -37,7 +37,7 @@ resolveExpr _ (Annotated aexpr) = Right aexpr
 -- literals have predefined types                                  
 resolveExpr cat (IntLiteral v) = Right $ AIntLiteral eaKindInt v
 resolveExpr cat (StringLiteral v) = Right $ AStringLiteral eaKindString v
-                                    
+-- variable and object references                                    
 resolveExpr cat (VarRef sid) =
     case makeAnnotationForDefinition of
       Left err -> Left err
@@ -46,23 +46,40 @@ resolveExpr cat (VarRef sid) =
       makeAnnotationForDefinition :: KErr ExprAnnotation
       makeAnnotationForDefinition =
           lookupHierarchical cat sid >>= identDefToExprAnnotation
-
 resolveExpr cat (ORef oexpr sid) = do
     aoexpr <- resolveExpr cat oexpr
     (cid, refType) <- resolveTypeRef cat (aexprType aoexpr) sid
     return $ AORef (ExprAnnotation refType [("CanonicalID", EADId cid)])
                    aoexpr sid
-    
+-- function application
+resolveExpr cat (FunctionApplication fnExpr paramExprs) = do
+    rFnExpr <- resolveExpr cat fnExpr
+    rParamExprs <- sequence $ fmap (resolveExpr cat) paramExprs
+    annotation <- makeFunctionCallAnnotation
+                    (aexprType rFnExpr)
+                    (aexprType <$> rParamExprs)
+    return $ AFunctionApplication annotation rFnExpr rParamExprs
                              
 identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
 identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
     Right $ ExprAnnotation rt [("CanonicalID", EADId cid)]
 identDefToExprAnnotation (cid, VariableDefinition rt _) =
-    Left $ InternalError (show cid ++ " is not resolved (" ++ show rt ++")")
+    Left $ InternalError (scopedIDString cid ++ " is not resolved (" ++
+                                         show rt ++")")
+identDefToExprAnnotation (cid, FunctionDefinition []) =
+    Left $ InternalError (scopedIDString cid ++ " contains no instances")
+identDefToExprAnnotation (cid, FunctionDefinition (fnInstance:[])) =
+    Right $ ExprAnnotation (fnInstanceType fnInstance)
+                           [("CanonicalID", EADId cid)]
+identDefToExprAnnotation (cid, FunctionDefinition _) =
+    error "overloaded functions not implemented"
 identDefToExprAnnotation (cid, def) =
     Left $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
-                               
+
+fnInstanceType :: FunctionInstance -> TypeDescriptor
+fnInstanceType (FunctionInstance params rtype _) =
+    FunctionType (snd <$> params) rtype
 
 resolveTypeRef :: Catalogue -> TypeDescriptor -> ScopedID ->
                   KErr (Identified TypeDescriptor)
@@ -81,5 +98,17 @@ resolveTypeRef _ (ResolvedType _ cid def) sid =
     Left $ TypeError (sid `qualifiedBy` cid)
              ((scopedIDString sid) ++ " is a " ++ (definitionTypeName def))
 resolveTypeRef _ t _ =
-    Left $ InternalError ("dereferenced object is not resolved (" ++ show t ++ ")")
-         
+    Left $ InternalError ("dereferenced object is not resolved (" ++
+                          show t ++ ")")
+
+-- fixme how shoould overloaded functions work?
+makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
+                              KErr ExprAnnotation
+makeFunctionCallAnnotation (FunctionType formal res) actual
+    | typesCompatible formal actual = Right $ ExprAnnotation res []
+    | otherwise                     = Left  $ InvalidApplication formal actual
+makeFunctionCallAnnotation ftype _  = Left  $ TypeMismatch ftype "function"
+
+typesCompatible :: [TypeDescriptor] -> [TypeDescriptor] -> Bool
+typesCompatible = (==)   -- fixme - subtypes?
+                  

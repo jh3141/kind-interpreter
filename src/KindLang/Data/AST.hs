@@ -45,7 +45,8 @@ data TypeDescriptor =
          resolvedTypeRID :: ScopedID,
          resolvedTypeCanonicalID :: ScopedID,
          resolvedTypeDefinition :: Definition
-     }
+     } |
+     FunctionType [TypeDescriptor] TypeDescriptor
      deriving (Show, Eq)
 
 data Expr =
