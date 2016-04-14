@@ -19,28 +19,28 @@ typeResolutionTests =
                   [("v", (VariableDefinition
                           (SimpleType simpleClass)
                           VarInitNone))]) @?=
-                 [("v", (VariableDefinition 
+                 (Right [("v", (VariableDefinition 
                          (ResolvedType simpleClass simpleClass def)
-                         VarInitNone))],
+                         VarInitNone))]),
         testCase "resolve variable with renamed type" $
                  (resolveDefListTypes testCatalogue
                   [("v", (VariableDefinition
                           (SimpleType renamedClass)
                           VarInitNone))]) @?=
-                 [("v", (VariableDefinition
+                 (Right [("v", (VariableDefinition
                          (ResolvedType renamedClass originalClass def)
-                         VarInitNone))],
+                         VarInitNone))]),
         testCase "resolve class member variables" $
                  (resolveDefListTypes testCatalogue
                   [("C", (ClassDefinition [
                            (ClassMember "v" Public
                             (VariableDefinition (SimpleType simpleClass)
                                                 VarInitNone))]))]) @?=
-                 [("C", (ClassDefinition [
+                 (Right [("C", (ClassDefinition [
                           (ClassMember "v" Public
                            (VariableDefinition
                             rtSimpleClass
-                            VarInitNone))]))],
+                            VarInitNone))]))]),
         testCase "resolve variable reference expressions" $
                  (resolveExpr testCatalogue $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation

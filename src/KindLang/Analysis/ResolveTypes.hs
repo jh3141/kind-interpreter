@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module KindLang.Analysis.ResolveTypes where
 
 import Data.List
@@ -13,26 +14,32 @@ resolveTypes :: Module -> KErr Module
 resolveTypes m = Right m -- FIXME implement this
 
 -- | Return a copy of a definition list resolved against a given catalogue.
-resolveDefListTypes :: Catalogue -> DefList -> DefList -- FIXME errors?
-resolveDefListTypes cat = map (second $ resolveDefinition cat)
+resolveDefListTypes :: Catalogue -> DefList -> KErr DefList
+resolveDefListTypes cat =
+    mapM resolve
+    where
+      resolve :: (String,Definition) -> KErr (String,Definition)
+      resolve (cid,def) = (cid,) <$> resolveDefinition cat def
 
 -- | Return a copy of a class member definition list resolved against a
 -- given catalogue.
-resolveClassDefListTypes :: Catalogue -> [ClassMember] -> [ClassMember] -- FIXME errors?
-resolveClassDefListTypes cat = map (resolveClassMember cat)
-resolveClassMember :: Catalogue -> ClassMember -> ClassMember
-resolveClassMember cat (ClassMember n v d) = ClassMember n v
-                                             (resolveDefinition cat d)
+resolveClassDefListTypes :: Catalogue -> [ClassMember] -> KErr [ClassMember]
+resolveClassDefListTypes cat = mapM (resolveClassMember cat)
+
+-- | Resolve an individual class member definition against a given catalogue.
+resolveClassMember :: Catalogue -> ClassMember -> KErr ClassMember
+resolveClassMember cat (ClassMember n v d) =
+    ClassMember n v <$> resolveDefinition cat d
 
 -- | Resolve an individual definition against a given catalogue.
-resolveDefinition :: Catalogue -> Definition -> Definition -- FIXME errors?
-resolveDefinition cat (VariableDefinition (SimpleType sid) i) =
-    case lookupHierarchical cat sid of -- fixme how do we use resolveType here?
-      Left err -> error $ show err -- FIXME
-      Right (cid, def) -> VariableDefinition (ResolvedType sid cid def) i
+resolveDefinition :: Catalogue -> Definition -> KErr Definition 
+resolveDefinition cat (VariableDefinition (SimpleType sid) i) = do
+    -- fixme how do we use resolveType here?
+    (cid, def) <- lookupHierarchical cat sid
+    return $ VariableDefinition (ResolvedType sid cid def) i
 resolveDefinition cat (ClassDefinition cdlist) =
-    ClassDefinition $ resolveClassDefListTypes cat cdlist                   
-resolveDefinition _ nonMatching = nonMatching
+    ClassDefinition <$> resolveClassDefListTypes cat cdlist
+resolveDefinition _ nonMatching = Right nonMatching
 
 -- | Resolve an expression tree against a given catalogue, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
