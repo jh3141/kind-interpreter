@@ -86,9 +86,17 @@ typeResolutionTests =
                  (resolveExpr testCatalogue $
                               BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
                  (Right $ AFunctionApplication eaKindInt
-                  (AInternalRef (ExprAnnotation tdFIntIntInt []) (coreId "(+)"))
+                  (AInternalRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
                     -- fixme overloads
-                  [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)])
+                  [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)]),
+
+        testCase "resolve prefix operator" $
+                 (resolveExpr testCatalogue $
+                              PrefixOp "-" (IntLiteral 42)) @?=
+                 (Right $ AFunctionApplication eaKindInt
+                  (AInternalRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
+                   -- fixme overloads
+                  [(AIntLiteral eaKindInt 42)])
     ]
 
 simpleClass :: ScopedID
@@ -140,6 +148,3 @@ simpleFnInstance = FunctionInstance
                      [] -- nb not a valid instance as lacks result expression.
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
-tdFIntIntInt :: TypeDescriptor
-tdFIntIntInt = FunctionType [rtKindInt, rtKindInt] rtKindInt
-               

@@ -67,6 +67,13 @@ resolveExpr cat (BinOp operator l r) = do
                     (aexprType operatorDef)
                     ([(aexprType al), (aexprType ar)])
     return $ AFunctionApplication annotation operatorDef [al, ar]
+resolveExpr cat (PrefixOp operator e) = do
+    ae <- resolveExpr cat e
+    operatorDef <- findPrefixOperator operator (aexprType ae)
+    annotation <- makeFunctionCallAnnotation
+                    (aexprType operatorDef)
+                    [(aexprType ae)]
+    return $ AFunctionApplication annotation operatorDef [ae]
 -- function application
 resolveExpr cat (FunctionApplication fnExpr paramExprs) = do
     rFnExpr <- resolveExpr cat fnExpr
@@ -152,3 +159,11 @@ findBinaryOperator "+" t1 t2 =
     Right $ AInternalRef
               (ExprAnnotation (FunctionType [t1, t2] t2) [])
               (coreId "(+)")
+findBinaryOperator _ _ _ =
+    Left $ InternalError "haven't finished implementing operators"
+-- ditto
+findPrefixOperator :: String -> TypeDescriptor -> KErr AExpr
+findPrefixOperator "-" t =
+    Right $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
+findPrefixOperator _ _ =
+    Left $ InternalError "haven't finished implementing operators"

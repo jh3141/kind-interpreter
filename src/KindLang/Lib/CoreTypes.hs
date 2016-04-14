@@ -52,4 +52,6 @@ eaKindString = ExprAnnotation rtKindString []
                
 fnIntIntInt :: TypeDescriptor
 fnIntIntInt = FunctionType [rtKindInt,rtKindInt] rtKindInt
+fnIntInt :: TypeDescriptor
+fnIntInt = FunctionType [rtKindInt] rtKindInt
               
