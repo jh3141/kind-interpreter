@@ -121,8 +121,14 @@ typeResolutionTests =
                               ORef (VarRef mcInst) privateField) @?=
                  (Left $ AccessViolation
                            (privateField `qualifiedBy` methodClass)
-                           Private)
-                   
+                           Private),
+
+        testCase "variable types inferred" $
+                 (resolveDefinition testCatalogue $
+                  VariableDefinition InferableType
+                                     (VarInitExpr $ IntLiteral 5)) @?=
+                 (Right $ VariableDefinition rtKindInt
+                          (VarInitAExpr $ AIntLiteral eaKindInt 5))
     ]
         
 simpleClass :: ScopedID

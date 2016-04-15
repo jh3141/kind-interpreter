@@ -37,6 +37,9 @@ resolveDefinition cat (VariableDefinition (SimpleType sid) i) = do
     -- fixme how do we use resolveType here?
     (cid, def) <- lookupHierarchical cat sid
     return $ VariableDefinition (ResolvedType sid cid def) i
+resolveDefinition cat (VariableDefinition InferableType (VarInitExpr e)) = do
+    ae <- resolveExpr cat e
+    return $ VariableDefinition (aexprType ae) (VarInitAExpr ae)
 resolveDefinition cat (ClassDefinition cdlist) =
     ClassDefinition <$> resolveClassDefListTypes cat cdlist
 resolveDefinition _ nonMatching = Right nonMatching

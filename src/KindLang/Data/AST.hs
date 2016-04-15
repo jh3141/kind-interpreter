@@ -92,7 +92,9 @@ data Statement =
 data VariableInitializer =
      VarInitNone |
      VarInitExpr Expr |
-     VarInitConstruct [Expr]
+     VarInitAExpr AExpr |
+     VarInitConstruct [Expr] |
+     VarInitAConstruct [AExpr]
      deriving (Show, Eq)
 
 
