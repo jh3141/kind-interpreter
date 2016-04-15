@@ -6,6 +6,7 @@ import KindLang.Data.AST
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
+import KindLang.Data.Error
 import KindLang.Lib.CoreTypes
 import KindLang.Util.Control
     
@@ -113,7 +114,14 @@ typeResolutionTests =
                   -- fixme do we need an annotation for the method type?
                   [(AVarRef
                     (ExprAnnotation rtSimpleClass [("CanonicalID", EADId scInst)])
-                    scInst)])
+                    scInst)]),
+
+        testCase "attempt to access private member of object" $
+                 (resolveExpr testCatalogue $
+                              ORef (VarRef mcInst) privateField) @?=
+                 (Left $ AccessViolation
+                           (privateField `qualifiedBy` methodClass)
+                           Private)
                    
     ]
         
@@ -141,6 +149,8 @@ simpleVar :: ScopedID
 simpleVar = listToScopedID ["simpleVar"]
 method :: ScopedID
 method = UnqualifiedID "method"
+privateField :: ScopedID
+privateField = UnqualifiedID "privateField"
 
          
 testCatalogue :: Catalogue
@@ -159,7 +169,9 @@ testCatalogue =
               |+| (methodClass,
                    ClassDefinition
                     [ClassMember "method" Public
-                                 (FunctionDefinition [simpleFnInstance])])
+                                 (FunctionDefinition [simpleFnInstance]),
+                     ClassMember "privateField" Private
+                                 (VariableDefinition rtSimpleClass VarInitNone)])
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
 
                    

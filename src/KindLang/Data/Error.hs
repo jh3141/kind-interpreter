@@ -12,7 +12,8 @@ data KindError =
     NotNamespace ScopedID ScopedID |
     TypeError ScopedID Reason |
     InvalidApplication [TypeDescriptor] [TypeDescriptor] |
-    TypeMismatch TypeDescriptor String
+    TypeMismatch TypeDescriptor String |
+    AccessViolation ScopedID Visibility
     deriving (Show, Eq)
 
 type KErr a = Either KindError a

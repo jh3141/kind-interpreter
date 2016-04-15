@@ -132,6 +132,7 @@ resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
       Just (ClassMember _ Public def) -> do
           (ExprAnnotation rt _) <- identDefToExprAnnotation (fqid, def)
           return (fqid, rt)
+      Just (ClassMember _ access _) -> Left $ AccessViolation fqid access
     where
       fqid = sid `qualifiedBy` cid
     -- fixme what to do with qualified member references?
