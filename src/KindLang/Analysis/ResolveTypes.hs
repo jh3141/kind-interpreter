@@ -88,7 +88,7 @@ resolveExpr cat (OMethod obExpr sid paramExprs) = do
     (cid, methodType) <- resolveTypeRef cat (aexprType aObExpr) sid
     rParams <- sequence $ fmap (resolveExpr cat) paramExprs
     annotation <- makeFunctionCallAnnotation methodType (aexprType <$> rParams)
-    return $ AOMethod annotation aObExpr cid rParams
+    return $ AOMethod annotation aObExpr methodType cid rParams
     
 -- | Utility function to build an annotation for a reference operation           
 crefAnnotation :: ScopedID -> TypeDescriptor -> ExprAnnotation

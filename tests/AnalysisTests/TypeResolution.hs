@@ -110,8 +110,8 @@ typeResolutionTests =
                   (AVarRef
                    (ExprAnnotation rtMethodClass [("CanonicalID", EADId mcInst)])
                    mcInst)
+                  tdSimpleFn
                   (method `qualifiedBy` methodClass)
-                  -- fixme do we need an annotation for the method type?
                   [(AVarRef
                     (ExprAnnotation rtSimpleClass [("CanonicalID", EADId scInst)])
                     scInst)]),
