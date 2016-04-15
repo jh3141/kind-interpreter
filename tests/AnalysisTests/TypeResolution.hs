@@ -7,6 +7,7 @@ import KindLang.Analysis.ResolveTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
 import KindLang.Lib.CoreTypes
+import KindLang.Util.Control
     
 -- fixme self-resolution of catalogues with references between themselves (if
 -- this is even necessary?)
@@ -96,17 +97,38 @@ typeResolutionTests =
                  (Right $ AFunctionApplication eaKindInt
                   (AInternalRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
                    -- fixme overloads
-                  [(AIntLiteral eaKindInt 42)])
-    ]
+                  [(AIntLiteral eaKindInt 42)]),
 
+        testCase "resolve object method call" $
+                 (resolveExpr testCatalogue $
+                              OMethod (VarRef mcInst)
+                                      method
+                                      [VarRef scInst]) @?=
+                 (Right $ AOMethod
+                  (ExprAnnotation rtComplexClass [])
+                  (AVarRef
+                   (ExprAnnotation rtMethodClass [("CanonicalID", EADId mcInst)])
+                   mcInst)
+                  (method `qualifiedBy` methodClass)
+                  -- fixme do we need an annotation for the method type?
+                  [(AVarRef
+                    (ExprAnnotation rtSimpleClass [("CanonicalID", EADId scInst)])
+                    scInst)])
+                   
+    ]
+        
 simpleClass :: ScopedID
 simpleClass = listToScopedID ["SimpleClass"]
 complexClass :: ScopedID
 complexClass = listToScopedID ["ComplexClass"]
+methodClass :: ScopedID
+methodClass = listToScopedID ["MethodClass"]
 scInst :: ScopedID
-scInst = listToScopedID ["simpleClass"]
+scInst = listToScopedID ["simpleObject"]
 ccInst :: ScopedID
-ccInst = listToScopedID ["complexClass"]
+ccInst = listToScopedID ["complexObject"]
+mcInst :: ScopedID
+mcInst = listToScopedID ["methodObject"]
 simpleFn :: ScopedID
 simpleFn = listToScopedID ["simpleFn"]
 qualifiedClass :: ScopedID
@@ -117,6 +139,9 @@ originalClass :: ScopedID
 originalClass = listToScopedID ["original", "RenamedClass" ]
 simpleVar :: ScopedID
 simpleVar = listToScopedID ["simpleVar"]
+method :: ScopedID
+method = UnqualifiedID "method"
+
          
 testCatalogue :: Catalogue
 testCatalogue =
@@ -131,6 +156,11 @@ testCatalogue =
               |+| (qualifiedClass, ClassDefinition [])
               |++| (renamedClass, originalClass, ClassDefinition [])
               |+| (simpleVar, VariableDefinition rtSimpleClass VarInitNone)
+              |+| (methodClass,
+                   ClassDefinition
+                    [ClassMember "method" Public
+                                 (FunctionDefinition [simpleFnInstance])])
+              |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
 
                    
 def :: Definition
@@ -138,9 +168,12 @@ def = (ClassDefinition [])
 rtSimpleClass :: TypeDescriptor
 rtSimpleClass = ResolvedType simpleClass simpleClass def
 rtComplexClass :: TypeDescriptor
-rtComplexClass = either (error "internal error") id $
+rtComplexClass = rightOrFail "internal error" $
                  resolveType testCatalogue complexClass
-
+rtMethodClass :: TypeDescriptor
+rtMethodClass = rightOrFail "internal error" $
+                resolveType testCatalogue methodClass
+                            
 simpleFnInstance :: FunctionInstance
 simpleFnInstance = FunctionInstance
                      [("a", rtSimpleClass)]

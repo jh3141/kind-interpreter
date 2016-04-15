@@ -82,7 +82,14 @@ resolveExpr cat (FunctionApplication fnExpr paramExprs) = do
                     (aexprType rFnExpr)
                     (aexprType <$> rParamExprs)
     return $ AFunctionApplication annotation rFnExpr rParamExprs
-
+-- object method application
+resolveExpr cat (OMethod obExpr sid paramExprs) = do
+    aObExpr <- resolveExpr cat obExpr
+    (cid, methodType) <- resolveTypeRef cat (aexprType aObExpr) sid
+    rParams <- sequence $ fmap (resolveExpr cat) paramExprs
+    annotation <- makeFunctionCallAnnotation methodType (aexprType <$> rParams)
+    return $ AOMethod annotation aObExpr cid rParams
+    
 -- | Utility function to build an annotation for a reference operation           
 crefAnnotation :: ScopedID -> TypeDescriptor -> ExprAnnotation
 crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
