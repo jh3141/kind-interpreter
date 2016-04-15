@@ -35,6 +35,8 @@ resolveClassMember cat (ClassMember n v d) =
 resolveDefinition :: Catalogue -> Definition -> KErr Definition 
 resolveDefinition cat (VariableDefinition (SimpleType sid) i) = do
     -- fixme how do we use resolveType here?
+    -- fixme if 'i' is an init expression it should be resolved & typechecked.
+    -- fixme if 'i' is a constructor expression it should be resolved.
     (cid, def) <- lookupHierarchical cat sid
     return $ VariableDefinition (ResolvedType sid cid def) i
 resolveDefinition cat (VariableDefinition InferableType (VarInitExpr e)) = do
