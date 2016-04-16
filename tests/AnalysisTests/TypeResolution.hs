@@ -128,7 +128,15 @@ typeResolutionTests =
                   VariableDefinition InferableType
                                      (VarInitExpr $ IntLiteral 5)) @?=
                  (Right $ VariableDefinition rtKindInt
-                          (VarInitAExpr $ AIntLiteral eaKindInt 5))
+                          (VarInitAExpr $ AIntLiteral eaKindInt 5)),
+
+        testCase "expression statement resolved" $
+                 (resolveStatement testCatalogue $
+                                   Expression (IntLiteral 5)) @?=
+                 (Right $ AExpression
+                            (StmtAnnotation (Just rtKindInt) [] [])
+                            (AIntLiteral eaKindInt 5))
+                 
     ]
         
 simpleClass :: ScopedID

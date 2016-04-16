@@ -76,10 +76,10 @@ data AExpr =
      deriving (Show, Eq)
 
 data ExprAnnotation =
-     ExprAnnotation TypeDescriptor [(String,ExprAnnotationData)]
+     ExprAnnotation TypeDescriptor [(String,AnnotationData)]
      deriving (Show, Eq)
 
-data ExprAnnotationData =
+data AnnotationData =
      EADOptionTrue |
      EADId ScopedID
      deriving (Show, Eq)
@@ -87,6 +87,17 @@ data ExprAnnotationData =
 data Statement =
      Expression Expr |
      VarDeclStatement String TypeDescriptor VariableInitializer
+     deriving (Show, Eq)
+
+data AStatement =
+     AExpression StmtAnnotation AExpr |
+     AVarDeclStatement StmtAnnotation String TypeDescriptor VariableInitializer
+     deriving (Show, Eq)
+
+data StmtAnnotation =
+     StmtAnnotation (Maybe TypeDescriptor)
+                    [(String,TypeDescriptor)]
+                    [(String,AnnotationData)]
      deriving (Show, Eq)
               
 data VariableInitializer =
