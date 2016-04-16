@@ -22,18 +22,20 @@ library
                     mtl >= 2
                    
   ghc-options:      -Wall -fno-warn-unused-do-bind
-  exposed-modules:  KindLang.Parser.ModuleParser,
-                    KindLang.Data.AST,
-                    KindLang.Data.Error,
-                    KindLang.Internal,
-                    KindLang.Parser.BasicTokens,
-                    KindLang.Parser.ExpressionParser,
-                    KindLang.Parser.State,
-                    KindLang.Parser.StatementParser,
-                    KindLang.Analysis.ResolveTypes,
+  exposed-modules:  KindLang.Parser.ModuleParser
+                    KindLang.Data.AST
+                    KindLang.Data.BasicTypes
+                    KindLang.Data.Catalogue
+                    KindLang.Data.Error
+                    KindLang.Internal
+                    KindLang.Parser.BasicTokens
+                    KindLang.Parser.ExpressionParser
+                    KindLang.Parser.State
+                    KindLang.Parser.StatementParser
+                    KindLang.Analysis.ResolveTypes
                     KindLang.Analysis.BuildCatalogue
                     KindLang.Lib.CoreTypes
-  other-modules:    KindLang.Parser.Combinators,
+                    KindLang.Parser.Combinators
                     KindLang.Util.Control
 
 executable runkind
