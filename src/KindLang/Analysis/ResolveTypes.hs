@@ -180,3 +180,9 @@ findPrefixOperator "-" t =
     Right $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
 findPrefixOperator _ _ =
     Left $ InternalError "haven't finished implementing operators"
+
+resolveStatement :: Catalogue -> Statement -> KErr AStatement
+resolveStatement cat (Expression expr) = do
+    aexpr <- resolveExpr cat expr
+    return $ AExpression (StmtAnnotation (Just (aexprType aexpr)) [] []) aexpr
+    
