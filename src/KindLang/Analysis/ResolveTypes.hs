@@ -7,94 +7,98 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
+import KindLang.Data.Scope
 import KindLang.Lib.CoreTypes    
 
 -- | Return a copy of a module tree with all types resolved, or an error message.
 resolveTypes :: Module -> KErr Module
 resolveTypes m = Right m -- FIXME implement this
 
--- | Return a copy of a definition list resolved against a given catalogue.
-resolveDefListTypes :: Catalogue -> DefList -> KErr DefList
-resolveDefListTypes cat =
+-- | Return a copy of a definition list resolved against a given scope.
+resolveDefListTypes :: Scope -> DefList -> KErr DefList
+resolveDefListTypes s =
     mapM resolve
     where
       resolve :: (String,Definition) -> KErr (String,Definition)
-      resolve (cid,def) = (cid,) <$> resolveDefinition cat def
+      resolve (cid,def) = (cid,) <$> resolveDefinition s def
 
 -- | Return a copy of a class member definition list resolved against a
--- given catalogue.
-resolveClassDefListTypes :: Catalogue -> [ClassMember] -> KErr [ClassMember]
-resolveClassDefListTypes cat = mapM (resolveClassMember cat)
+-- given scope.
+resolveClassDefListTypes :: Scope -> [ClassMember] -> KErr [ClassMember]
+resolveClassDefListTypes s = mapM (resolveClassMember s)
 
--- | Resolve an individual class member definition against a given catalogue.
-resolveClassMember :: Catalogue -> ClassMember -> KErr ClassMember
-resolveClassMember cat (ClassMember n v d) =
-    ClassMember n v <$> resolveDefinition cat d
+-- | Resolve an individual class member definition against a given scope.
+resolveClassMember :: Scope -> ClassMember -> KErr ClassMember
+resolveClassMember s (ClassMember n v d) =
+    ClassMember n v <$> resolveDefinition s d
 
--- | Resolve an individual definition against a given catalogue.
-resolveDefinition :: Catalogue -> Definition -> KErr Definition 
-resolveDefinition cat (VariableDefinition (SimpleType sid) i) = do
+-- | Resolve an individual definition against a given scope.
+resolveDefinition :: Scope -> Definition -> KErr Definition 
+resolveDefinition s (VariableDefinition (SimpleType sid) i) = do
     -- fixme how do we use resolveType here?
     -- fixme if 'i' is an init expression it should be resolved & typechecked.
     -- fixme if 'i' is a constructor expression it should be resolved.
-    (cid, def) <- lookupHierarchical cat sid
+    (cid, def) <- scopeLookup s sid
     return $ VariableDefinition (ResolvedType sid cid def) i
-resolveDefinition cat (VariableDefinition InferableType (VarInitExpr e)) = do
-    ae <- resolveExpr cat e
+resolveDefinition s (VariableDefinition InferableType (VarInitExpr e)) = do
+    ae <- resolveExpr s e
     return $ VariableDefinition (aexprType ae) (VarInitAExpr ae)
-resolveDefinition cat (ClassDefinition cdlist) =
-    ClassDefinition <$> resolveClassDefListTypes cat cdlist
+resolveDefinition s (ClassDefinition cdlist) =
+    ClassDefinition <$> resolveClassDefListTypes s cdlist
 resolveDefinition _ nonMatching = Right nonMatching
 
--- | Resolve an expression tree against a given catalogue, returning a resolved
+-- | Resolve an expression tree against a given scope, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
-resolveExpr :: Catalogue -> Expr -> KErr AExpr
+resolveExpr :: Scope -> Expr -> KErr AExpr
 -- pre-annotated expressions can simply be returned                
 resolveExpr _ (Annotated aexpr) = Right aexpr
 -- literals have predefined types                                  
-resolveExpr cat (IntLiteral v) = Right $ AIntLiteral eaKindInt v
-resolveExpr cat (StringLiteral v) = Right $ AStringLiteral eaKindString v
+resolveExpr _ (IntLiteral v) = Right $ AIntLiteral eaKindInt v
+resolveExpr _ (StringLiteral v) = Right $ AStringLiteral eaKindString v
 -- variable and object references                                    
-resolveExpr cat (VarRef sid) =
-    lookupHierarchical cat sid >>=
+resolveExpr s (VarRef sid) =
+    scopeLookup s sid >>=
       identDefToExprAnnotation >>=
         \ ann -> return $ AVarRef ann sid
-resolveExpr cat (ORef oexpr sid) = do
-    aoexpr <- resolveExpr cat oexpr
-    (cid, refType) <- resolveTypeRef cat (aexprType aoexpr) sid
+resolveExpr s (ORef oexpr sid) = do
+    aoexpr <- resolveExpr s oexpr
+    (cid, refType) <- resolveTypeRef s (aexprType aoexpr) sid
     return $ AORef (crefAnnotation cid refType) aoexpr sid
 -- operators
-resolveExpr cat (BinOp operator l r) = do
-    al <- resolveExpr cat l
-    ar <- resolveExpr cat r
+resolveExpr s (BinOp operator l r) = do
+    al <- resolveExpr s l
+    ar <- resolveExpr s r
     operatorDef <- findBinaryOperator operator (aexprType al) (aexprType ar)
     annotation <- makeFunctionCallAnnotation
                     (aexprType operatorDef)
                     ([(aexprType al), (aexprType ar)])
     return $ AFunctionApplication annotation operatorDef [al, ar]
-resolveExpr cat (PrefixOp operator e) = do
-    ae <- resolveExpr cat e
+resolveExpr s (PrefixOp operator e) = do
+    ae <- resolveExpr s e
     operatorDef <- findPrefixOperator operator (aexprType ae)
     annotation <- makeFunctionCallAnnotation
                     (aexprType operatorDef)
                     [(aexprType ae)]
     return $ AFunctionApplication annotation operatorDef [ae]
 -- function application
-resolveExpr cat (FunctionApplication fnExpr paramExprs) = do
-    rFnExpr <- resolveExpr cat fnExpr
-    rParamExprs <- sequence $ fmap (resolveExpr cat) paramExprs
+resolveExpr s (FunctionApplication fnExpr paramExprs) = do
+    rFnExpr <- resolveExpr s fnExpr
+    rParamExprs <- sequence $ fmap (resolveExpr s) paramExprs
     annotation <- makeFunctionCallAnnotation
                     (aexprType rFnExpr)
                     (aexprType <$> rParamExprs)
     return $ AFunctionApplication annotation rFnExpr rParamExprs
 -- object method application
-resolveExpr cat (OMethod obExpr sid paramExprs) = do
-    aObExpr <- resolveExpr cat obExpr
-    (cid, methodType) <- resolveTypeRef cat (aexprType aObExpr) sid
-    rParams <- sequence $ fmap (resolveExpr cat) paramExprs
+resolveExpr s (OMethod obExpr sid paramExprs) = do
+    aObExpr <- resolveExpr s obExpr
+    (cid, methodType) <- resolveTypeRef s (aexprType aObExpr) sid
+    rParams <- sequence $ fmap (resolveExpr s) paramExprs
     annotation <- makeFunctionCallAnnotation methodType (aexprType <$> rParams)
     return $ AOMethod annotation aObExpr methodType cid rParams
     
+-- fixme - this function should be handled by the scope the id is found in
+-- as different scope types should be able to produce different annotations.
+
 -- | Utility function to build an annotation for a reference operation           
 crefAnnotation :: NSID -> TypeDescriptor -> ExprAnnotation
 crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
@@ -124,10 +128,11 @@ fnInstanceType :: FunctionInstance -> TypeDescriptor
 fnInstanceType (FunctionInstance params rtype _) =
     FunctionType (snd <$> params) rtype
 
--- | @resolveTypeRef cat desc sid@ returns the canonical identifier and type
+-- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
--- of type @desc@, or an error message if no such object can be resolved.
-resolveTypeRef :: Catalogue -> TypeDescriptor -> NSID ->
+-- of type @desc@ refered to in scope @s@, or an error message if no such
+-- object can be resolved.
+resolveTypeRef :: Scope -> TypeDescriptor -> NSID ->
                   KErr (Identified TypeDescriptor)
 resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
                  sid@(UnqualifiedID memberId) = 
@@ -181,15 +186,15 @@ findPrefixOperator "-" t =
 findPrefixOperator _ _ =
     Left $ InternalError "haven't finished implementing operators"
 
-resolveStatement :: Catalogue -> Statement -> KErr AStatement
-resolveStatement cat (Expression expr) = do
-    aexpr <- resolveExpr cat expr
+resolveStatement :: Scope -> Statement -> KErr AStatement
+resolveStatement s (Expression expr) = do
+    aexpr <- resolveExpr s expr
     return $ AExpression (StmtAnnotation (Just (aexprType aexpr)) [] []) aexpr
     
-resolveStatement cat (VarDeclStatement name tdesc varinit) = do
+resolveStatement s (VarDeclStatement name tdesc varinit) = do
     -- reuse the existing code for resolving a top-level variable definition
     (VariableDefinition rtdesc rvarinit) <-
-        resolveDefinition cat (VariableDefinition tdesc varinit)
+        resolveDefinition s (VariableDefinition tdesc varinit)
     return $ AVarDeclStatement
                (StmtAnnotation Nothing [(name,rtdesc)] [])
                name rtdesc rvarinit

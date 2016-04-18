@@ -7,6 +7,7 @@ import KindLang.Analysis.ResolveTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
+import KindLang.Data.Scope
 import KindLang.Lib.CoreTypes
 import KindLang.Util.Control
     
@@ -17,7 +18,7 @@ typeResolutionTests =
     testGroup "Type resolution"
     [
         testCase "resolve module-level variable with identified type" $
-                 (resolveDefListTypes testCatalogue
+                 (resolveDefListTypes testScope
                   [("v", (VariableDefinition
                           (SimpleType simpleClass)
                           VarInitNone))]) @?=
@@ -25,7 +26,7 @@ typeResolutionTests =
                          (ResolvedType simpleClass simpleClass def)
                          VarInitNone))]),
         testCase "resolve variable with renamed type" $
-                 (resolveDefListTypes testCatalogue
+                 (resolveDefListTypes testScope
                   [("v", (VariableDefinition
                           (SimpleType renamedClass)
                           VarInitNone))]) @?=
@@ -33,7 +34,7 @@ typeResolutionTests =
                          (ResolvedType renamedClass originalClass def)
                          VarInitNone))]),
         testCase "resolve class member variables" $
-                 (resolveDefListTypes testCatalogue
+                 (resolveDefListTypes testScope
                   [("C", (ClassDefinition [
                            (ClassMember "v" Public
                             (VariableDefinition (SimpleType simpleClass)
@@ -43,27 +44,28 @@ typeResolutionTests =
                            (VariableDefinition
                             rtSimpleClass
                             VarInitNone))]))]),
+
         testCase "resolve variable reference expressions" $
-                 (resolveExpr testCatalogue $ VarRef simpleVar) @?=
+                 (resolveExpr testScope $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation
                            rtSimpleClass
                            [("CanonicalID", EADId simpleVar)]) simpleVar),
         testCase "resolve int literals" $
-                 (resolveExpr testCatalogue $ IntLiteral 1) @?=
+                 (resolveExpr testScope $ IntLiteral 1) @?=
                  (Right $ AIntLiteral
                             (ExprAnnotation rtKindInt [])
                             1),
         testCase "resolve string literals" $
-                 (resolveExpr testCatalogue $ StringLiteral "foo") @?=
+                 (resolveExpr testScope $ StringLiteral "foo") @?=
                  (Right $ AStringLiteral
                             (ExprAnnotation rtKindString [])
                             "foo"),
         testCase "pre-resolved expressions returned" $
-                 (resolveExpr testCatalogue
+                 (resolveExpr testScope
                                   (Annotated $ AIntLiteral eaKindInt 42)) @?=
                  (Right $ AIntLiteral eaKindInt 42),
         testCase "resolve object reference" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               ORef (VarRef ccInst) (UnqualifiedID "v")) @?=
                  (Right $ AORef
                   (ExprAnnotation rtSimpleClass
@@ -72,7 +74,7 @@ typeResolutionTests =
                                            [("CanonicalID", EADId ccInst)])
                    ccInst) (UnqualifiedID "v")),
         testCase "resolve function call" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               FunctionApplication
                                 (VarRef simpleFn)
                                 [(VarRef scInst)]) @?=
@@ -85,7 +87,7 @@ typeResolutionTests =
                     (ExprAnnotation rtSimpleClass
                                     [("CanonicalID", EADId scInst)]) scInst)]),
         testCase "resolve binary operator" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
                  (Right $ AFunctionApplication eaKindInt
                   (AInternalRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
@@ -93,7 +95,7 @@ typeResolutionTests =
                   [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)]),
 
         testCase "resolve prefix operator" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               PrefixOp "-" (IntLiteral 42)) @?=
                  (Right $ AFunctionApplication eaKindInt
                   (AInternalRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
@@ -101,7 +103,7 @@ typeResolutionTests =
                   [(AIntLiteral eaKindInt 42)]),
 
         testCase "resolve object method call" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               OMethod (VarRef mcInst)
                                       method
                                       [VarRef scInst]) @?=
@@ -117,35 +119,35 @@ typeResolutionTests =
                     scInst)]),
 
         testCase "attempt to access private member of object" $
-                 (resolveExpr testCatalogue $
+                 (resolveExpr testScope $
                               ORef (VarRef mcInst) privateField) @?=
                  (Left $ AccessViolation
                            (privateField `qualifiedBy` methodClass)
                            Private),
 
         testCase "variable types inferred" $
-                 (resolveDefinition testCatalogue $
+                 (resolveDefinition testScope $
                   VariableDefinition InferableType
                                      (VarInitExpr $ IntLiteral 5)) @?=
                  (Right $ VariableDefinition rtKindInt
                           (VarInitAExpr $ AIntLiteral eaKindInt 5)),
 
         testCase "expression statement resolved" $
-                 (resolveStatement testCatalogue $
+                 (resolveStatement testScope $
                                    Expression (IntLiteral 5)) @?=
                  (Right $ AExpression
                             (StmtAnnotation (Just rtKindInt) [] [])
                             (AIntLiteral eaKindInt 5)),
 
         testCase "variable definition statement resolved" $
-                 (resolveStatement testCatalogue $
+                 (resolveStatement testScope $
                   VarDeclStatement "myvar" rtKindInt VarInitNone) @?=
                  (Right $ AVarDeclStatement
                            (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
                            "myvar" rtKindInt VarInitNone),
 
         testCase "variable definition with implicit type statement resolved" $
-                 (resolveStatement testCatalogue $
+                 (resolveStatement testScope $
                   VarDeclStatement "myvar" InferableType
                   (VarInitExpr (IntLiteral 5))) @?=
                  (Right $ AVarDeclStatement
@@ -204,7 +206,9 @@ testCatalogue =
                                  (VariableDefinition rtSimpleClass VarInitNone)])
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
 
-                   
+testScope :: Scope
+testScope = Scope Nothing testCatalogue
+            
 def :: Definition
 def = (ClassDefinition [])       
 rtSimpleClass :: TypeDescriptor

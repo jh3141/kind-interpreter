@@ -27,6 +27,7 @@ library
                     KindLang.Data.BasicTypes
                     KindLang.Data.Catalogue
                     KindLang.Data.Error
+                    KindLang.Data.Scope
                     KindLang.Internal
                     KindLang.Parser.BasicTokens
                     KindLang.Parser.ExpressionParser
