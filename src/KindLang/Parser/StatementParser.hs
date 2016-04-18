@@ -20,7 +20,9 @@ stmt_ = do
        Nothing    -> simpleStatement_
 
 simpleStatement_ :: StatementP
-simpleStatement_ = Expression <$> withtws expr_ <* semicolon
+simpleStatement_ =
+    (StatementBlock <$> (withtws (braced (many (withtws stmt_))))) <|>
+    (Expression <$> withtws expr_ <* semicolon)
                        
 -- attempt to parse the beginning of a variable declaration (up to the,
 -- whitespace following the colon) and return the identifier if successful

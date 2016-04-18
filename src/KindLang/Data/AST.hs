@@ -86,12 +86,14 @@ data AnnotationData =
               
 data Statement =
      Expression Expr |
-     VarDeclStatement String TypeDescriptor VariableInitializer
+     VarDeclStatement String TypeDescriptor VariableInitializer |
+     StatementBlock [Statement]
      deriving (Show, Eq)
 
 data AStatement =
      AExpression StmtAnnotation AExpr |
-     AVarDeclStatement StmtAnnotation String TypeDescriptor VariableInitializer
+     AVarDeclStatement StmtAnnotation String TypeDescriptor VariableInitializer |
+     AStatementBlock [AStatement]
      deriving (Show, Eq)
 
 data StmtAnnotation =

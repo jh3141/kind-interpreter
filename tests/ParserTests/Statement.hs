@@ -52,6 +52,14 @@ statementParserTests =
                      expectParseError stmt_ "var:;" "",
             testCase "Cannot infer type with constructor call" $
                      expectParseError stmt_ "var:(1);" ""
-        ]
+        ],
+
+        testCase "statement blocks" $
+                 parseStmt "{ a := 1; a; }" @?=
+                 (StatementBlock [
+                   (VarDeclStatement "a" InferableType
+                                         (VarInitExpr (IntLiteral 1))),
+                   (Expression $ VarRef $ UnqualifiedID "a")])
+         
     ]
     
