@@ -168,9 +168,22 @@ typeResolutionTests =
                  (Right $
                   AStatementBlock saKindInt
                   [AExpression saKindString $ AStringLiteral eaKindString "hello",
-                   AExpression saKindInt $ AIntLiteral eaKindInt 42])
+                   AExpression saKindInt $ AIntLiteral eaKindInt 42]),
                              
-                 
+        testCase "statement blocks propagate scope changes" $
+                 (resolveStatement testScope $
+                  StatementBlock
+                  [VarDeclStatement "myvar" rtKindInt VarInitNone,
+                   Expression $ VarRef $ UnqualifiedID "myvar"]) @?=
+                 (Right $ AStatementBlock saKindInt
+                  [AVarDeclStatement (StmtAnnotation Nothing
+                    [("myvar", VariableDefinition rtKindInt VarInitNone)] [])
+                    "myvar" rtKindInt VarInitNone,
+                   AExpression saKindInt $ AVarRef
+                    (ExprAnnotation rtKindInt
+                     [("CanonicalID", EADId $ UnqualifiedID "myvar")])
+                    (UnqualifiedID "myvar")])
+                  
     ]
         
 simpleClass :: NSID

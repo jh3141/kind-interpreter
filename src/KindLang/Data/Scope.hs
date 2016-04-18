@@ -20,3 +20,8 @@ scopeLookup s i =
     where
       deferToParent (Scope Nothing _) err = Left err
       deferToParent (Scope (Just p) _) _  = scopeLookup p i
+
+(|@+|) :: Scope -> (String,Definition) -> Scope
+(Scope p cat) |@+| (n,d) = Scope p (cat |+| (UnqualifiedID n, d))
+infixl 6 |@+|
+    

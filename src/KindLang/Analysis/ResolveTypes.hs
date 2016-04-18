@@ -215,8 +215,10 @@ resolveStatement s (StatementBlock ss) = do
                         KErr (Scope, [AStatement])
       resolvePrepend (cs, reversedBlock) stmt = do
           astmt <- resolveStatement cs stmt
-          return (cs, astmt:reversedBlock)
+          return (updatedScope cs (astmtAnnotation astmt), astmt:reversedBlock)
                  
       makeAnnotation (stmt:_) = StmtAnnotation (astmtType stmt) [] []
       makeAnnotation []       = StmtAnnotation Nothing [] []
 
+      updatedScope cs (StmtAnnotation _ [] _) = cs
+      updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
