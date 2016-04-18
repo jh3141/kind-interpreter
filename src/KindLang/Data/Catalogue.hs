@@ -6,7 +6,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
     
-type ModuleLoader = ScopedID -> KErr Catalogue
+type ModuleLoader = NSID -> KErr Catalogue
 -- The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "definition".
 type Catalogue = IdentMap Definition
@@ -23,7 +23,7 @@ newCatalogue = Map.empty
 -- a namespace but the namespace already exists as a non-namespace definition,
 -- therefore callers should be careful to avoid this situation or to catch
 -- it in the IO monad.
-catAdd :: Catalogue -> ScopedID -> ScopedID -> Definition -> Catalogue
+catAdd :: Catalogue -> NSID -> NSID -> Definition -> Catalogue
 catAdd cat rid cid def =
     updatedCat cat rid []
     where
@@ -45,7 +45,7 @@ catAdd cat rid cid def =
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
 -- Binds more tightly than |@|.
-(|+|) :: Catalogue -> (ScopedID, Definition) -> Catalogue
+(|+|) :: Catalogue -> (NSID, Definition) -> Catalogue
 c |+| (sid,def) = catAdd c sid sid def
 infixl 6 |+|
 
@@ -53,7 +53,7 @@ infixl 6 |+|
 -- ids. @cat |++| (rid,cid,def)@ adds resolvable identifier @rid@ for
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
 -- level as |+|.
-(|++|) :: Catalogue -> (ScopedID, ScopedID, Definition) -> Catalogue
+(|++|) :: Catalogue -> (NSID, NSID, Definition) -> Catalogue
 c |++| (rid, cid, def) = catAdd c rid cid def
 infixl 6 |++|
     
@@ -75,7 +75,7 @@ catalogueWithOnly cat identifiers =
 -- | Look up an identifier in a catalogue, returning a tuple of the the
 -- canonical identifier and definition for the item found, or an error
 -- otherwise.
-lookupHierarchical :: Catalogue -> ScopedID -> KErr IdentDefinition
+lookupHierarchical :: Catalogue -> NSID -> KErr IdentDefinition
 lookupHierarchical cat sid@(QualifiedID s s') =
     case Map.lookup s cat of
       Nothing -> Left $ IdentifierNotFound sid
@@ -90,13 +90,13 @@ lookupHierarchical cat sid@(UnqualifiedID s) =
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@|) :: Catalogue -> ScopedID -> KErr Definition
+(|@|) :: Catalogue -> NSID -> KErr Definition
 c |@| i =  (either Left $ Right . snd) (lookupHierarchical c i)
 infixl 5 |@|
 
 -- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue
 -- 'cat', returning the modified catalogue.
-makeNamespace :: ScopedID -> Catalogue -> Catalogue
+makeNamespace :: NSID -> Catalogue -> Catalogue
 makeNamespace sid cat =
     recurse sid [] 
     where
@@ -113,22 +113,22 @@ makeNamespace sid cat =
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
 -- and its definition.
-catFlatten :: Catalogue -> [(ScopedID,ScopedID,Definition)]
+catFlatten :: Catalogue -> [(NSID,NSID,Definition)]
 catFlatten =
     Map.foldWithKey (processItem []) []
     where
       processItem :: [String] -> String -> IdentDefinition ->
-                     [(ScopedID,ScopedID,Definition)] ->
-                     [(ScopedID,ScopedID,Definition)]
+                     [(NSID,NSID,Definition)] ->
+                     [(NSID,NSID,Definition)]
       processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
       processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
                               
 -- FIXME document and test these:
-resolveType :: Catalogue -> ScopedID -> KErr TypeDescriptor
+resolveType :: Catalogue -> NSID -> KErr TypeDescriptor
 resolveType cat sid =
     makeResolvedType sid <$> lookupHierarchical cat sid
 
-makeResolvedType :: ScopedID -> IdentDefinition -> TypeDescriptor
+makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
 makeResolvedType sid (cid, def) = ResolvedType sid cid def                    
                                     
                                 

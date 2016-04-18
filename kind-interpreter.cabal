@@ -64,7 +64,7 @@ test-suite kind-tests
                    ParserTests.Statement
                    AnalysisTests.Catalogue
                    AnalysisTests.TypeResolution
-                   TypeTests.ScopedID
+                   TypeTests.NSID
                    TypeTests.Catalogue
                    
                                                                         

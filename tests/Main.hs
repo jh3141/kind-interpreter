@@ -8,7 +8,7 @@ import ParserTests.Expression
 import ParserTests.Statement
 import AnalysisTests.Catalogue
 import AnalysisTests.TypeResolution
-import TypeTests.ScopedID
+import TypeTests.NSID
 import TypeTests.Catalogue
     
 main :: IO ()

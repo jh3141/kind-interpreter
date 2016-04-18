@@ -67,7 +67,7 @@ typeResolutionTests =
                               ORef (VarRef ccInst) (UnqualifiedID "v")) @?=
                  (Right $ AORef
                   (ExprAnnotation rtSimpleClass
-                   [("CanonicalID", EADId $ listToScopedID ["ComplexClass","v"])])
+                   [("CanonicalID", EADId $ listToNSID ["ComplexClass","v"])])
                   (AVarRef (ExprAnnotation rtComplexClass
                                            [("CanonicalID", EADId ccInst)])
                    ccInst) (UnqualifiedID "v")),
@@ -139,31 +139,31 @@ typeResolutionTests =
                  
     ]
         
-simpleClass :: ScopedID
-simpleClass = listToScopedID ["SimpleClass"]
-complexClass :: ScopedID
-complexClass = listToScopedID ["ComplexClass"]
-methodClass :: ScopedID
-methodClass = listToScopedID ["MethodClass"]
-scInst :: ScopedID
-scInst = listToScopedID ["simpleObject"]
-ccInst :: ScopedID
-ccInst = listToScopedID ["complexObject"]
-mcInst :: ScopedID
-mcInst = listToScopedID ["methodObject"]
-simpleFn :: ScopedID
-simpleFn = listToScopedID ["simpleFn"]
-qualifiedClass :: ScopedID
-qualifiedClass = listToScopedID ["package", "module", "QualifiedClass" ]
-renamedClass :: ScopedID
-renamedClass = listToScopedID ["renamed", "RenamedClass" ]
-originalClass :: ScopedID
-originalClass = listToScopedID ["original", "RenamedClass" ]
-simpleVar :: ScopedID
-simpleVar = listToScopedID ["simpleVar"]
-method :: ScopedID
+simpleClass :: NSID
+simpleClass = listToNSID ["SimpleClass"]
+complexClass :: NSID
+complexClass = listToNSID ["ComplexClass"]
+methodClass :: NSID
+methodClass = listToNSID ["MethodClass"]
+scInst :: NSID
+scInst = listToNSID ["simpleObject"]
+ccInst :: NSID
+ccInst = listToNSID ["complexObject"]
+mcInst :: NSID
+mcInst = listToNSID ["methodObject"]
+simpleFn :: NSID
+simpleFn = listToNSID ["simpleFn"]
+qualifiedClass :: NSID
+qualifiedClass = listToNSID ["package", "module", "QualifiedClass" ]
+renamedClass :: NSID
+renamedClass = listToNSID ["renamed", "RenamedClass" ]
+originalClass :: NSID
+originalClass = listToNSID ["original", "RenamedClass" ]
+simpleVar :: NSID
+simpleVar = listToNSID ["simpleVar"]
+method :: NSID
 method = UnqualifiedID "method"
-privateField :: ScopedID
+privateField :: NSID
 privateField = UnqualifiedID "privateField"
 
          

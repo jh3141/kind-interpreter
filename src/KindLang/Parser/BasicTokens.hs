@@ -25,7 +25,7 @@ identifier_ = startChar <:> many continueChar
 scopeOp_ :: Parser String
 scopeOp_ = string "::"
             
-scopedID_ :: Parser ScopedID
+scopedID_ :: Parser NSID
 scopedID_ = liftM (foldrn QualifiedID UnqualifiedID) $
                    sepBy1Lazy (withtws identifier_) (withtws scopeOp_)
 

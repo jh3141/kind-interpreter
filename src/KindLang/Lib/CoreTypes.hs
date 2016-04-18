@@ -7,7 +7,7 @@ import KindLang.Util.Control
 import qualified Data.Map as Map
 
 -- | Function to create an ID in the core module given a string
-coreId :: String -> ScopedID
+coreId :: String -> NSID
 coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
           
 coreTypes :: Catalogue
@@ -25,16 +25,16 @@ coreTypesQualified =
 --   value types - lower case
 --   reference types - upper case
 
-sidKind :: ScopedID
+sidKind :: NSID
 sidKind = UnqualifiedID "kind"
-sidInt :: ScopedID
+sidInt :: NSID
 sidInt = UnqualifiedID "int"
-sidString :: ScopedID
+sidString :: NSID
 sidString = UnqualifiedID "string"
 
-sidKindInt :: ScopedID
+sidKindInt :: NSID
 sidKindInt = sidInt `qualifiedBy` sidKind
-sidKindString :: ScopedID
+sidKindString :: NSID
 sidKindString = sidString `qualifiedBy` sidKind
 
 -- fixme should these be qualified or unqualified?

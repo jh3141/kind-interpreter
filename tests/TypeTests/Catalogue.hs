@@ -53,18 +53,18 @@ def :: Definition
 def = ClassDefinition []
 def2 :: Definition
 def2 = FunctionDefinition []        
-nqid :: ScopedID
+nqid :: NSID
 nqid = UnqualifiedID "nqid"
-nqid2 :: ScopedID
+nqid2 :: NSID
 nqid2 = UnqualifiedID "nqid2"
-qid :: ScopedID
+qid :: NSID
 qid = QualifiedID "qid_a" $ UnqualifiedID "qid_b"
-qid2 :: ScopedID
+qid2 :: NSID
 qid2 = QualifiedID "qid_a" $ UnqualifiedID "qid2_b"
-mqid :: ScopedID
+mqid :: NSID
 mqid = QualifiedID "qid_a" $ QualifiedID "qid3_b" $ UnqualifiedID "qid3_c"
-mmqid :: ScopedID
+mmqid :: NSID
 mmqid = foldrn QualifiedID UnqualifiedID ["a","b","c","d","e","f"]
-mmqid2 :: ScopedID
+mmqid2 :: NSID
 mmqid2 = foldrn QualifiedID UnqualifiedID ["a","b","c","g","h","i"]
         

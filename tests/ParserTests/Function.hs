@@ -55,9 +55,9 @@ functionParserTests =
                                                (VarRef idd)]]
     ]                         
 
-idb :: ScopedID
+idb :: NSID
 idb = UnqualifiedID "b"
-idc :: ScopedID
+idc :: NSID
 idc = UnqualifiedID "c"
-idd :: ScopedID
+idd :: NSID
 idd = UnqualifiedID "d"

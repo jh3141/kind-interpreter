@@ -54,7 +54,7 @@ importModule loader (QualifiedModuleImport sid False reqid) =
     either Left (Right . makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid)) (loadItem loader sid)
 
 -- load a single item from the module identified by its qualified id
-loadItem :: ModuleLoader -> ScopedID -> KErr Catalogue                         
+loadItem :: ModuleLoader -> NSID -> KErr Catalogue                         
 loadItem loader sid =
     case qualifierOf sid of
       Just msid -> (`catalogueWithOnly` [unscopedIdOf sid]) <$> loader msid

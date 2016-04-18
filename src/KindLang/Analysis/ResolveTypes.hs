@@ -96,7 +96,7 @@ resolveExpr cat (OMethod obExpr sid paramExprs) = do
     return $ AOMethod annotation aObExpr methodType cid rParams
     
 -- | Utility function to build an annotation for a reference operation           
-crefAnnotation :: ScopedID -> TypeDescriptor -> ExprAnnotation
+crefAnnotation :: NSID -> TypeDescriptor -> ExprAnnotation
 crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 
 -- | Build an appropriate expression annotation for an expression that
@@ -127,7 +127,7 @@ fnInstanceType (FunctionInstance params rtype _) =
 -- | @resolveTypeRef cat desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
 -- of type @desc@, or an error message if no such object can be resolved.
-resolveTypeRef :: Catalogue -> TypeDescriptor -> ScopedID ->
+resolveTypeRef :: Catalogue -> TypeDescriptor -> NSID ->
                   KErr (Identified TypeDescriptor)
 resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
                  sid@(UnqualifiedID memberId) = 

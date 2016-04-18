@@ -6,12 +6,12 @@ import KindLang.Data.BasicTypes
 type DefList = [(String,Definition)]
     
 data ModuleImport = 
-     UnqualifiedModuleImport ScopedID Bool |
-     QualifiedModuleImport ScopedID Bool (Maybe ScopedID)
+     UnqualifiedModuleImport NSID Bool |
+     QualifiedModuleImport NSID Bool (Maybe NSID)
      deriving (Show, Eq)
      
 data Module = Module {
-     moduleName :: Maybe ScopedID,
+     moduleName :: Maybe NSID,
      moduleImportList :: [ModuleImport],
      moduleDeclarationList :: DefList     -- FIXME shouldn't this be called moduleDefinitionList?
 } deriving (Show, Eq)
@@ -40,11 +40,11 @@ data Visibility = Public | Protected | Private
      deriving (Show, Eq)
               
 data TypeDescriptor =
-     SimpleType ScopedID |
+     SimpleType NSID |
      InferableType |
      ResolvedType {
-         resolvedTypeRID :: ScopedID,
-         resolvedTypeCanonicalID :: ScopedID,
+         resolvedTypeRID :: NSID,
+         resolvedTypeCanonicalID :: NSID,
          resolvedTypeDefinition :: Definition
      } |
      FunctionType [TypeDescriptor] TypeDescriptor
@@ -54,25 +54,25 @@ data Expr =
      Annotated AExpr |
      IntLiteral Int |
      StringLiteral String |
-     VarRef ScopedID |
-     ORef Expr ScopedID |
+     VarRef NSID |
+     ORef Expr NSID |
      BinOp String Expr Expr |
      PrefixOp String Expr |
      FunctionApplication Expr [Expr] |
-     OMethod Expr ScopedID [Expr]
+     OMethod Expr NSID [Expr]
      deriving (Show, Eq)
 
 data AExpr =
      AIntLiteral ExprAnnotation Int |
      AStringLiteral ExprAnnotation String |
-     AVarRef ExprAnnotation ScopedID |
-     AORef ExprAnnotation AExpr ScopedID |
+     AVarRef ExprAnnotation NSID |
+     AORef ExprAnnotation AExpr NSID |
      -- operators are transformed to function/method applications during
      -- type annotation so do not appear here.
      AFunctionApplication ExprAnnotation AExpr [AExpr] |
-     AOMethod ExprAnnotation AExpr TypeDescriptor ScopedID [AExpr] |
+     AOMethod ExprAnnotation AExpr TypeDescriptor NSID [AExpr] |
      -- internal references generated during resolution, e.g. internal functions
-     AInternalRef ExprAnnotation ScopedID
+     AInternalRef ExprAnnotation NSID
      deriving (Show, Eq)
 
 data ExprAnnotation =
@@ -81,7 +81,7 @@ data ExprAnnotation =
 
 data AnnotationData =
      EADOptionTrue |
-     EADId ScopedID
+     EADId NSID
      deriving (Show, Eq)
               
 data Statement =

@@ -19,7 +19,7 @@ module_ =
         body <- manyTill (withws (import_ </> declaration_)) eof
         return ((uncurry $ Module header) (partitionEithers body))
 
-moduleHeader_ :: Parser ScopedID
+moduleHeader_ :: Parser NSID
 moduleHeader_ = string "module" >> withws scopedID_ <* semicolon
 
 -- FIXME handle more forms of import!

@@ -97,7 +97,7 @@ catalogueTests =
                  
     ]
 
-myModuleId :: ScopedID
+myModuleId :: NSID
 myModuleId = QualifiedID "My" $ UnqualifiedID "Module"
              
 myModule :: Module
@@ -105,15 +105,15 @@ myModule = Module (Just myModuleId) []
            [("MyClass", ClassDefinition[]),
             ("MyOtherClass", ClassDefinition[])]
 
-myClassSID :: ScopedID
+myClassSID :: NSID
 myClassSID = QualifiedID "My" $ QualifiedID "Module" $ UnqualifiedID "MyClass"
 
-myOtherClassSID :: ScopedID
+myOtherClassSID :: NSID
 myOtherClassSID = QualifiedID "My" $ QualifiedID "Module" $
                   UnqualifiedID "MyOtherClass"
              
 -- nb this definition does not break circular dependencies!
-loaderForModule :: ScopedID -> Module -> ModuleLoader
+loaderForModule :: NSID -> Module -> ModuleLoader
 loaderForModule sid m sidQ | sid == sidQ
                                = moduleCataloguePublic <$>
                                  buildCatalogues nullLoader m
