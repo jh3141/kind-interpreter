@@ -142,8 +142,17 @@ typeResolutionTests =
                   VarDeclStatement "myvar" rtKindInt VarInitNone) @?=
                  (Right $ AVarDeclStatement
                            (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
-                           "myvar"
-                           rtKindInt VarInitNone)
+                           "myvar" rtKindInt VarInitNone),
+
+        testCase "variable definition with implicit type statement resolved" $
+                 (resolveStatement testCatalogue $
+                  VarDeclStatement "myvar" InferableType
+                  (VarInitExpr (IntLiteral 5))) @?=
+                 (Right $ AVarDeclStatement
+                           (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
+                           "myvar" rtKindInt
+                           (VarInitAExpr (AIntLiteral eaKindInt 5)))
+                 
     ]
         
 simpleClass :: NSID

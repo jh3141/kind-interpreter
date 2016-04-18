@@ -193,3 +193,4 @@ resolveStatement cat (VarDeclStatement name tdesc varinit) = do
     return $ AVarDeclStatement
                (StmtAnnotation Nothing [(name,rtdesc)] [])
                name rtdesc rvarinit
+                        
