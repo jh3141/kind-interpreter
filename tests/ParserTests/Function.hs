@@ -33,26 +33,29 @@ functionParserTests =
                  (fnDefReturnType $ parseFn "a(){}") @?= InferableType,
         testCase "Body" $
                  (fnDefBody $ parseFn "a(b){b;}") @?=
-                 [Expression $ VarRef idb],
+                 (StatementBlock [Expression $ VarRef idb]),
         testCase "Body with two expressions" $
                  (fnDefBody $ parseFn "a(b,c){b;c;}") @?=
-                 [Expression $ VarRef idb, Expression $ VarRef idc],
+                 (StatementBlock [Expression $ VarRef idb,
+                                  Expression $ VarRef idc]),
         testCase "Function with multiple instances" $
                  (parseFnM "a(b){b;},(b,c){b+c;} , (b,c,d){b+c+d;}") @?=
                  [FunctionInstance [("b",InferableType)]
                                    InferableType
-                                   [Expression $ VarRef idb],
+                                   (StatementBlock [Expression $ VarRef idb]),
                   FunctionInstance [("b",InferableType),("c",InferableType)]
                                    InferableType
-                                   [Expression $ BinOp "+"
-                                               (VarRef idb) (VarRef idc)],
+                                   (StatementBlock
+                                    [Expression $ BinOp "+"
+                                               (VarRef idb) (VarRef idc)]),
                   FunctionInstance [("b",InferableType),("c",InferableType),
                                     ("d",InferableType)]
                                    InferableType
-                                   [Expression $ BinOp "+"
+                                   (StatementBlock
+                                    [Expression $ BinOp "+"
                                                (BinOp "+" (VarRef idb)
                                                           (VarRef idc))
-                                               (VarRef idd)]]
+                                               (VarRef idd)])]
     ]                         
 
 idb :: NSID

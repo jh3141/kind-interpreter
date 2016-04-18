@@ -220,6 +220,6 @@ simpleFnInstance :: FunctionInstance
 simpleFnInstance = FunctionInstance
                      [("a", rtSimpleClass)]
                      rtComplexClass
-                     [] -- nb not a valid instance as lacks result expression.
+                     (Expression $ VarRef ccInst)
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass

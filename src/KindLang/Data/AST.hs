@@ -19,7 +19,7 @@ data Module = Module {
 data FunctionInstance = FunctionInstance {
          fnDefParams :: [(String,TypeDescriptor)],
          fnDefReturnType :: TypeDescriptor,
-         fnDefBody :: [Statement]
+         fnDefBody :: Statement
      }
      deriving (Show, Eq)
               

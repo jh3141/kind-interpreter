@@ -5,7 +5,6 @@ import Test.Tasty.HUnit
 import KindLang.Parser.ModuleParser    
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes   
-import Text.Parsec
     
 import ParserTests.Util
     
@@ -84,7 +83,8 @@ moduleParserTests =
                           Module Nothing []
                                  [("testFunction",
                                    FunctionDefinition [
-                                    FunctionInstance [] InferableType []])],
+                                    FunctionInstance [] InferableType
+                                                        (StatementBlock [])])],
 
         testCase "End-of-line comments stripped" $
                  parseMod "// comment\nmodule MyName;// another" @?=
