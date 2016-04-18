@@ -22,8 +22,8 @@ buildCatalogues loader m =
           Right $ ModuleCatalogues (addScopedIds definitionMap) (imported)
     where
       definitionMap = Map.fromList $ moduleDeclarationList m
-      addScopedIds = Map.mapWithKey (\k v -> (scopedIdFor k, v)) 
-      scopedIdFor string =
+      addScopedIds = Map.mapWithKey (\k v -> (nsidFor k, v)) 
+      nsidFor string =
           case moduleName m of
             Just mid -> (UnqualifiedID string) `qualifiedBy`mid
             Nothing  -> (UnqualifiedID string)
@@ -57,6 +57,6 @@ importModule loader (QualifiedModuleImport sid False reqid) =
 loadItem :: ModuleLoader -> NSID -> KErr Catalogue                         
 loadItem loader sid =
     case qualifierOf sid of
-      Just msid -> (`catalogueWithOnly` [unscopedIdOf sid]) <$> loader msid
+      Just msid -> (`catalogueWithOnly` [withoutNamespace sid]) <$> loader msid
       Nothing   -> Left $ InvalidImport sid
                   "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"

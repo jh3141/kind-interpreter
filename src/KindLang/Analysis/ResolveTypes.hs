@@ -111,10 +111,10 @@ identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
 identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
     Right $ crefAnnotation cid rt
 identDefToExprAnnotation (cid, VariableDefinition rt _) =
-    Left $ InternalError (scopedIDString cid ++ " is not resolved (" ++
+    Left $ InternalError (nsidString cid ++ " is not resolved (" ++
                                          show rt ++")")
 identDefToExprAnnotation (cid, FunctionDefinition []) =
-    Left $ InternalError (scopedIDString cid ++ " contains no instances")
+    Left $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, FunctionDefinition (fnInstance:[])) =
     Right $ crefAnnotation cid (fnInstanceType fnInstance)
 identDefToExprAnnotation (cid, FunctionDefinition _) =
@@ -148,7 +148,7 @@ resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
     -- fixme what to do with qualified member references?
 resolveTypeRef _ (ResolvedType _ cid def) sid =
     Left $ TypeError (sid `qualifiedBy` cid)
-             ((scopedIDString sid) ++ " is a " ++ (definitionTypeName def))
+             ((nsidString sid) ++ " is a " ++ (definitionTypeName def))
 resolveTypeRef _ t _ =
     Left $ InternalError ("dereferenced object is not resolved (" ++
                           show t ++ ")")

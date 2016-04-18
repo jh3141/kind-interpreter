@@ -24,19 +24,19 @@ qualifierOf (UnqualifiedID _) = Nothing
 qualifierOf (QualifiedID s (UnqualifiedID _)) = Just $ UnqualifiedID s
 qualifierOf (QualifiedID s s') = Just (QualifiedID s
                                        (fromJust $ qualifierOf s'))
-unscopedIdOf :: NSID -> String
-unscopedIdOf (UnqualifiedID s) = s
-unscopedIdOf (QualifiedID _ s') = unscopedIdOf s'
+withoutNamespace :: NSID -> String
+withoutNamespace (UnqualifiedID s) = s
+withoutNamespace (QualifiedID _ s') = withoutNamespace s'
 
-scopedIdToList :: NSID -> [String]
-scopedIdToList (UnqualifiedID s) = [s]
-scopedIdToList (QualifiedID s s') = s:(scopedIdToList s')
+nsidToList :: NSID -> [String]
+nsidToList (UnqualifiedID s) = [s]
+nsidToList (QualifiedID s s') = s:(nsidToList s')
 
 listToNSID :: [String] -> NSID
 listToNSID = foldrn QualifiedID UnqualifiedID
                  
-scopedIDString :: NSID -> String
-scopedIDString = foldl1 (\ a b -> a ++ "::" ++ b) . scopedIdToList
+nsidString :: NSID -> String
+nsidString = foldl1 (\ a b -> a ++ "::" ++ b) . nsidToList
                  
 instance Show NSID where
-    show s = "(NSID " ++ show (scopedIDString s) ++ ")"
+    show s = "(NSID " ++ show (nsidString s) ++ ")"

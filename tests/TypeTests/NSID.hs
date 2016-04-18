@@ -25,8 +25,8 @@ scopedIDTests =
         testCase "qualifierOf nqid" $ qualifierOf nqid @?= Nothing,
         testCase "qualifierOf qid" $ qualifierOf qid @?=
                      (Just $ UnqualifiedID "qid_a"),
-        testCase "unscopedIdOf nqid" $ unscopedIdOf nqid @?= "nqid",
-        testCase "unscopedIdOf qid" $ unscopedIdOf qid @?= "qid_b",
+        testCase "withoutNamespace nqid" $ withoutNamespace nqid @?= "nqid",
+        testCase "withoutNamespace qid" $ withoutNamespace qid @?= "qid_b",
         testCase "long id produced from list" $
                  show ("z" `qualifiedByStrings` ["a","b","c","d"]) @?=
                           "(NSID \"a::b::c::d::z\")",
