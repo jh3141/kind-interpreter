@@ -135,8 +135,15 @@ typeResolutionTests =
                                    Expression (IntLiteral 5)) @?=
                  (Right $ AExpression
                             (StmtAnnotation (Just rtKindInt) [] [])
-                            (AIntLiteral eaKindInt 5))
-                 
+                            (AIntLiteral eaKindInt 5)),
+
+        testCase "variable definition statement resolved" $
+                 (resolveStatement testCatalogue $
+                  VarDeclStatement "myvar" rtKindInt VarInitNone) @?=
+                 (Right $ AVarDeclStatement
+                           (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
+                           "myvar"
+                           rtKindInt VarInitNone)
     ]
         
 simpleClass :: NSID

@@ -186,3 +186,10 @@ resolveStatement cat (Expression expr) = do
     aexpr <- resolveExpr cat expr
     return $ AExpression (StmtAnnotation (Just (aexprType aexpr)) [] []) aexpr
     
+resolveStatement cat (VarDeclStatement name tdesc varinit) = do
+    -- reuse the existing code for resolving a top-level variable definition
+    (VariableDefinition rtdesc rvarinit) <-
+        resolveDefinition cat (VariableDefinition tdesc varinit)
+    return $ AVarDeclStatement
+               (StmtAnnotation Nothing [(name,rtdesc)] [])
+               name rtdesc rvarinit
