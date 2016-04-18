@@ -197,7 +197,8 @@ resolveStatement s (VarDeclStatement name tdesc varinit) = do
     (VariableDefinition rtdesc rvarinit) <-
         resolveDefinition s (VariableDefinition tdesc varinit)
     return $ AVarDeclStatement
-               (StmtAnnotation Nothing [(name,rtdesc)] [])
+               (StmtAnnotation Nothing
+                               [(name,VariableDefinition rtdesc VarInitNone)] [])
                name rtdesc rvarinit
                         
 resolveStatement s (StatementBlock ss) = do

@@ -143,17 +143,22 @@ typeResolutionTests =
                  (resolveStatement testScope $
                   VarDeclStatement "myvar" rtKindInt VarInitNone) @?=
                  (Right $ AVarDeclStatement
-                           (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
-                           "myvar" rtKindInt VarInitNone),
+                  (StmtAnnotation Nothing
+                   [("myvar", VariableDefinition rtKindInt VarInitNone)] [])
+                  "myvar" rtKindInt VarInitNone),
 
         testCase "variable definition with implicit type statement resolved" $
                  (resolveStatement testScope $
                   VarDeclStatement "myvar" InferableType
                   (VarInitExpr (IntLiteral 5))) @?=
                  (Right $ AVarDeclStatement
-                           (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
-                           "myvar" rtKindInt
-                           (VarInitAExpr (AIntLiteral eaKindInt 5))),
+                  (StmtAnnotation Nothing
+                   [("myvar", VariableDefinition rtKindInt VarInitNone)]
+                    -- note that initialiser has been removed, as unimportant
+                    -- in this context.
+                   [])
+                  "myvar" rtKindInt (VarInitAExpr (AIntLiteral eaKindInt 5))),
+                 -- but it has appeared here.
 
         testCase "statement block resolved" $
                  (resolveStatement testScope $

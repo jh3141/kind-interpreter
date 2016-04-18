@@ -97,9 +97,7 @@ data AStatement =
      deriving (Show, Eq)
 
 data StmtAnnotation =
-     StmtAnnotation (Maybe TypeDescriptor)
-                    [(String,TypeDescriptor)]
-                    [(String,AnnotationData)]
+     StmtAnnotation (Maybe TypeDescriptor) DefList [(String,AnnotationData)]
      deriving (Show, Eq)
               
 data VariableInitializer =
