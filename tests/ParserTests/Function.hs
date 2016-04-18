@@ -33,7 +33,7 @@ functionParserTests =
                  (fnDefReturnType $ parseFn "a(){}") @?= InferableType,
         testCase "Body" $
                  (fnDefBody $ parseFn "a(b){b;}") @?=
-                 (StatementBlock [Expression $ VarRef idb]),
+                 (Expression $ VarRef idb),
         testCase "Body with two expressions" $
                  (fnDefBody $ parseFn "a(b,c){b;c;}") @?=
                  (StatementBlock [Expression $ VarRef idb,
@@ -42,20 +42,18 @@ functionParserTests =
                  (parseFnM "a(b){b;},(b,c){b+c;} , (b,c,d){b+c+d;}") @?=
                  [FunctionInstance [("b",InferableType)]
                                    InferableType
-                                   (StatementBlock [Expression $ VarRef idb]),
+                                   (Expression $ VarRef idb),
                   FunctionInstance [("b",InferableType),("c",InferableType)]
                                    InferableType
-                                   (StatementBlock
-                                    [Expression $ BinOp "+"
-                                               (VarRef idb) (VarRef idc)]),
+                                   (Expression $ BinOp "+"
+                                               (VarRef idb) (VarRef idc)),
                   FunctionInstance [("b",InferableType),("c",InferableType),
                                     ("d",InferableType)]
                                    InferableType
-                                   (StatementBlock
-                                    [Expression $ BinOp "+"
+                                   (Expression $ BinOp "+"
                                                (BinOp "+" (VarRef idb)
                                                           (VarRef idc))
-                                               (VarRef idd)])]
+                                               (VarRef idd))]
     ]                         
 
 idb :: NSID

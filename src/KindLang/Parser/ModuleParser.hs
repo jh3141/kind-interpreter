@@ -76,7 +76,7 @@ functionInstance_ = liftM3 FunctionInstance
                (withtws parameterDeclaration_ `sepBy` withtws comma))
            (maybeOrInferable <$>
                optionMaybe (withtws colon >> withtws typeDescriptor_))
-           (StatementBlock <$> (braced $ many $ withtws stmt_))
+           (statementListToStatement <$> (braced $ many $ withtws stmt_))
 
 parameterDeclaration_ :: Parser (String,TypeDescriptor)
 parameterDeclaration_ =

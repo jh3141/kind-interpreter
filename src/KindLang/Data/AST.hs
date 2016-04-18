@@ -150,3 +150,10 @@ classMemberName (ClassMember name _ _) = name
 namespaceCatalogue :: Definition -> IdentMap Definition
 namespaceCatalogue (Namespace cat) = cat
 namespaceCatalogue t = error ("not a namespace: " ++ definitionTypeName t)
+
+-- | Convert a statement list to a single statement. Empty lists become
+-- a statement block, as do lists with multiple statements, but lists with
+-- just one statement are unwrapped.
+statementListToStatement :: [Statement] -> Statement
+statementListToStatement (s:[]) = s
+statementListToStatement ss = StatementBlock ss
