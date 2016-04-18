@@ -153,7 +153,18 @@ typeResolutionTests =
                  (Right $ AVarDeclStatement
                            (StmtAnnotation Nothing [("myvar",rtKindInt)] [])
                            "myvar" rtKindInt
-                           (VarInitAExpr (AIntLiteral eaKindInt 5)))
+                           (VarInitAExpr (AIntLiteral eaKindInt 5))),
+
+        testCase "statement block resolved" $
+                 (resolveStatement testScope $
+                  StatementBlock
+                  [Expression $ StringLiteral "hello",
+                   Expression $ IntLiteral 42]) @?=
+                 (Right $
+                  AStatementBlock saKindInt
+                  [AExpression saKindString $ AStringLiteral eaKindString "hello",
+                   AExpression saKindInt $ AIntLiteral eaKindInt 42])
+                             
                  
     ]
         
@@ -227,3 +238,9 @@ simpleFnInstance = FunctionInstance
                      (Expression $ VarRef ccInst)
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
+
+saKindInt :: StmtAnnotation
+saKindInt = StmtAnnotation (Just rtKindInt) [] []
+saKindString :: StmtAnnotation
+saKindString = StmtAnnotation (Just rtKindString) [] []
+               

@@ -3,6 +3,7 @@ module KindLang.Analysis.ResolveTypes where
 
 import Data.List
 import Control.Arrow
+import Control.Monad
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
@@ -199,3 +200,22 @@ resolveStatement s (VarDeclStatement name tdesc varinit) = do
                (StmtAnnotation Nothing [(name,rtdesc)] [])
                name rtdesc rvarinit
                         
+resolveStatement s (StatementBlock ss) = do
+    -- it's annoying that this produces a reversed block, but unfortunately
+    -- we *must* use a left fold in order to have results of previous
+    -- statement resolution available, and right folds cannot efficiently produce
+    -- non-reversed lists.
+    (s', reversedBlock) <- foldM resolvePrepend (s, []) ss
+    return $ AStatementBlock
+               (makeAnnotation reversedBlock)
+               (reverse reversedBlock)
+    where
+      resolvePrepend :: (Scope, [AStatement]) -> Statement -> 
+                        KErr (Scope, [AStatement])
+      resolvePrepend (cs, reversedBlock) stmt = do
+          astmt <- resolveStatement cs stmt
+          return (cs, astmt:reversedBlock)
+                 
+      makeAnnotation (stmt:_) = StmtAnnotation (astmtType stmt) [] []
+      makeAnnotation []       = StmtAnnotation Nothing [] []
+

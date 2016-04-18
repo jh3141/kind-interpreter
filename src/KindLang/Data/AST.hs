@@ -93,7 +93,7 @@ data Statement =
 data AStatement =
      AExpression StmtAnnotation AExpr |
      AVarDeclStatement StmtAnnotation String TypeDescriptor VariableInitializer |
-     AStatementBlock [AStatement]
+     AStatementBlock StmtAnnotation [AStatement]
      deriving (Show, Eq)
 
 data StmtAnnotation =
@@ -157,3 +157,15 @@ namespaceCatalogue t = error ("not a namespace: " ++ definitionTypeName t)
 statementListToStatement :: [Statement] -> Statement
 statementListToStatement (s:[]) = s
 statementListToStatement ss = StatementBlock ss
+
+astmtAnnotation :: AStatement -> StmtAnnotation
+astmtAnnotation (AExpression a _) = a
+astmtAnnotation (AVarDeclStatement a _ _ _) = a
+astmtAnnotation (AStatementBlock a _) = a
+
+stmtAnnotationType :: StmtAnnotation -> Maybe TypeDescriptor
+stmtAnnotationType (StmtAnnotation t _ _) = t
+
+astmtType :: AStatement -> Maybe TypeDescriptor
+astmtType = stmtAnnotationType . astmtAnnotation
+            
