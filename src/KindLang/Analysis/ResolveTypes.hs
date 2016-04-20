@@ -222,3 +222,6 @@ resolveStatement s (StatementBlock ss) = do
 
       updatedScope cs (StmtAnnotation _ [] _) = cs
       updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
+
+resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
+resolveInstance s fn = Right fn

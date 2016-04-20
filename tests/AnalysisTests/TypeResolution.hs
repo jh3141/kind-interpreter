@@ -182,8 +182,18 @@ typeResolutionTests =
                    AExpression saKindInt $ AVarRef
                     (ExprAnnotation rtKindInt
                      [("CanonicalID", EADId $ UnqualifiedID "myvar")])
-                    (UnqualifiedID "myvar")])
-                  
+                    (UnqualifiedID "myvar")]),
+                 
+        testCase "resolve function instance" $
+                 (resolveInstance testScope simpleFnInstance) @?=
+                 (Right $
+                  AFunctionInstance [("a", rtSimpleClass)] rtComplexClass
+                  (AExpression (StmtAnnotation (Just rtComplexClass) [] []) $
+                   AVarRef
+                   (ExprAnnotation rtComplexClass
+                                   [("CanonicalID", EADId ccInst)])
+                   ccInst))
+                 
     ]
         
 simpleClass :: NSID
