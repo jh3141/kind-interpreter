@@ -16,11 +16,9 @@ data Module = Module {
      moduleDeclarationList :: DefList     -- FIXME shouldn't this be called moduleDefinitionList?
 } deriving (Show, Eq)
 
-data FunctionInstance = FunctionInstance {
-         fnDefParams :: [(String,TypeDescriptor)],
-         fnDefReturnType :: TypeDescriptor,
-         fnDefBody :: Statement
-     }
+data FunctionInstance =
+     FunctionInstance [(String,TypeDescriptor)] TypeDescriptor Statement |
+     AFunctionInstance [(String,TypeDescriptor)] TypeDescriptor AStatement
      deriving (Show, Eq)
               
 data Definition =
@@ -167,3 +165,15 @@ stmtAnnotationType (StmtAnnotation t _ _) = t
 astmtType :: AStatement -> Maybe TypeDescriptor
 astmtType = stmtAnnotationType . astmtAnnotation
             
+fnDefParams :: FunctionInstance -> [(String,TypeDescriptor)]
+fnDefParams (FunctionInstance p _ _) = p
+fnDefParams (AFunctionInstance p _ _) = p
+
+fnDefReturnType :: FunctionInstance -> TypeDescriptor
+fnDefReturnType (FunctionInstance _ r _) = r
+fnDefReturnType (AFunctionInstance _ r _) = r
+
+fnDefBody :: FunctionInstance -> Either Statement AStatement
+fnDefBody (FunctionInstance _ _ b) = Left b
+fnDefBody (AFunctionInstance _ _ ab) = Right ab
+                                       
