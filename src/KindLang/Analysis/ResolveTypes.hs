@@ -8,6 +8,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
+import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 import KindLang.Data.Scope
 import KindLang.Lib.CoreTypes    
 
@@ -169,8 +170,17 @@ makeFunctionCallAnnotation ftype _  = Left  $ TypeMismatch ftype "function"
 -- have types @f@ can be invoked with actual parameters of type @a@, returning
 -- True or False.
 typesCompatible :: [TypeDescriptor] -> [TypeDescriptor] -> Bool
-typesCompatible = (==)   -- fixme - subtypes?
+typesCompatible tdl1 tdl2 = and $ map (uncurry (==)) $ zip tdl1 tdl2
 
+-- | @typeCompatible td td'@ returns True iff a value of type @td'@ can be
+-- used in a situation where the expected type is @td@
+typeCompatible :: TypeDescriptor -> TypeDescriptor -> Bool
+-- inferable type objects can hold whatever type we determine the code will
+-- put in them
+typeCompatible InferableType _ = True
+-- otherwise, we expect types to be the same...
+typeCompatible x y = x == y   -- fixme - subtypes?
+                 
 -- fixme this should be in a file by itself, not stuck down here.
 -- fixme it should also work, rather than hack a result for the tests!
 findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KErr AExpr
@@ -224,4 +234,17 @@ resolveStatement s (StatementBlock ss) = do
       updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
 
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
-resolveInstance s fn = Right fn
+resolveInstance s afi@(AFunctionInstance _ _ _) = Right afi
+resolveInstance s (FunctionInstance params td st) = do
+    -- fixme scope for resolving statement should contain params
+    ast <- resolveStatement s st
+    astType <- errorIfNothing (astmtType ast)
+                 (TypeMismatch td ErrorMessages.noReturn)
+    errorWhenNot (astType `typeCompatible` td)
+                 (TypeMismatch td ErrorMessages.incompatibleReturn)
+    return $ AFunctionInstance
+                params        -- instance still accepts the same params
+                astType       -- return type may be more specialised now
+                ast           -- body is fully resolved
+                
+    
