@@ -194,7 +194,7 @@ typeResolutionTests =
                                    [("CanonicalID", EADId ccInst)])
                    ccInst)),
 
-        testCase "resolve method call with type variables in type" $
+        testCase "resolve function call with type variables in type" $
                  (aexprType <$>
                   (resolveExpr testScope $ FunctionApplication
                                  (VarRef typeVarFn) [(VarRef scInst)])) @?=

@@ -2,6 +2,7 @@
 module KindLang.Analysis.ResolveTypes where
 
 import Data.List
+import Data.Maybe
 import Control.Arrow
 import Control.Monad
 import KindLang.Data.BasicTypes
@@ -159,8 +160,39 @@ makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
 makeFunctionCallAnnotation (FunctionType formal res) actual
     | typesCompatible formal actual = Right $ ExprAnnotation res []
     | otherwise                     = Left  $ InvalidApplication formal actual
+makeFunctionCallAnnotation (ForAllTypes tlist cond
+                                        ftype@(FunctionType formal res))
+                           actual =
+    do
+      substitutions <- catMaybes $ mapM
+                           (flip (uncurry generateSubstitution))
+                           (zip formal actual)
+      ftype' <- foldM (uncurry substituteTypeVar) ftype
+      let unresolvedVars = findTypeVars ftype'
+      errorWhen (length unresolvedVars > 0)
+                (TypeMismatch ftype' "function without type variables")
+      makeFunctionCallAnnotation ftype' actual
 makeFunctionCallAnnotation ftype _  = Left  $ TypeMismatch ftype "function"
 
+-- fixme these functions probably belong in a module for handling type expressions
+generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
+                        Maybe (String, TypeDescriptor)
+generateSubstitution (TypeVariable name) actual = Just (name, actual)
+generateSubstitution _ _ = Nothing
+
+substituteTypeVar :: String -> TypeDescriptor -> TypeDescriptor ->
+                     TypeDescriptor
+substituteTypeVar name value (TypeVariable x) | x == name = value
+                                              | otherwise = (TypeVariable x)
+substituteTypeVar name value (FunctionType args ret) =
+    FunctionType ((substituteTypeVar name value) <$> args)
+                 (substituteTypeVar name value ret)
+substituteTypeVar _ _ td = td   -- fixme other types that need substituting?
+
+findTypeVars :: TypeDescriptor -> [String]
+findTypeVars (TypeVariable x) = [x]
+findTypeVars (FunctionType args ret) = foldl' (++) (findTypeVars ret) (map findTypeVars args)
+                           
 -- | @typesCompatible f a@ determines whether a function whose formal parameters
 -- have types @f@ can be invoked with actual parameters of type @a@, returning
 -- True or False.
