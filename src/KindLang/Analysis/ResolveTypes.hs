@@ -128,7 +128,9 @@ identDefToExprAnnotation (cid, def) =
 -- | Utility function to build a type descriptor for a given function instance.
 fnInstanceType :: FunctionInstance -> TypeDescriptor
 fnInstanceType (FunctionInstance params rtype _) =
-    FunctionType (snd <$> params) rtype
+    FunctionType (snd <$> params) rtype -- fixme what if rtype is InferableType?
+fnInstanceType (AFunctionInstance params rtype _) =
+    FunctionType (snd <$> params) rtype -- rtype is not InferableType here.
 
 -- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
