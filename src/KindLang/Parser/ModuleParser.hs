@@ -71,13 +71,21 @@ functionDeclaration_ =
              (withtws functionInstance_ `sepBy1` withtws comma))
     
 functionInstance_ :: Parser FunctionInstance            
-functionInstance_ = liftM3 FunctionInstance
+functionInstance_ =
+    liftM3 makeFunctionInstance
            (withtws $ bracketed
-               (withtws parameterDeclaration_ `sepBy` withtws comma))
-           (maybeOrInferable <$>
-               optionMaybe (withtws colon >> withtws typeDescriptor_))
+                    (withtws parameterDeclaration_ `sepBy` withtws comma))
+           (maybeOrInferable <$> optionMaybe
+                                 (withtws colon >> withtws typeDescriptor_))
            (statementListToStatement <$> (braced $ many $ withtws stmt_))
-
+    where
+      makeFunctionInstance :: [(String,TypeDescriptor)] -> TypeDescriptor -> 
+                              Statement -> FunctionInstance
+      makeFunctionInstance params retType body =
+          FunctionInstance (FunctionType (snd <$> params) retType)
+                           (fst <$> params)
+                           body
+           
 parameterDeclaration_ :: Parser (String,TypeDescriptor)
 parameterDeclaration_ =
     withtws identifier_ <&>

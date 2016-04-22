@@ -187,13 +187,12 @@ typeResolutionTests =
         testCase "resolve function instance" $
                  (resolveInstance testScope simpleFnInstance) @?=
                  (Right $
-                  AFunctionInstance [("a", rtSimpleClass)] rtComplexClass
+                  AFunctionInstance tdSimpleFn ["a"] 
                   (AExpression (StmtAnnotation (Just rtComplexClass) [] []) $
                    AVarRef
                    (ExprAnnotation rtComplexClass
                                    [("CanonicalID", EADId ccInst)])
                    ccInst))
-                 
     ]
         
 simpleClass :: NSID
@@ -222,7 +221,6 @@ method :: NSID
 method = UnqualifiedID "method"
 privateField :: NSID
 privateField = UnqualifiedID "privateField"
-
          
 testCatalogue :: Catalogue
 testCatalogue =
@@ -261,9 +259,10 @@ rtMethodClass = rightOrFail "internal error" $
                             
 simpleFnInstance :: FunctionInstance
 simpleFnInstance = FunctionInstance
-                     [("a", rtSimpleClass)]
-                     rtComplexClass
+                     (FunctionType [rtSimpleClass] rtComplexClass)
+                     ["a"]
                      (Expression $ VarRef ccInst)
+                       
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
 

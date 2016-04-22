@@ -17,8 +17,8 @@ data Module = Module {
 } deriving (Show, Eq)
 
 data FunctionInstance =
-     FunctionInstance [(String,TypeDescriptor)] TypeDescriptor Statement |
-     AFunctionInstance [(String,TypeDescriptor)] TypeDescriptor AStatement
+     FunctionInstance TypeDescriptor [String] Statement |
+     AFunctionInstance TypeDescriptor [String] AStatement
      deriving (Show, Eq)
               
 data Definition =
@@ -45,9 +45,19 @@ data TypeDescriptor =
          resolvedTypeCanonicalID :: NSID,
          resolvedTypeDefinition :: Definition
      } |
-     FunctionType [TypeDescriptor] TypeDescriptor
+     FunctionType [TypeDescriptor] TypeDescriptor |
+     ForAllTypes [String] [TypePredicate] TypeDescriptor |
+     TypeVariable String |
+     SumType [TypeDescriptor] |
+     TupleType [TypeDescriptor] |
+     RecordType NSID [TypeDescriptor]
      deriving (Show, Eq)
 
+data TypePredicate =
+     NotType TypePredicate |
+     TypesEqual TypeDescriptor TypeDescriptor
+     deriving (Show, Eq)
+                   
 data Expr =
      Annotated AExpr |
      IntLiteral Int |
@@ -165,15 +175,18 @@ stmtAnnotationType (StmtAnnotation t _ _) = t
 astmtType :: AStatement -> Maybe TypeDescriptor
 astmtType = stmtAnnotationType . astmtAnnotation
             
-fnDefParams :: FunctionInstance -> [(String,TypeDescriptor)]
-fnDefParams (FunctionInstance p _ _) = p
-fnDefParams (AFunctionInstance p _ _) = p
+fnInstanceBody :: FunctionInstance -> Either Statement AStatement
+fnInstanceBody (FunctionInstance _ _ b) = Left b
+fnInstanceBody (AFunctionInstance _ _ ab) = Right ab
 
-fnDefReturnType :: FunctionInstance -> TypeDescriptor
-fnDefReturnType (FunctionInstance _ r _) = r
-fnDefReturnType (AFunctionInstance _ r _) = r
+fnInstanceType :: FunctionInstance -> TypeDescriptor
+fnInstanceType (FunctionInstance td _ _) = td
+fnInstanceType (AFunctionInstance td _ _) = td
 
-fnDefBody :: FunctionInstance -> Either Statement AStatement
-fnDefBody (FunctionInstance _ _ b) = Left b
-fnDefBody (AFunctionInstance _ _ ab) = Right ab
-                                       
+fnInstanceArgs :: FunctionInstance -> [String]
+fnInstanceArgs (FunctionInstance _ a _) = a
+fnInstanceArgs (AFunctionInstance _ a _) = a
+                                           
+functionTypeReturn :: TypeDescriptor -> TypeDescriptor
+functionTypeReturn (FunctionType _ r) = r
+functionTypeReturn n = n -- maybe should be an error?

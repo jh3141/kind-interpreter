@@ -83,8 +83,9 @@ moduleParserTests =
                           Module Nothing []
                                  [("testFunction",
                                    FunctionDefinition [
-                                    FunctionInstance [] InferableType
-                                                        (StatementBlock [])])],
+                                    FunctionInstance
+                                      (FunctionType [] InferableType)
+                                      [] (StatementBlock [])])],
 
         testCase "End-of-line comments stripped" $
                  parseMod "// comment\nmodule MyName;// another" @?=

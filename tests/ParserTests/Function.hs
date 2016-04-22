@@ -20,36 +20,45 @@ functionParserTests :: TestTree
 functionParserTests =
     testGroup "Function definitions" [
         testCase "Parameter definitions" $
-                 (fnDefParams $ parseFn "a(b,c) {}")  @?=
-                         [("b", InferableType), ("c", InferableType)],
+                 (parseFn "a(b,c) {}")  @?=
+                 (FunctionInstance
+                  (FunctionType [InferableType, InferableType] InferableType)
+                  ["b","c"]
+                  (StatementBlock [])),
         testCase "Parameter definitions with types" $
-                 (fnDefParams $ parseFn "a (b : Module::Type) {}")  @?=
-                 [("b", SimpleType (QualifiedID "Module" $
-                                    UnqualifiedID "Type"))],
+                 (parseFn "a (b : Module::Type) {}")  @?=
+                 (FunctionInstance
+                  (FunctionType [SimpleType (QualifiedID "Module" $
+                                             UnqualifiedID "Type")] InferableType)
+                  ["b"] (StatementBlock [])),
         testCase "Return type" $
-                 (fnDefReturnType $ parseFn "a () : Out {}") @?=
-                 (SimpleType $ UnqualifiedID "Out"),
+                 (parseFn "a () : Out {}") @?=
+                 (FunctionInstance
+                  (FunctionType [] (SimpleType $ UnqualifiedID "Out"))
+                  [] (StatementBlock [])),
         testCase "Unspecified return type" $
-                 (fnDefReturnType $ parseFn "a(){}") @?= InferableType,
+                 (parseFn "a(){}") @?=
+                 (FunctionInstance
+                  (FunctionType [] InferableType) [] (StatementBlock [])),
         testCase "Body" $
-                 (fnDefBody $ parseFn "a(b){b;}") @?=
+                 (fnInstanceBody $ parseFn "a(b){b;}") @?=
                  (Left $ Expression $ VarRef idb),
         testCase "Body with two expressions" $
-                 (fnDefBody $ parseFn "a(b,c){b;c;}") @?=
+                 (fnInstanceBody $ parseFn "a(b,c){b;c;}") @?=
                  (Left $ StatementBlock [Expression $ VarRef idb,
                                          Expression $ VarRef idc]),
         testCase "Function with multiple instances" $
                  (parseFnM "a(b){b;},(b,c){b+c;} , (b,c,d){b+c+d;}") @?=
-                 [FunctionInstance [("b",InferableType)]
-                                   InferableType
-                                   (Expression $ VarRef idb),
-                  FunctionInstance [("b",InferableType),("c",InferableType)]
-                                   InferableType
+                 [FunctionInstance (FunctionType [InferableType] InferableType)
+                                   ["b"] (Expression $ VarRef idb),
+                  FunctionInstance (FunctionType [InferableType,InferableType]
+                                                 InferableType)
+                                   ["b","c"]
                                    (Expression $ BinOp "+"
                                                (VarRef idb) (VarRef idc)),
-                  FunctionInstance [("b",InferableType),("c",InferableType),
-                                    ("d",InferableType)]
-                                   InferableType
+                  FunctionInstance (FunctionType (replicate 3 InferableType)
+                                                 InferableType)
+                                   ["b","c","d"]
                                    (Expression $ BinOp "+"
                                                (BinOp "+" (VarRef idb)
                                                           (VarRef idc))

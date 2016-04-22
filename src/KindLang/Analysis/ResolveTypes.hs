@@ -125,13 +125,6 @@ identDefToExprAnnotation (cid, def) =
     Left $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
 
--- | Utility function to build a type descriptor for a given function instance.
-fnInstanceType :: FunctionInstance -> TypeDescriptor
-fnInstanceType (FunctionInstance params rtype _) =
-    FunctionType (snd <$> params) rtype -- fixme what if rtype is InferableType?
-fnInstanceType (AFunctionInstance params rtype _) =
-    FunctionType (snd <$> params) rtype -- rtype is not InferableType here.
-
 -- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
 -- of type @desc@ refered to in scope @s@, or an error message if no such
@@ -237,16 +230,18 @@ resolveStatement s (StatementBlock ss) = do
 
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
 resolveInstance s afi@(AFunctionInstance _ _ _) = Right afi
-resolveInstance s (FunctionInstance params td st) = do
+resolveInstance s (FunctionInstance td params st) = do
     -- fixme scope for resolving statement should contain params
     ast <- resolveStatement s st
-    astType <- errorIfNothing (astmtType ast)
-                 (TypeMismatch td ErrorMessages.noReturn)
-    errorWhenNot (astType `typeCompatible` td)
-                 (TypeMismatch td ErrorMessages.incompatibleReturn)
+    astType <- errorIfNothing (astmtType ast)  -- fixme void functions?
+                 (TypeMismatch (functionTypeReturn td)
+                               ErrorMessages.noReturn)
+    errorWhenNot (astType `typeCompatible` (functionTypeReturn td))
+                 (TypeMismatch (functionTypeReturn td)
+                               ErrorMessages.incompatibleReturn)
     return $ AFunctionInstance
+                td            -- fixme what about return type specialization?
                 params        -- instance still accepts the same params
-                astType       -- return type may be more specialised now
                 ast           -- body is fully resolved
                 
     
