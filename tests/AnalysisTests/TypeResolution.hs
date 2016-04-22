@@ -192,7 +192,13 @@ typeResolutionTests =
                    AVarRef
                    (ExprAnnotation rtComplexClass
                                    [("CanonicalID", EADId ccInst)])
-                   ccInst))
+                   ccInst)),
+
+        testCase "resolve method call with type variables in type" $
+                 (aexprType <$>
+                  (resolveExpr testScope $ FunctionApplication
+                                 (VarRef typeVarFn) [(VarRef scInst)])) @?=
+                 (Right rtSimpleClass)
     ]
         
 simpleClass :: NSID
@@ -209,6 +215,8 @@ mcInst :: NSID
 mcInst = listToNSID ["methodObject"]
 simpleFn :: NSID
 simpleFn = listToNSID ["simpleFn"]
+typeVarFn :: NSID
+typeVarFn = listToNSID ["typeVarFn"]
 qualifiedClass :: NSID
 qualifiedClass = listToNSID ["package", "module", "QualifiedClass" ]
 renamedClass :: NSID
@@ -232,6 +240,7 @@ testCatalogue =
               |+| (scInst, VariableDefinition rtSimpleClass VarInitNone)
               |+| (ccInst, VariableDefinition rtComplexClass VarInitNone)
               |+| (simpleFn, FunctionDefinition [simpleFnInstance])
+              |+| (typeVarFn, FunctionDefinition [typeVarFnInstance])
               |+| (qualifiedClass, ClassDefinition [])
               |++| (renamedClass, originalClass, ClassDefinition [])
               |+| (simpleVar, VariableDefinition rtSimpleClass VarInitNone)
@@ -262,7 +271,14 @@ simpleFnInstance = FunctionInstance
                      (FunctionType [rtSimpleClass] rtComplexClass)
                      ["a"]
                      (Expression $ VarRef ccInst)
-                       
+typeVarFnInstance :: FunctionInstance
+typeVarFnInstance =
+    FunctionInstance
+      (ForAllTypes ["a"] [] $
+                   FunctionType [TypeVariable "a"] (TypeVariable "a"))
+      ["value"]
+      (Expression $ VarRef $ UnqualifiedID "value")
+    
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
 
