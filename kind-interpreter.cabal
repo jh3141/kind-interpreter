@@ -29,6 +29,7 @@ library
                     KindLang.Data.Error
                     KindLang.Data.Scope
                     KindLang.Internal
+                    KindLang.Locale.ErrorMessages
                     KindLang.Parser.BasicTokens
                     KindLang.Parser.ExpressionParser
                     KindLang.Parser.State
