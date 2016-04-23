@@ -164,11 +164,12 @@ makeFunctionCallAnnotation (ForAllTypes tlist cond
                                         ftype@(FunctionType formal res))
                            actual =
     do
-      substitutions <- catMaybes $ mapM
-                           (flip (uncurry generateSubstitution))
-                           (zip formal actual)
-      ftype' <- foldM (uncurry substituteTypeVar) ftype
-      let unresolvedVars = findTypeVars ftype'
+      let substitutions :: [(String,TypeDescriptor)]
+          substitutions = catMaybes $ map
+                             (uncurry generateSubstitution)
+                             (zip formal actual)
+          ftype' = foldr (uncurry substituteTypeVar) ftype substitutions
+          unresolvedVars = filter (not . (flip elem) (fst <$> substitutions)) tlist
       errorWhen (length unresolvedVars > 0)
                 (TypeMismatch ftype' "function without type variables")
       makeFunctionCallAnnotation ftype' actual
@@ -189,10 +190,6 @@ substituteTypeVar name value (FunctionType args ret) =
                  (substituteTypeVar name value ret)
 substituteTypeVar _ _ td = td   -- fixme other types that need substituting?
 
-findTypeVars :: TypeDescriptor -> [String]
-findTypeVars (TypeVariable x) = [x]
-findTypeVars (FunctionType args ret) = foldl' (++) (findTypeVars ret) (map findTypeVars args)
-                           
 -- | @typesCompatible f a@ determines whether a function whose formal parameters
 -- have types @f@ can be invoked with actual parameters of type @a@, returning
 -- True or False.
