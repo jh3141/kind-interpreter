@@ -32,6 +32,11 @@ simpleEvaluationTests =
                   (getKindInt (execTest testScope $
                      FunctionApplication (VarRef idRet43) []))
                   @?= 43) :
+        (testCase "Evaluate function with arguments" $
+                  (getKindInt (execTest testScope $
+                     FunctionApplication (VarRef idIdentity)
+                                         [IntLiteral 86]))
+                  @?= 86) :
         [])
 
 testScope :: Scope
@@ -45,6 +50,12 @@ testScope = scopeDefault
                                 []
                                 (AExpression saKindInt $ AIntLiteral (eaKindInt) 43)
                            ])
+            |@+| ("identity", FunctionDefinition [
+                                 AFunctionInstance
+                                   fnIntInt ["a"]
+                                   (AExpression saKindInt $
+                                                AVarRef eaKindInt (UnqualifiedID "a"))
+                              ])
               
 ifc :: InternalFunctions
 ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
@@ -52,5 +63,6 @@ ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
 idRet42 :: NSID
 idRet42 = listToNSID ["ret42"]
 idRet43 :: NSID
-idRet43 = listToNSID ["ret43"]
-          
+idRet43 = listToNSID ["ret43"]       
+idIdentity :: NSID
+idIdentity = listToNSID ["identity"]
