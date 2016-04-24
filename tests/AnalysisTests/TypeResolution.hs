@@ -281,9 +281,4 @@ typeVarFnInstance =
     
 tdSimpleFn :: TypeDescriptor
 tdSimpleFn = FunctionType [rtSimpleClass] rtComplexClass
-
-saKindInt :: StmtAnnotation
-saKindInt = StmtAnnotation (Just rtKindInt) [] []
-saKindString :: StmtAnnotation
-saKindString = StmtAnnotation (Just rtKindString) [] []
                

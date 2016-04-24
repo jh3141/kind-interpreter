@@ -47,12 +47,16 @@ rtKindInt = rightOrFail "Internal error: int not defined" $
             resolveType coreTypes sidInt
 eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
+saKindInt :: StmtAnnotation
+saKindInt = StmtAnnotation (Just rtKindInt) [] []
             
 rtKindString :: TypeDescriptor
 rtKindString = rightOrFail "Internal error: string not defined" $
                resolveType coreTypes sidString
 eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []
+saKindString :: StmtAnnotation
+saKindString = StmtAnnotation (Just rtKindString) [] []
                
 fnIntIntInt :: TypeDescriptor
 fnIntIntInt = FunctionType [rtKindInt,rtKindInt] rtKindInt

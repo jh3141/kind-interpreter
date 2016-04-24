@@ -28,12 +28,22 @@ simpleEvaluationTests =
                   (getKindInt (execTest testScope $
                     FunctionApplication (VarRef idRet42) []))
                   @?= 42) :
+        (testCase "Evaluate function with kind definition" $
+                  (getKindInt (execTest testScope $
+                     FunctionApplication (VarRef idRet43) []))
+                  @?= 43) :
         [])
 
 testScope :: Scope
-testScope = (Scope Nothing newCatalogue)
+testScope = scopeDefault
             |@+| ("ret42", FunctionDefinition [
                               InternalFunction (FunctionType [] rtKindInt) "ret42"
+                           ])
+            |@+| ("ret43", FunctionDefinition [
+                              AFunctionInstance
+                                (FunctionType [] rtKindInt)
+                                []
+                                (AExpression saKindInt $ AIntLiteral (eaKindInt) 43)
                            ])
               
 ifc :: InternalFunctions
@@ -41,4 +51,6 @@ ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
       
 idRet42 :: NSID
 idRet42 = listToNSID ["ret42"]
+idRet43 :: NSID
+idRet43 = listToNSID ["ret43"]
           
