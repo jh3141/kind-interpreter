@@ -176,19 +176,34 @@ stmtAnnotationType (StmtAnnotation t _ _) = t
 
 astmtType :: AStatement -> Maybe TypeDescriptor
 astmtType = stmtAnnotationType . astmtAnnotation
-            
+
+nullStatement :: Statement
+nullStatement = StatementBlock []
+nullAStatement :: AStatement
+nullAStatement = AStatementBlock (StmtAnnotation Nothing [] []) []
+                 
 fnInstanceBody :: FunctionInstance -> Either Statement AStatement
 fnInstanceBody (FunctionInstance _ _ b) = Left b
 fnInstanceBody (AFunctionInstance _ _ ab) = Right ab
-
+fnInstanceBody (InternalFunction _ _) = Right $ nullAStatement
+                                        
 fnInstanceType :: FunctionInstance -> TypeDescriptor
 fnInstanceType (FunctionInstance td _ _) = td
 fnInstanceType (AFunctionInstance td _ _) = td
-
+fnInstanceType (InternalFunction td _) = td
+                                         
 fnInstanceArgs :: FunctionInstance -> [String]
 fnInstanceArgs (FunctionInstance _ a _) = a
 fnInstanceArgs (AFunctionInstance _ a _) = a
-                                           
+fnInstanceArgs (InternalFunction td _) = map (const "") (functionTypeArgs td)
+
 functionTypeReturn :: TypeDescriptor -> TypeDescriptor
 functionTypeReturn (FunctionType _ r) = r
 functionTypeReturn n = n -- maybe should be an error?
+
+functionTypeArgs :: TypeDescriptor -> [TypeDescriptor]
+functionTypeArgs (FunctionType r _) = r
+functionTypeArgs _ = []
+
+
+                    

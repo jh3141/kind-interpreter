@@ -5,7 +5,9 @@ module KindLang.Data.Value where
 data Value = KindInt Int
 
 
-kindGetInt :: Value -> Int
-kindGetInt (KindInt a) = a
-                         
-              
+getKindInt :: Value -> Int
+getKindInt (KindInt a) = a
+                            
+makeKindInt :: Int -> Value
+makeKindInt a = (KindInt a)
+                
