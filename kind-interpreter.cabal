@@ -39,7 +39,6 @@ library
                     KindLang.Lib.CoreTypes
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
-                    KindLang.Util.StandardInstances
                     KindLang.Runtime.Eval
 
 executable runkind
