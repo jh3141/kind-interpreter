@@ -1,5 +1,6 @@
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
+import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
@@ -16,7 +17,7 @@ execTest :: Scope -> Expr -> Value
 execTest s ex = either
                  (\e -> error (show e)) -- if there's an error
                  id                     -- otherwise
-                 ((resolveExpr s ex) >>= evalAExpr)
+                 ((resolveExpr s ex) >>= (evalAExpr s ifc))
     
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
@@ -32,11 +33,12 @@ simpleEvaluationTests =
 testScope :: Scope
 testScope = (Scope Nothing newCatalogue)
             |@+| ("ret42", FunctionDefinition [
-                              InternalFunction
-                                (FunctionType [] rtKindInt)
-                                (PrintableFunction "ret42" (const $ makeKindInt 42))])
+                              InternalFunction (FunctionType [] rtKindInt) "ret42"
+                           ])
               
-                  
+ifc :: InternalFunctions
+ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
+      
 idRet42 :: NSID
 idRet42 = listToNSID ["ret42"]
           
