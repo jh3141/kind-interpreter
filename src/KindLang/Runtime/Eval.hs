@@ -31,5 +31,10 @@ applyFunctionInstance _ ifc (InternalFunction _ n) vs =
     maybe (Left $ InternalError $ "Unknown internal function " ++ n) -- if Nothing
           (\f -> Right $ f vs)                                       -- if Just f
           (Map.lookup n ifc)
--- fixme non-native functions
+applyFunctionInstance s ifc (AFunctionInstance _ formal stmt) actual =
+    -- fixme apply parameter values to scope/mutable state
+    evalAStatement s ifc stmt
+-- fixme on-demand function body type resolution
 
+evalAStatement :: Scope -> InternalFunctions -> AStatement -> KErr Value
+evalAStatement s ifc (AExpression _ e) = evalAExpr s ifc e

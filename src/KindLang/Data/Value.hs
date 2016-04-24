@@ -6,6 +6,7 @@ import KindLang.Data.AST
 -- fixme probably want a lower-level implementation of this, so we can manage memory
 -- ourselves
 data Value =
+    KindUnit |
     KindInt Int |
     KindFunctionRef [FunctionInstance]
     deriving (Show, Eq)
