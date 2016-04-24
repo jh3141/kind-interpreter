@@ -10,6 +10,7 @@ import AnalysisTests.Catalogue
 import AnalysisTests.TypeResolution
 import TypeTests.NSID
 import TypeTests.Catalogue
+import ExecutionTests.SimpleEvaluation
     
 main :: IO ()
 main = defaultMain tests
@@ -30,6 +31,9 @@ tests = testGroup "Tests" [
          testGroup "Type tests" $
                    scopedIDTests :
                    catalogueTypeTests :
+                   [],
+         testGroup "Execution" $
+                   simpleEvaluationTests :
                    []
         ]
 

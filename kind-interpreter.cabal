@@ -39,6 +39,8 @@ library
                     KindLang.Lib.CoreTypes
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
+                    KindLang.Util.StandardInstances
+                    KindLang.Runtime.Eval
 
 executable runkind
   default-language:Haskell2010
@@ -68,5 +70,6 @@ test-suite kind-tests
                    AnalysisTests.TypeResolution
                    TypeTests.NSID
                    TypeTests.Catalogue
+                   ExecutionTests.SimpleEvaluation
                    
                                                                         

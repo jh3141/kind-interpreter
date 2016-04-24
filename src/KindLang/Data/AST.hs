@@ -2,6 +2,7 @@ module KindLang.Data.AST where
 
 import Data.Maybe
 import KindLang.Data.BasicTypes
+import KindLang.Data.Value
 
 type DefList = [(String,Definition)]
     
@@ -18,7 +19,8 @@ data Module = Module {
 
 data FunctionInstance =
      FunctionInstance TypeDescriptor [String] Statement |
-     AFunctionInstance TypeDescriptor [String] AStatement
+     AFunctionInstance TypeDescriptor [String] AStatement |
+     InternalFunction TypeDescriptor (PrintableFunction [Value] Value)
      deriving (Show, Eq)
               
 data Definition =

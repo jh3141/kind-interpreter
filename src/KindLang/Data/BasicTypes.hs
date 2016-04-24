@@ -3,7 +3,11 @@ module KindLang.Data.BasicTypes where
 import Data.Maybe
 import qualified Data.Map as Map
 import KindLang.Util.Control
-    
+
+----------------------------------------------------------------------------
+-- identifiers and related types
+----------------------------------------------------------------------------
+
 data NSID = 
      UnqualifiedID String |
      QualifiedID String NSID
@@ -40,3 +44,19 @@ nsidString = foldl1 (\ a b -> a ++ "::" ++ b) . nsidToList
                  
 instance Show NSID where
     show s = "(NSID " ++ show (nsidString s) ++ ")"
+
+----------------------------------------------------------------------------
+-- various utility types
+----------------------------------------------------------------------------
+
+data PrintableFunction a b = PrintableFunction String (a->b)
+
+instance Show (PrintableFunction a b) where
+    show (PrintableFunction name _) = name
+
+instance Eq (PrintableFunction a b) where
+    (PrintableFunction n1 _) == (PrintableFunction n2 _) = n1 == n2
+
+instance Ord (PrintableFunction a b) where
+    compare (PrintableFunction n1 _) (PrintableFunction n2 _) = compare n1 n2
+                                                                

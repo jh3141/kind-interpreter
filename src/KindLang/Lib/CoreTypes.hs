@@ -2,6 +2,7 @@ module KindLang.Lib.CoreTypes where
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
+import KindLang.Data.Scope
 import KindLang.Data.AST
 import KindLang.Util.Control
 import qualified Data.Map as Map
@@ -19,7 +20,10 @@ coreTypesQualified =
     newCatalogue |+| (sidKindInt, InternalTypeDefinition)
                  |+| (sidKindString, InternalTypeDefinition)
                  |+| (coreId "(+)", InternalObject fnIntIntInt)
-        
+
+scopeDefault :: Scope
+scopeDefault = Scope Nothing coreTypes
+               
 -- note convention of naming of kind types:
 --   namespaces - lower case
 --   value types - lower case
