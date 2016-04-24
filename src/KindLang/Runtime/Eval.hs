@@ -1,15 +1,18 @@
 module KindLang.Runtime.Eval where
 
 import qualified Data.Map as Map
+import Control.Monad.ST.Trans
+import Control.Monad.Except
 import KindLang.Data.Value
 import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.Scope
 
 type InternalFunctions = Map.Map InternalFunctionName ([Value] -> Value)
+type RunM s a = STT s (Except KindError) a
     
 -- fixme: going to need access to program mutable state, and ability to mutate it!
-evalAExpr :: Scope -> InternalFunctions -> AExpr -> KErr Value
+evalAExpr :: Scope -> InternalFunctions -> AExpr -> RunM s Value
 evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
 evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     fn <- evalAExpr s ifc efn
@@ -17,16 +20,16 @@ evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     applyFunction s ifc (getKindFunctionRef fn) args
 evalAExpr s _ (AVarRef ae id) = (definitionToValue ae) <$> snd <$> scopeLookup s id -- fixme handle vars, not just constants.
 
-definitionToValue :: ExprAnnotation -> Definition -> Value
+definitionToValue :: ExprAnnotation -> Definition -> RunM s Value
 definitionToValue _ (FunctionDefinition insts) = makeKindFunctionRef insts
 
 applyFunction :: Scope -> InternalFunctions -> [FunctionInstance] -> [Value] ->
-                 KErr Value
+                 RunM s Value
 applyFunction s ifc (inst:[]) v = applyFunctionInstance s ifc inst v
 -- fixme handle overloaded functions
 
 applyFunctionInstance :: Scope -> InternalFunctions -> FunctionInstance -> [Value] ->
-                         KErr Value
+                         RunM s Value
 applyFunctionInstance _ ifc (InternalFunction _ n) vs =
     maybe (Left $ InternalError $ "Unknown internal function " ++ n) -- if Nothing
           (\f -> Right $ f vs)                                       -- if Just f
@@ -36,5 +39,5 @@ applyFunctionInstance s ifc (AFunctionInstance _ formal stmt) actual =
     evalAStatement s ifc stmt
 -- fixme on-demand function body type resolution
 
-evalAStatement :: Scope -> InternalFunctions -> AStatement -> KErr Value
+evalAStatement :: Scope -> InternalFunctions -> AStatement -> RunM s Value
 evalAStatement s ifc (AExpression _ e) = evalAExpr s ifc e
