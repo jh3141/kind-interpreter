@@ -66,8 +66,10 @@ testScope = scopeDefault
             |@+| ("identity", FunctionDefinition [
                                  AFunctionInstance
                                    fnIntInt ["a"]
-                                   (AExpression saKindInt $
-                                                AVarRef eaKindInt (UnqualifiedID "a"))
+                                   (AExpression saKindInt $ AVarRef
+                                    (ExprAnnotation rtKindInt
+                                                    [("CanonicalID",EADId $ idA)])
+                                    idA)
                               ])
             |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
               
@@ -82,3 +84,5 @@ idIdentity :: NSID
 idIdentity = listToNSID ["identity"]
 idVar1 :: NSID
 idVar1 = listToNSID ["var1"]
+idA :: NSID
+idA = listToNSID ["a"]

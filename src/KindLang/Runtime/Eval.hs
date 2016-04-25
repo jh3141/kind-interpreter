@@ -86,9 +86,12 @@ applyFunctionInstance _ ifc (InternalFunction _ n) vs =
     maybe (throwError $ InternalError $ "Unknown internal function " ++ n) -- if Nothing
           (\f -> return $ f vs)                                            -- if Just f
           (Map.lookup n ifc)
-applyFunctionInstance s ifc (AFunctionInstance _ formal stmt) actual =
-    -- fixme apply parameter values to scope/mutable state
-    evalAStatement s ifc stmt
+applyFunctionInstance s ifc (AFunctionInstance td formal stmt) actual = do
+    childScope <- runtimeScopeAddItems
+                      (makeChildRuntimeScope s
+                       (makeFunctionScope (rtsScope s) td formal))
+                      (zip (UnqualifiedID <$> formal) actual)
+    evalAStatement childScope ifc stmt
 -- fixme on-demand function body type resolution
 
 evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement -> RunM s Value

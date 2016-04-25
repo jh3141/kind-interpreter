@@ -26,3 +26,10 @@ scopeLookup s i =
 (Scope p cat) |@+| (n,d) = Scope p (cat |+| (UnqualifiedID n, d))
 infixl 6 |@+|
     
+    
+makeFunctionScope :: Scope -> TypeDescriptor -> [String] -> Scope
+makeFunctionScope s (FunctionType types _) names =
+    foldr addVariableToScope (Scope (Just s) newCatalogue) (zip names types)
+    where 
+      addVariableToScope :: (String,TypeDescriptor) -> Scope -> Scope
+      addVariableToScope (name,td) s = s |@+| (name, VariableDefinition td VarInitNone)
