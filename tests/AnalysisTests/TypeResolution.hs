@@ -199,7 +199,19 @@ typeResolutionTests =
                  (runExcept $ aexprType <$>
                   (resolveExpr testScope $ FunctionApplication
                                  (VarRef typeVarFn) [(VarRef scInst)])) @?=
-                 (Right rtSimpleClass)
+                 (Right rtSimpleClass),
+
+        testCase "resolve function call parameters" $
+                 (runExcept $ resolveInstance testScope
+                  (FunctionInstance fnIntInt ["a"] $
+                                    Expression $ VarRef $ UnqualifiedID "a")) @?=
+                 (Right $ AFunctionInstance fnIntInt ["a"] $
+                          AExpression saKindInt $
+                           AVarRef (ExprAnnotation rtKindInt
+                                    [("CanonicalID", EADId $ UnqualifiedID "a")])
+                                   (UnqualifiedID "a"))
+                           
+                                          
     ]
         
 simpleClass :: NSID

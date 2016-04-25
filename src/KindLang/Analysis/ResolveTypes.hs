@@ -261,8 +261,7 @@ resolveStatement s (StatementBlock ss) = do
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
 resolveInstance s afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
-    -- fixme scope for resolving statement should contain params
-    ast <- resolveStatement s st
+    ast <- resolveStatement (makeFunctionScope s td params) st
     astType <- errorIfNothing (astmtType ast)  -- fixme void functions?
                  (TypeMismatch (functionTypeReturn td)
                                ErrorMessages.noReturn)
@@ -275,3 +274,9 @@ resolveInstance s (FunctionInstance td params st) = do
                 ast           -- body is fully resolved
                 
     
+makeFunctionScope :: Scope -> TypeDescriptor -> [String] -> Scope
+makeFunctionScope s (FunctionType types _) names =
+    foldr addVariableToScope s (zip names types)
+    where 
+      addVariableToScope :: (String,TypeDescriptor) -> Scope -> Scope
+      addVariableToScope (name,td) s = s |@+| (name, VariableDefinition td VarInitNone)
