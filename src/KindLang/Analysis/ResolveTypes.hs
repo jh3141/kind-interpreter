@@ -112,8 +112,10 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 -- must be fully resolved and must refer to an object that has a
 -- referencable value.  Returns an annotation or an error on failure.
 identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
+identDefToExprAnnotation (cid, VariableDefinition (Reference t) x) =
+    identDefToExprAnnotation (cid, VariableDefinition t x)
 identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
-    return $ crefAnnotation cid rt
+    return $ crefAnnotation cid (Reference rt)
 identDefToExprAnnotation (cid, VariableDefinition rt _) =
     throwError $ InternalError (nsidString cid ++ " is not resolved (" ++
                                          show rt ++")")
@@ -148,6 +150,7 @@ resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
 resolveTypeRef _ (ResolvedType _ cid def) sid =
     throwError $ TypeError (sid `qualifiedBy` cid)
              ((nsidString sid) ++ " is a " ++ (definitionTypeName def))
+resolveTypeRef s (Reference t) sid = resolveTypeRef s t sid
 resolveTypeRef _ t _ =
     throwError $ InternalError ("dereferenced object is not resolved (" ++
                           show t ++ ")")
@@ -179,6 +182,8 @@ makeFunctionCallAnnotation ftype _  = throwError $ TypeMismatch ftype "function"
 -- fixme these functions probably belong in a module for handling type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
                         Maybe (String, TypeDescriptor)
+-- don't propagate reference nature into inferred type variable bindings
+generateSubstitution (TypeVariable name) (Reference actual) = Just (name, actual)
 generateSubstitution (TypeVariable name) actual = Just (name, actual)
 generateSubstitution _ _ = Nothing
 
@@ -189,13 +194,15 @@ substituteTypeVar name value (TypeVariable x) | x == name = value
 substituteTypeVar name value (FunctionType args ret) =
     FunctionType ((substituteTypeVar name value) <$> args)
                  (substituteTypeVar name value ret)
+substituteTypeVar name value (Reference td) =
+    Reference (substituteTypeVar name value td)
 substituteTypeVar _ _ td = td   -- fixme other types that need substituting?
 
 -- | @typesCompatible f a@ determines whether a function whose formal parameters
 -- have types @f@ can be invoked with actual parameters of type @a@, returning
 -- True or False.
 typesCompatible :: [TypeDescriptor] -> [TypeDescriptor] -> Bool
-typesCompatible tdl1 tdl2 = and $ map (uncurry (==)) $ zip tdl1 tdl2
+typesCompatible tdl1 tdl2 = and $ map (uncurry typeCompatible) $ zip tdl1 tdl2
 
 -- | @typeCompatible td td'@ returns True iff a value of type @td'@ can be
 -- used in a situation where the expected type is @td@
@@ -203,6 +210,10 @@ typeCompatible :: TypeDescriptor -> TypeDescriptor -> Bool
 -- inferable type objects can hold whatever type we determine the code will
 -- put in them
 typeCompatible InferableType _ = True
+-- reference types are compatible if their referee types are compatible
+typeCompatible (Reference t1) (Reference t2) = typeCompatible t1 t2
+-- we can implicitly convert references to their referees
+typeCompatible t1 (Reference t2) = typeCompatible t1 t2
 -- otherwise, we expect types to be the same...
 typeCompatible x y = x == y   -- fixme - subtypes?
                  
@@ -265,7 +276,7 @@ resolveInstance s (FunctionInstance td params st) = do
     astType <- errorIfNothing (astmtType ast)  -- fixme void functions?
                  (TypeMismatch (functionTypeReturn td)
                                ErrorMessages.noReturn)
-    errorWhenNot (astType `typeCompatible` (functionTypeReturn td))
+    errorWhenNot ((functionTypeReturn td) `typeCompatible` astType)
                  (TypeMismatch (functionTypeReturn td)
                                ErrorMessages.incompatibleReturn)
     return $ AFunctionInstance

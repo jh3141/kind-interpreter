@@ -49,7 +49,7 @@ typeResolutionTests =
         testCase "resolve variable reference expressions" $
                  (runExcept $ resolveExpr testScope $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation
-                           rtSimpleClass
+                           (Reference rtSimpleClass)
                            [("CanonicalID", EADId simpleVar)]) simpleVar),
         testCase "resolve int literals" $
                  (runExcept $ resolveExpr testScope $ IntLiteral 1) @?=
@@ -69,9 +69,9 @@ typeResolutionTests =
                  (runExcept $ resolveExpr testScope $
                               ORef (VarRef ccInst) (UnqualifiedID "v")) @?=
                  (Right $ AORef
-                  (ExprAnnotation rtSimpleClass
+                  (ExprAnnotation (Reference rtSimpleClass)
                    [("CanonicalID", EADId $ listToNSID ["ComplexClass","v"])])
-                  (AVarRef (ExprAnnotation rtComplexClass
+                  (AVarRef (ExprAnnotation (Reference rtComplexClass)
                                            [("CanonicalID", EADId ccInst)])
                    ccInst) (UnqualifiedID "v")),
         testCase "resolve function call" $
@@ -81,11 +81,10 @@ typeResolutionTests =
                                 [(VarRef scInst)]) @?=
                  (Right $ AFunctionApplication
                   (ExprAnnotation rtComplexClass [])
-                  (AVarRef
-                   (ExprAnnotation tdSimpleFn [("CanonicalID", EADId simpleFn)])
-                   simpleFn)
+                  (AVarRef (ExprAnnotation tdSimpleFn
+                            [("CanonicalID", EADId simpleFn)]) simpleFn)
                   [(AVarRef
-                    (ExprAnnotation rtSimpleClass
+                    (ExprAnnotation (Reference rtSimpleClass)
                                     [("CanonicalID", EADId scInst)]) scInst)]),
         testCase "resolve binary operator" $
                  (runExcept $ resolveExpr testScope $
@@ -110,14 +109,13 @@ typeResolutionTests =
                                       [VarRef scInst]) @?=
                  (Right $ AOMethod
                   (ExprAnnotation rtComplexClass [])
-                  (AVarRef
-                   (ExprAnnotation rtMethodClass [("CanonicalID", EADId mcInst)])
-                   mcInst)
+                  (AVarRef (ExprAnnotation (Reference rtMethodClass)
+                            [("CanonicalID", EADId mcInst)]) mcInst)
                   tdSimpleFn
                   (method `qualifiedBy` methodClass)
                   [(AVarRef
-                    (ExprAnnotation rtSimpleClass [("CanonicalID", EADId scInst)])
-                    scInst)]),
+                    (ExprAnnotation (Reference rtSimpleClass)
+                     [("CanonicalID", EADId scInst)]) scInst)]),
 
         testCase "attempt to access private member of object" $
                  (runExcept $ resolveExpr testScope $
@@ -176,12 +174,12 @@ typeResolutionTests =
                   StatementBlock
                   [VarDeclStatement "myvar" rtKindInt VarInitNone,
                    Expression $ VarRef $ UnqualifiedID "myvar"]) @?=
-                 (Right $ AStatementBlock saKindInt
+                 (Right $ AStatementBlock sarefKindInt
                   [AVarDeclStatement (StmtAnnotation Nothing
                     [("myvar", VariableDefinition rtKindInt VarInitNone)] [])
                     "myvar" rtKindInt VarInitNone,
-                   AExpression saKindInt $ AVarRef
-                    (ExprAnnotation rtKindInt
+                   AExpression sarefKindInt $ AVarRef
+                    (ExprAnnotation (Reference rtKindInt)
                      [("CanonicalID", EADId $ UnqualifiedID "myvar")])
                     (UnqualifiedID "myvar")]),
                  
@@ -189,9 +187,10 @@ typeResolutionTests =
                  (runExcept $ resolveInstance testScope simpleFnInstance) @?=
                  (Right $
                   AFunctionInstance tdSimpleFn ["a"] 
-                  (AExpression (StmtAnnotation (Just rtComplexClass) [] []) $
+                  (AExpression
+                   (StmtAnnotation (Just $ Reference rtComplexClass) [] []) $
                    AVarRef
-                   (ExprAnnotation rtComplexClass
+                   (ExprAnnotation (Reference rtComplexClass)
                                    [("CanonicalID", EADId ccInst)])
                    ccInst)),
 
@@ -206,8 +205,8 @@ typeResolutionTests =
                   (FunctionInstance fnIntInt ["a"] $
                                     Expression $ VarRef $ UnqualifiedID "a")) @?=
                  (Right $ AFunctionInstance fnIntInt ["a"] $
-                          AExpression saKindInt $
-                           AVarRef (ExprAnnotation rtKindInt
+                          AExpression sarefKindInt $
+                           AVarRef (ExprAnnotation (Reference rtKindInt)
                                     [("CanonicalID", EADId $ UnqualifiedID "a")])
                                    (UnqualifiedID "a"))
                            

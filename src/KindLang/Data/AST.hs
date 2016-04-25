@@ -53,7 +53,8 @@ data TypeDescriptor =
      TypeVariable String |
      SumType [TypeDescriptor] |
      TupleType [TypeDescriptor] |
-     RecordType NSID [TypeDescriptor]
+     RecordType NSID [TypeDescriptor] |
+     Reference TypeDescriptor
      deriving (Show, Eq)
 
 data TypePredicate =

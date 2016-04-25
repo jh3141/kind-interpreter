@@ -49,6 +49,8 @@ eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
 saKindInt :: StmtAnnotation
 saKindInt = StmtAnnotation (Just rtKindInt) [] []
+sarefKindInt :: StmtAnnotation
+sarefKindInt = StmtAnnotation (Just $ Reference rtKindInt) [] []
             
 rtKindString :: TypeDescriptor
 rtKindString = expectNoErrors "Internal error: string not defined" $
@@ -57,6 +59,8 @@ eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []
 saKindString :: StmtAnnotation
 saKindString = StmtAnnotation (Just rtKindString) [] []
+sarefKindString :: StmtAnnotation
+sarefKindString = StmtAnnotation (Just $ Reference rtKindString) [] []
                
 fnIntIntInt :: TypeDescriptor
 fnIntIntInt = FunctionType [rtKindInt,rtKindInt] rtKindInt
