@@ -11,3 +11,6 @@ noReturn =
 filterRequiresIdentifier :: String
 filterRequiresIdentifier =
     "Filtered import must specify both module and identifier (perhaps you wanted 'module::*'?)"
+
+requiredCanonicalID :: String
+requiredCanonicalID = "expression annotation did not contain a canonical id"

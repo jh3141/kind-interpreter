@@ -16,11 +16,18 @@ import KindLang.Analysis.ResolveTypes
 
 -- evaluate expression resolved against scope and extract from error wrapper
 execTest :: Scope -> Expr -> Value
-execTest s ex = either
-                 (\e -> error (show e)) -- if there's an error
-                 id                     -- otherwise
-                 (runExcept $ (resolveExpr s ex) >>= (\ f -> runST $ evalAExpr s ifc f))
-    
+execTest s ex = execTestWithData s [] ex
+                
+execTestWithData :: Scope -> [(NSID,Value)] -> Expr -> Value
+execTestWithData s v ex =
+    either
+      (\e -> error (show e)) -- if there's an error
+      id                     -- otherwise
+      (runExcept $ (resolveExpr s ex) >>=
+                   (\ f -> runST $ do
+                             rts <- runtimeScopeAddItems (newRuntimeScope s) v
+                             evalAExpr rts ifc f))
+      
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
     testGroup "Simple evaluation" (
@@ -34,6 +41,10 @@ simpleEvaluationTests =
                   (getKindInt (execTest testScope $
                      FunctionApplication (VarRef idRet43) []))
                   @?= 43) :
+        (testCase "Evaluate variable reference" $
+                  (getKindInt (execTestWithData testScope [(idVar1, makeKindInt 99)] $
+                     VarRef idVar1))
+                  @?= 99) :
         (testCase "Evaluate function with arguments" $
                   (getKindInt (execTest testScope $
                      FunctionApplication (VarRef idIdentity)
@@ -58,6 +69,7 @@ testScope = scopeDefault
                                    (AExpression saKindInt $
                                                 AVarRef eaKindInt (UnqualifiedID "a"))
                               ])
+            |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
               
 ifc :: InternalFunctions
 ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
@@ -68,3 +80,5 @@ idRet43 :: NSID
 idRet43 = listToNSID ["ret43"]       
 idIdentity :: NSID
 idIdentity = listToNSID ["identity"]
+idVar1 :: NSID
+idVar1 = listToNSID ["var1"]

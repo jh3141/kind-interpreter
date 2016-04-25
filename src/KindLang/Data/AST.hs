@@ -152,7 +152,12 @@ exprAnnotationType (ExprAnnotation t _) = t
 aexprType :: AExpr -> TypeDescriptor
 aexprType = exprAnnotationType . aexprAnnotation
 
-
+exprAnnotationCanonicalID :: ExprAnnotation -> Maybe NSID
+exprAnnotationCanonicalID (ExprAnnotation _ a) =
+    case lookup "CanonicalID" a of
+      Just (EADId sid) -> Just sid
+      _                -> Nothing
+                         
 classMemberName :: ClassMember -> String
 classMemberName (ClassMember name _ _) = name
 
