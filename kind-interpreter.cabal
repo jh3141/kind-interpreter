@@ -29,6 +29,7 @@ library
                     KindLang.Data.Catalogue
                     KindLang.Data.Error
                     KindLang.Data.Scope
+                    KindLang.Data.Value
                     KindLang.Internal
                     KindLang.Locale.ErrorMessages
                     KindLang.Parser.BasicTokens
@@ -59,7 +60,9 @@ test-suite kind-tests
                    tasty-hunit >= 0.9,
                    parsec >= 3.1 && < 4,
                    kind-interpreter,
-                   containers >= 0.5.6.2 && < 0.6                   
+                   containers >= 0.5.6.2 && < 0.6,
+                   mtl >= 2,
+                   STMonadTrans >= 0.3
   other-modules:   ParserTests.Module
                    ParserTests.Util
                    ParserTests.CombinatorTests

@@ -4,7 +4,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.Scope
 import KindLang.Data.AST
-import KindLang.Util.Control
+import KindLang.Data.Error
 import qualified Data.Map as Map
 
 -- | Function to create an ID in the core module given a string
@@ -13,7 +13,7 @@ coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
           
 coreTypes :: Catalogue
 coreTypes = namespaceCatalogue $
-              rightOrFail "kind::* undefined" (coreTypesQualified |@| sidKind)
+             expectNoErrors "kind::* undefined" (coreTypesQualified |@| sidKind)
 
 coreTypesQualified :: Catalogue
 coreTypesQualified =
@@ -43,7 +43,7 @@ sidKindString = sidString `qualifiedBy` sidKind
 
 -- fixme should these be qualified or unqualified?
 rtKindInt :: TypeDescriptor
-rtKindInt = rightOrFail "Internal error: int not defined" $
+rtKindInt = expectNoErrors "Internal error: int not defined" $
             resolveType coreTypes sidInt
 eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
@@ -51,7 +51,7 @@ saKindInt :: StmtAnnotation
 saKindInt = StmtAnnotation (Just rtKindInt) [] []
             
 rtKindString :: TypeDescriptor
-rtKindString = rightOrFail "Internal error: string not defined" $
+rtKindString = expectNoErrors "Internal error: string not defined" $
                resolveType coreTypes sidString
 eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []

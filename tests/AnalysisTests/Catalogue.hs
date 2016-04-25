@@ -1,5 +1,6 @@
 module AnalysisTests.Catalogue (catalogueTests) where
 
+import Control.Monad.Except
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
@@ -11,10 +12,10 @@ import qualified Data.Map as Map
 import Data.Map ((!))
     
 nullLoader :: ModuleLoader
-nullLoader sid = Left $ InvalidImport sid "Could not find module"
+nullLoader sid = throwError $ InvalidImport sid "Could not find module"
 
 buildAndGetCat :: ModuleLoader -> Module -> ModuleCatalogues
-buildAndGetCat l m = case buildCatalogues l m of
+buildAndGetCat l m = case runExcept $ buildCatalogues l m of
                        Left err -> error $ "Unexpected error " ++ show err
                        Right cat -> cat
                                     
@@ -23,7 +24,7 @@ catalogueTests =
     testGroup "Module catalogues"
     [
         testCase "Empty module produces empty catalogue" $
-                 buildCatalogues nullLoader (Module Nothing [] []) @?=
+                 (runExcept $ buildCatalogues nullLoader (Module Nothing [] [])) @?=
                  Right (ModuleCatalogues Map.empty Map.empty),
         testCase "Catalogue contains module class definition" $
                  (moduleCataloguePublic (buildAndGetCat
@@ -43,7 +44,7 @@ catalogueTests =
                    (buildAndGetCat nullLoader myModule)) ! "MyClass") @?=
                  (myClassSID, ClassDefinition []),
         testCase "Error importing unknown module" $
-                 (buildCatalogues nullLoader myModuleWithImports) @?=
+                 (runExcept $ buildCatalogues nullLoader myModuleWithImports) @?=
                  (Left $ InvalidImport myModuleId "Could not find module"),
         testCase "Imported module items in private list" $
                  ((moduleCataloguePrivate
@@ -65,14 +66,14 @@ catalogueTests =
                     myModuleWithFilteredImports))) @?=
                  Nothing,
         testCase "Import qualified" $
-                 (lookupHierarchical
+                 (runExcept $ lookupHierarchical
                   (moduleCataloguePrivate
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedImports))
                   myClassSID) @?= Right (myClassSID, ClassDefinition []),
         testCase "Import qualified with renaming" $
-                 (lookupHierarchical
+                 (runExcept $ lookupHierarchical
                   (moduleCataloguePrivate
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
@@ -80,14 +81,14 @@ catalogueTests =
                   (QualifiedID "I" $ UnqualifiedID "MyClass"))
                  @?= Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports includes requested item" $
-                 (lookupHierarchical
+                 (runExcept $ lookupHierarchical
                   (moduleCataloguePrivate
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedFilteredImports))
                   myClassSID) @?= Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports excludes unrequested item" $
-                 (lookupHierarchical
+                 (runExcept $ lookupHierarchical
                   (moduleCataloguePrivate
                    (buildAndGetCat
                     (loaderForModule myModuleId myModule)

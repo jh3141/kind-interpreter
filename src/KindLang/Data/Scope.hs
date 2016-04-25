@@ -1,5 +1,6 @@
 module KindLang.Data.Scope where
 
+import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
@@ -15,10 +16,10 @@ data Scope =
              
 scopeLookup :: Scope -> NSID -> KErr IdentDefinition
 scopeLookup s i =
-    either (deferToParent s) {- if left, or -} Right {- if right -}
-           (lookupHierarchical (scopeCat s) i)
+    catchError (lookupHierarchical (scopeCat s) i)
+               (deferToParent s)
     where
-      deferToParent (Scope Nothing _) err = Left err
+      deferToParent (Scope Nothing _) err = throwError err
       deferToParent (Scope (Just p) _) _  = scopeLookup p i
 
 (|@+|) :: Scope -> (String,Definition) -> Scope

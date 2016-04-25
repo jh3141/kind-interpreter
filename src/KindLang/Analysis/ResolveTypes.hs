@@ -5,6 +5,7 @@ import Data.List
 import Data.Maybe
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
@@ -15,7 +16,7 @@ import KindLang.Lib.CoreTypes
 
 -- | Return a copy of a module tree with all types resolved, or an error message.
 resolveTypes :: Module -> KErr Module
-resolveTypes m = Right m -- FIXME implement this
+resolveTypes m = return m -- FIXME implement this
 
 -- | Return a copy of a definition list resolved against a given scope.
 resolveDefListTypes :: Scope -> DefList -> KErr DefList
@@ -48,16 +49,16 @@ resolveDefinition s (VariableDefinition InferableType (VarInitExpr e)) = do
     return $ VariableDefinition (aexprType ae) (VarInitAExpr ae)
 resolveDefinition s (ClassDefinition cdlist) =
     ClassDefinition <$> resolveClassDefListTypes s cdlist
-resolveDefinition _ nonMatching = Right nonMatching
+resolveDefinition _ nonMatching = return nonMatching
 
 -- | Resolve an expression tree against a given scope, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
 resolveExpr :: Scope -> Expr -> KErr AExpr
 -- pre-annotated expressions can simply be returned                
-resolveExpr _ (Annotated aexpr) = Right aexpr
+resolveExpr _ (Annotated aexpr) = return aexpr
 -- literals have predefined types                                  
-resolveExpr _ (IntLiteral v) = Right $ AIntLiteral eaKindInt v
-resolveExpr _ (StringLiteral v) = Right $ AStringLiteral eaKindString v
+resolveExpr _ (IntLiteral v) = return $ AIntLiteral eaKindInt v
+resolveExpr _ (StringLiteral v) = return $ AStringLiteral eaKindString v
 -- variable and object references                                    
 resolveExpr s (VarRef sid) =
     scopeLookup s sid >>=
@@ -112,18 +113,18 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 -- referencable value.  Returns an annotation or an error on failure.
 identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
 identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
-    Right $ crefAnnotation cid rt
+    return $ crefAnnotation cid rt
 identDefToExprAnnotation (cid, VariableDefinition rt _) =
-    Left $ InternalError (nsidString cid ++ " is not resolved (" ++
+    throwError $ InternalError (nsidString cid ++ " is not resolved (" ++
                                          show rt ++")")
 identDefToExprAnnotation (cid, FunctionDefinition []) =
-    Left $ InternalError (nsidString cid ++ " contains no instances")
+    throwError $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, FunctionDefinition (fnInstance:[])) =
-    Right $ crefAnnotation cid (fnInstanceType fnInstance)
+    return $ crefAnnotation cid (fnInstanceType fnInstance)
 identDefToExprAnnotation (cid, FunctionDefinition _) =
     error "overloaded functions not implemented"
 identDefToExprAnnotation (cid, def) =
-    Left $ TypeError cid ("referenced as a variable but is a " ++
+    throwError $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
 
 -- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
@@ -136,19 +137,19 @@ resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
                  sid@(UnqualifiedID memberId) = 
     -- fixme may be better if classdef has a map rather than a list?
     case find ((== memberId) . classMemberName) members of
-      Nothing -> Left $ IdentifierNotFound $ fqid
+      Nothing -> throwError $ IdentifierNotFound $ fqid
       Just (ClassMember _ Public def) -> do
           (ExprAnnotation rt _) <- identDefToExprAnnotation (fqid, def)
           return (fqid, rt)
-      Just (ClassMember _ access _) -> Left $ AccessViolation fqid access
+      Just (ClassMember _ access _) -> throwError $ AccessViolation fqid access
     where
       fqid = sid `qualifiedBy` cid
     -- fixme what to do with qualified member references?
 resolveTypeRef _ (ResolvedType _ cid def) sid =
-    Left $ TypeError (sid `qualifiedBy` cid)
+    throwError $ TypeError (sid `qualifiedBy` cid)
              ((nsidString sid) ++ " is a " ++ (definitionTypeName def))
 resolveTypeRef _ t _ =
-    Left $ InternalError ("dereferenced object is not resolved (" ++
+    throwError $ InternalError ("dereferenced object is not resolved (" ++
                           show t ++ ")")
 
 -- fixme how should overloaded functions work?
@@ -158,8 +159,8 @@ resolveTypeRef _ t _ =
 makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
                               KErr ExprAnnotation
 makeFunctionCallAnnotation (FunctionType formal res) actual
-    | typesCompatible formal actual = Right $ ExprAnnotation res []
-    | otherwise                     = Left  $ InvalidApplication formal actual
+    | typesCompatible formal actual = return $ ExprAnnotation res []
+    | otherwise                     = throwError $ InvalidApplication formal actual
 makeFunctionCallAnnotation (ForAllTypes tlist cond
                                         ftype@(FunctionType formal res))
                            actual =
@@ -173,7 +174,7 @@ makeFunctionCallAnnotation (ForAllTypes tlist cond
       errorWhen (length unresolvedVars > 0)
                 (TypeMismatch ftype' "function without type variables")
       makeFunctionCallAnnotation ftype' actual
-makeFunctionCallAnnotation ftype _  = Left  $ TypeMismatch ftype "function"
+makeFunctionCallAnnotation ftype _  = throwError $ TypeMismatch ftype "function"
 
 -- fixme these functions probably belong in a module for handling type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
@@ -209,17 +210,17 @@ typeCompatible x y = x == y   -- fixme - subtypes?
 -- fixme it should also work, rather than hack a result for the tests!
 findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KErr AExpr
 findBinaryOperator "+" t1 t2 =
-    Right $ AInternalRef
-              (ExprAnnotation (FunctionType [t1, t2] t2) [])
-              (coreId "(+)")
+    return $ AInternalRef
+               (ExprAnnotation (FunctionType [t1, t2] t2) [])
+               (coreId "(+)")
 findBinaryOperator _ _ _ =
-    Left $ InternalError "haven't finished implementing operators"
+    throwError $ InternalError "haven't finished implementing operators"
 -- ditto
 findPrefixOperator :: String -> TypeDescriptor -> KErr AExpr
 findPrefixOperator "-" t =
-    Right $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
+    return $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
 findPrefixOperator _ _ =
-    Left $ InternalError "haven't finished implementing operators"
+    throwError $ InternalError "haven't finished implementing operators"
 
 resolveStatement :: Scope -> Statement -> KErr AStatement
 resolveStatement s (Expression expr) = do
@@ -258,7 +259,7 @@ resolveStatement s (StatementBlock ss) = do
       updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
 
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
-resolveInstance s afi@(AFunctionInstance _ _ _) = Right afi
+resolveInstance s afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
     -- fixme scope for resolving statement should contain params
     ast <- resolveStatement s st

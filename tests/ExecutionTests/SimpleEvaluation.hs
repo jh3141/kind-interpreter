@@ -1,5 +1,7 @@
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
+import Control.Monad.Except
+import Control.Monad.ST.Trans
 import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -17,7 +19,7 @@ execTest :: Scope -> Expr -> Value
 execTest s ex = either
                  (\e -> error (show e)) -- if there's an error
                  id                     -- otherwise
-                 ((resolveExpr s ex) >>= (evalAExpr s ifc))
+                 (runExcept $ (resolveExpr s ex) >>= (\ f -> runST $ evalAExpr s ifc f))
     
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =

@@ -1,7 +1,7 @@
 module KindLang.Data.Catalogue where
 
 import qualified Data.Map as Map
-    
+import Control.Monad.Except    
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
@@ -78,20 +78,19 @@ catalogueWithOnly cat identifiers =
 lookupHierarchical :: Catalogue -> NSID -> KErr IdentDefinition
 lookupHierarchical cat sid@(QualifiedID s s') =
     case Map.lookup s cat of
-      Nothing -> Left $ IdentifierNotFound sid
+      Nothing -> throwError $ IdentifierNotFound sid
       Just (_, Namespace cat2) ->
-          case lookupHierarchical cat2 s' of
-            Left (IdentifierNotFound _) -> Left $ IdentifierNotFound sid
-            r -> r
-      Just (gsid, _) -> Left $ NotNamespace gsid s'
+          catchError (lookupHierarchical cat2 s')
+                     (throwError . replaceErrorIdentifier sid)
+      Just (gsid, _) -> throwError $ NotNamespace gsid s'
 lookupHierarchical cat sid@(UnqualifiedID s) =
-    maybe (Left $ IdentifierNotFound sid) Right $ Map.lookup s cat
+    maybe (throwError $ IdentifierNotFound sid) return $ Map.lookup s cat
 
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
 (|@|) :: Catalogue -> NSID -> KErr Definition
-c |@| i =  (either Left $ Right . snd) (lookupHierarchical c i)
+c |@| i =  (lookupHierarchical c i) >>= (return . snd)
 infixl 5 |@|
 
 -- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue

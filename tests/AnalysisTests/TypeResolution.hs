@@ -1,5 +1,6 @@
 module AnalysisTests.TypeResolution (typeResolutionTests) where
 
+import Control.Monad.Except
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
@@ -18,7 +19,7 @@ typeResolutionTests =
     testGroup "Type resolution"
     [
         testCase "resolve module-level variable with identified type" $
-                 (resolveDefListTypes testScope
+                 (runExcept $ resolveDefListTypes testScope
                   [("v", (VariableDefinition
                           (SimpleType simpleClass)
                           VarInitNone))]) @?=
@@ -26,7 +27,7 @@ typeResolutionTests =
                          (ResolvedType simpleClass simpleClass def)
                          VarInitNone))]),
         testCase "resolve variable with renamed type" $
-                 (resolveDefListTypes testScope
+                 (runExcept $ resolveDefListTypes testScope
                   [("v", (VariableDefinition
                           (SimpleType renamedClass)
                           VarInitNone))]) @?=
@@ -34,7 +35,7 @@ typeResolutionTests =
                          (ResolvedType renamedClass originalClass def)
                          VarInitNone))]),
         testCase "resolve class member variables" $
-                 (resolveDefListTypes testScope
+                 (runExcept $ resolveDefListTypes testScope
                   [("C", (ClassDefinition [
                            (ClassMember "v" Public
                             (VariableDefinition (SimpleType simpleClass)
@@ -46,26 +47,26 @@ typeResolutionTests =
                             VarInitNone))]))]),
 
         testCase "resolve variable reference expressions" $
-                 (resolveExpr testScope $ VarRef simpleVar) @?=
+                 (runExcept $ resolveExpr testScope $ VarRef simpleVar) @?=
                  (Right $ AVarRef (ExprAnnotation
                            rtSimpleClass
                            [("CanonicalID", EADId simpleVar)]) simpleVar),
         testCase "resolve int literals" $
-                 (resolveExpr testScope $ IntLiteral 1) @?=
+                 (runExcept $ resolveExpr testScope $ IntLiteral 1) @?=
                  (Right $ AIntLiteral
                             (ExprAnnotation rtKindInt [])
                             1),
         testCase "resolve string literals" $
-                 (resolveExpr testScope $ StringLiteral "foo") @?=
+                 (runExcept $ resolveExpr testScope $ StringLiteral "foo") @?=
                  (Right $ AStringLiteral
                             (ExprAnnotation rtKindString [])
                             "foo"),
         testCase "pre-resolved expressions returned" $
-                 (resolveExpr testScope
+                 (runExcept $ resolveExpr testScope
                                   (Annotated $ AIntLiteral eaKindInt 42)) @?=
                  (Right $ AIntLiteral eaKindInt 42),
         testCase "resolve object reference" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               ORef (VarRef ccInst) (UnqualifiedID "v")) @?=
                  (Right $ AORef
                   (ExprAnnotation rtSimpleClass
@@ -74,7 +75,7 @@ typeResolutionTests =
                                            [("CanonicalID", EADId ccInst)])
                    ccInst) (UnqualifiedID "v")),
         testCase "resolve function call" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               FunctionApplication
                                 (VarRef simpleFn)
                                 [(VarRef scInst)]) @?=
@@ -87,7 +88,7 @@ typeResolutionTests =
                     (ExprAnnotation rtSimpleClass
                                     [("CanonicalID", EADId scInst)]) scInst)]),
         testCase "resolve binary operator" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
                  (Right $ AFunctionApplication eaKindInt
                   (AInternalRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
@@ -95,7 +96,7 @@ typeResolutionTests =
                   [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)]),
 
         testCase "resolve prefix operator" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               PrefixOp "-" (IntLiteral 42)) @?=
                  (Right $ AFunctionApplication eaKindInt
                   (AInternalRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
@@ -103,7 +104,7 @@ typeResolutionTests =
                   [(AIntLiteral eaKindInt 42)]),
 
         testCase "resolve object method call" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               OMethod (VarRef mcInst)
                                       method
                                       [VarRef scInst]) @?=
@@ -119,28 +120,28 @@ typeResolutionTests =
                     scInst)]),
 
         testCase "attempt to access private member of object" $
-                 (resolveExpr testScope $
+                 (runExcept $ resolveExpr testScope $
                               ORef (VarRef mcInst) privateField) @?=
                  (Left $ AccessViolation
                            (privateField `qualifiedBy` methodClass)
                            Private),
 
         testCase "variable types inferred" $
-                 (resolveDefinition testScope $
+                 (runExcept $ resolveDefinition testScope $
                   VariableDefinition InferableType
                                      (VarInitExpr $ IntLiteral 5)) @?=
                  (Right $ VariableDefinition rtKindInt
                           (VarInitAExpr $ AIntLiteral eaKindInt 5)),
 
         testCase "expression statement resolved" $
-                 (resolveStatement testScope $
+                 (runExcept $ resolveStatement testScope $
                                    Expression (IntLiteral 5)) @?=
                  (Right $ AExpression
                             (StmtAnnotation (Just rtKindInt) [] [])
                             (AIntLiteral eaKindInt 5)),
 
         testCase "variable definition statement resolved" $
-                 (resolveStatement testScope $
+                 (runExcept $ resolveStatement testScope $
                   VarDeclStatement "myvar" rtKindInt VarInitNone) @?=
                  (Right $ AVarDeclStatement
                   (StmtAnnotation Nothing
@@ -148,7 +149,7 @@ typeResolutionTests =
                   "myvar" rtKindInt VarInitNone),
 
         testCase "variable definition with implicit type statement resolved" $
-                 (resolveStatement testScope $
+                 (runExcept $ resolveStatement testScope $
                   VarDeclStatement "myvar" InferableType
                   (VarInitExpr (IntLiteral 5))) @?=
                  (Right $ AVarDeclStatement
@@ -161,7 +162,7 @@ typeResolutionTests =
                  -- but it has appeared here.
 
         testCase "statement block resolved" $
-                 (resolveStatement testScope $
+                 (runExcept $ resolveStatement testScope $
                   StatementBlock
                   [Expression $ StringLiteral "hello",
                    Expression $ IntLiteral 42]) @?=
@@ -171,7 +172,7 @@ typeResolutionTests =
                    AExpression saKindInt $ AIntLiteral eaKindInt 42]),
                              
         testCase "statement blocks propagate scope changes" $
-                 (resolveStatement testScope $
+                 (runExcept $ resolveStatement testScope $
                   StatementBlock
                   [VarDeclStatement "myvar" rtKindInt VarInitNone,
                    Expression $ VarRef $ UnqualifiedID "myvar"]) @?=
@@ -185,7 +186,7 @@ typeResolutionTests =
                     (UnqualifiedID "myvar")]),
                  
         testCase "resolve function instance" $
-                 (resolveInstance testScope simpleFnInstance) @?=
+                 (runExcept $ resolveInstance testScope simpleFnInstance) @?=
                  (Right $
                   AFunctionInstance tdSimpleFn ["a"] 
                   (AExpression (StmtAnnotation (Just rtComplexClass) [] []) $
@@ -195,7 +196,7 @@ typeResolutionTests =
                    ccInst)),
 
         testCase "resolve function call with type variables in type" $
-                 (aexprType <$>
+                 (runExcept $ aexprType <$>
                   (resolveExpr testScope $ FunctionApplication
                                  (VarRef typeVarFn) [(VarRef scInst)])) @?=
                  (Right rtSimpleClass)
@@ -260,10 +261,10 @@ def = (ClassDefinition [])
 rtSimpleClass :: TypeDescriptor
 rtSimpleClass = ResolvedType simpleClass simpleClass def
 rtComplexClass :: TypeDescriptor
-rtComplexClass = rightOrFail "internal error" $
+rtComplexClass = expectNoErrors "internal error" $
                  resolveType testCatalogue complexClass
 rtMethodClass :: TypeDescriptor
-rtMethodClass = rightOrFail "internal error" $
+rtMethodClass = expectNoErrors "internal error" $
                 resolveType testCatalogue methodClass
                             
 simpleFnInstance :: FunctionInstance

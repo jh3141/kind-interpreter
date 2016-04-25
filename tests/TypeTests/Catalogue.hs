@@ -1,6 +1,7 @@
 module TypeTests.Catalogue(catalogueTypeTests) where
 
 import qualified Data.Map as Map
+import Control.Monad.Except
 import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.BasicTypes
@@ -14,18 +15,18 @@ catalogueTypeTests =
         testCase "Empty catalogue is empty" $
                  Map.size newCatalogue @?= 0,
         testCase "Add item to catalogue" $
-                 (newCatalogue |+| (nqid, def)) |@| nqid @?=
+                 runExcept ((newCatalogue |+| (nqid, def)) |@| nqid) @?=
                  (Right def),
         testCase "Add qualified item to catalogue" $
-                 (newCatalogue |+| (qid, def)) |@| qid @?=
+                 runExcept ((newCatalogue |+| (qid, def)) |@| qid) @?=
                  (Right def),
         testCase "Add qualified item to catalogue in existing namespace" $
-                 (newCatalogue |+| (qid, def)
-                               |+| (qid2, def2)) |@| qid2 @?=
+                 runExcept ((newCatalogue |+| (qid, def)
+                                          |+| (qid2, def2)) |@| qid2) @?=
                  (Right def2),
         testCase "Adding item to existing namespace doesn't affect other items" $
-                 (newCatalogue |+| (qid, def)
-                               |+| (qid2, def2)) |@| qid @?=
+                 runExcept ((newCatalogue |+| (qid, def)
+                                          |+| (qid2, def2)) |@| qid) @?=
                  (Right def),
         testCase "Items with multiple levels of qualification" $
                  catFlatten
