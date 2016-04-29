@@ -12,7 +12,8 @@ import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 import KindLang.Data.Scope
-import KindLang.Lib.CoreTypes    
+import KindLang.Lib.CoreTypes
+import KindLang.Lib.Operators
 
 -- | Return a copy of a module tree with all types resolved, or an error message.
 resolveTypes :: Module -> KErr Module
@@ -217,22 +218,6 @@ typeCompatible t1 (Reference t2) = typeCompatible t1 t2
 -- otherwise, we expect types to be the same...
 typeCompatible x y = x == y   -- fixme - subtypes?
                  
--- fixme this should be in a file by itself, not stuck down here.
--- fixme it should also work, rather than hack a result for the tests!
-findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KErr AExpr
-findBinaryOperator "+" t1 t2 =
-    return $ AInternalRef
-               (ExprAnnotation (FunctionType [t1, t2] t2) [])
-               (coreId "(+)")
-findBinaryOperator _ _ _ =
-    throwError $ InternalError "haven't finished implementing operators"
--- ditto
-findPrefixOperator :: String -> TypeDescriptor -> KErr AExpr
-findPrefixOperator "-" t =
-    return $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
-findPrefixOperator _ _ =
-    throwError $ InternalError "haven't finished implementing operators"
-
 resolveStatement :: Scope -> Statement -> KErr AStatement
 resolveStatement s (Expression expr) = do
     aexpr <- resolveExpr s expr

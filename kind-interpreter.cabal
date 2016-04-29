@@ -39,6 +39,7 @@ library
                     KindLang.Analysis.ResolveTypes
                     KindLang.Analysis.BuildCatalogue
                     KindLang.Lib.CoreTypes
+                    KindLang.Lib.Operators
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
                     KindLang.Runtime.Eval
