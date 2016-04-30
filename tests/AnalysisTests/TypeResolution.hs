@@ -185,14 +185,7 @@ typeResolutionTests =
                  
         testCase "resolve function instance" $
                  (runExcept $ resolveInstance testScope simpleFnInstance) @?=
-                 (Right $
-                  AFunctionInstance tdSimpleFn ["a"] 
-                  (AExpression
-                   (StmtAnnotation (Just $ Reference rtComplexClass) [] []) $
-                   AVarRef
-                   (ExprAnnotation (Reference rtComplexClass)
-                                   [("CanonicalID", EADId ccInst)])
-                   ccInst)),
+                 (Right $ simpleFnInstanceResolved  ),
 
         testCase "resolve function call with type variables in type" $
                  (runExcept $ aexprType <$>
@@ -208,8 +201,11 @@ typeResolutionTests =
                           AExpression sarefKindInt $
                            AVarRef (ExprAnnotation (Reference rtKindInt)
                                     [("CanonicalID", EADId $ UnqualifiedID "a")])
-                                   (UnqualifiedID "a"))
-                           
+                                   (UnqualifiedID "a")),
+        testCase "resolve function definition resolves instances" $
+                 (runExcept $ resolveDefinition testScope
+                            (FunctionDefinition [simpleFnInstance])) @?=
+                 (Right $ FunctionDefinition [simpleFnInstanceResolved])
                                           
     ]
         
@@ -283,6 +279,17 @@ simpleFnInstance = FunctionInstance
                      (FunctionType [rtSimpleClass] rtComplexClass)
                      ["a"]
                      (Expression $ VarRef ccInst)
+
+simpleFnInstanceResolved :: FunctionInstance
+simpleFnInstanceResolved =
+    AFunctionInstance tdSimpleFn ["a"] 
+                      (AExpression
+                       (StmtAnnotation (Just $ Reference rtComplexClass) [] []) $
+                       (AVarRef
+                        (ExprAnnotation (Reference rtComplexClass)
+                                            [("CanonicalID", EADId ccInst)])
+                        ccInst))
+                      
 typeVarFnInstance :: FunctionInstance
 typeVarFnInstance =
     FunctionInstance

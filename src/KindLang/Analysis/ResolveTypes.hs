@@ -16,8 +16,9 @@ import KindLang.Lib.CoreTypes
 import KindLang.Lib.Operators
 
 -- | Return a copy of a module tree with all types resolved, or an error message.
-resolveTypes :: Module -> KErr Module
-resolveTypes m = return m -- FIXME implement this
+resolveModule :: Module -> Scope -> KErr Module
+resolveModule (Module name imports deflist) s =
+    Module name imports <$> resolveDefListTypes s deflist
 
 -- | Return a copy of a definition list resolved against a given scope.
 resolveDefListTypes :: Scope -> DefList -> KErr DefList
@@ -50,6 +51,8 @@ resolveDefinition s (VariableDefinition InferableType (VarInitExpr e)) = do
     return $ VariableDefinition (aexprType ae) (VarInitAExpr ae)
 resolveDefinition s (ClassDefinition cdlist) =
     ClassDefinition <$> resolveClassDefListTypes s cdlist
+resolveDefinition s (FunctionDefinition instances) =
+    FunctionDefinition <$> mapM (resolveInstance s) instances
 resolveDefinition _ nonMatching = return nonMatching
 
 -- | Resolve an expression tree against a given scope, returning a resolved
