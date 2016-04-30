@@ -75,5 +75,6 @@ test-suite kind-tests
                    TypeTests.NSID
                    TypeTests.Catalogue
                    ExecutionTests.SimpleEvaluation
+                   ExecutionTests.ParseAndEvaluate
                    
                                                                         

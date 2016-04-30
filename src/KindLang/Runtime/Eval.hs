@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module KindLang.Runtime.Eval where
 
 import qualified Data.Map as Map
@@ -46,11 +48,12 @@ runtimeScopeAddItem (RuntimeScope idx sc p) (sid,val) = do
 kerrToRun :: KErr a -> RunM s a
 kerrToRun e = either throwError return $ runExcept e
 
--- apparently this needs to have rank-2 type to work.  if it gets any more complex, I'd
--- recommend it, but for now just use runST directly.
---runToKErr :: RunM s a -> KErr a
---runToKErr r = runST r
-              
+runToKErr :: (forall s . RunM s a) -> KErr a
+runToKErr r = runST r
+
+runToIO :: (forall s . RunM s a) -> IO a
+runToIO r = either (error . show) return $ runExcept $ runST r
+            
 -- fixme: going to need access to program mutable state, and ability to mutate it!
 evalAExpr :: RuntimeScope s -> InternalFunctions -> AExpr -> RunM s Value
 evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
@@ -92,6 +95,10 @@ applyFunctionInstance s ifc (AFunctionInstance td formal stmt) actual = do
                        (makeFunctionScope (rtsScope s) td formal))
                       (zip (UnqualifiedID <$> formal) actual)
     evalAStatement childScope ifc stmt
+applyFunctionInstance _ _ (FunctionInstance _ _ _) _ =
+    throwError $ InternalError
+                 "Function instances should be resolved before application"
+               
 -- fixme on-demand function body type resolution
 
 evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement -> RunM s Value

@@ -11,6 +11,7 @@ import AnalysisTests.TypeResolution
 import TypeTests.NSID
 import TypeTests.Catalogue
 import ExecutionTests.SimpleEvaluation
+import ExecutionTests.ParseAndEvaluate
     
 main :: IO ()
 main = defaultMain tests
@@ -34,6 +35,7 @@ tests = testGroup "Tests" [
                    [],
          testGroup "Execution" $
                    simpleEvaluationTests :
+                   parseAndEvaluateTests :
                    []
         ]
 
