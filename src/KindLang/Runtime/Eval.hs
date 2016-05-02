@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, TupleSections #-}
 
 module KindLang.Runtime.Eval where
 
@@ -53,7 +53,10 @@ runToKErr r = runST r
 
 runToIO :: (forall s . RunM s a) -> IO a
 runToIO r = either (error . show) return $ runExcept $ runST r
-            
+
+runToEither :: (forall s . RunM s a) -> Either KindError a
+runToEither r = runExcept $ runST r
+                
 -- fixme: going to need access to program mutable state, and ability to mutate it!
 evalAExpr :: RuntimeScope s -> InternalFunctions -> AExpr -> RunM s Value
 evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
@@ -94,13 +97,27 @@ applyFunctionInstance s ifc (AFunctionInstance td formal stmt) actual = do
                       (makeChildRuntimeScope s
                        (makeFunctionScope (rtsScope s) td formal))
                       (zip (UnqualifiedID <$> formal) actual)
-    evalAStatement childScope ifc stmt
+    (_, val) <- evalAStatement childScope ifc stmt
+    return $ val
 applyFunctionInstance _ _ (FunctionInstance _ _ _) _ =
     throwError $ InternalError
                  "Function instances should be resolved before application"
                
 -- fixme on-demand function body type resolution
 
-evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement -> RunM s Value
-evalAStatement s ifc (AExpression _ e) = evalAExpr s ifc e
-                                         
+evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement ->
+                  RunM s (RuntimeScope s, Value)
+evalAStatement s ifc (AExpression _ e) = (s,) <$> evalAExpr s ifc e 
+evalAStatement s ifc (AVarDeclStatement _ lid td VarInitNone) = do
+    defaultValue <- defaultValueOfType s ifc td
+    (,KindUnit) <$> runtimeScopeAddItem s                
+                       ((UnqualifiedID lid), defaultValue)
+
+
+defaultValueOfType :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
+                      RunM s Value
+defaultValueOfType _ _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")) _) =
+    return $ makeKindInt 0
+defaultValueOfType _ _ t = throwError $ InternalError $
+                       "No default value defined for type " ++ show t
+                                                    

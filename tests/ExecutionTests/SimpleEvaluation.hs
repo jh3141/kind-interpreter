@@ -50,6 +50,18 @@ simpleEvaluationTests =
                      FunctionApplication (VarRef idIdentity)
                                          [IntLiteral 86]))
                   @?= 86) :
+        (testCase "Variable definition statement" $
+                  (runToEither $ do
+                    (s, _) <- evalAStatement
+                                (newRuntimeScope scopeDefault)
+                                ifc
+                                (AVarDeclStatement
+                                 (StmtAnnotation Nothing
+                                                 [("d",VariableDefinition
+                                                         rtKindInt VarInitNone)] [])
+                                 "d" rtKindInt VarInitNone)
+                    ref <- rtsLookupRef s (UnqualifiedID "d")
+                    return ()) @?= Right ()) :        
         [])
 
 testScope :: Scope
