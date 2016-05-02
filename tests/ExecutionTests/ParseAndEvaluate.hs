@@ -70,5 +70,6 @@ parseAndEvaluateTests =
     testGroup "Parse and Evaluate" $
                   (makeTest "return42" $ makeKindInt 42) :
                   (makeTest "explicit_types" $ makeKindInt 42) :
+                  (makeTest "variables" $ makeKindInt 42) :
                   []
  
