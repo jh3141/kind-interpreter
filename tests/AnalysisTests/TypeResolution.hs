@@ -205,7 +205,16 @@ typeResolutionTests =
         testCase "resolve function definition resolves instances" $
                  (runExcept $ resolveDefinition testScope
                             (FunctionDefinition [simpleFnInstance])) @?=
-                 (Right $ FunctionDefinition [simpleFnInstanceResolved])
+                 (Right $ FunctionDefinition [simpleFnInstanceResolved]),
+        testCase "resolve function instance canonicalises explicit types" $
+                 (runExcept $ resolveInstance testScope
+                            (FunctionInstance
+                             (FunctionType [SimpleType $ UnqualifiedID "int"]
+                                           (SimpleType $ UnqualifiedID "int"))
+                             ["a"]
+                             (Expression $ IntLiteral 1))) @?=
+                 (Right $ AFunctionInstance fnIntInt ["a"]
+                            (AExpression saKindInt $ AIntLiteral eaKindInt 1))
                                           
     ]
         

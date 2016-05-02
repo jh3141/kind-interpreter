@@ -14,7 +14,8 @@ data KindError =
     NotNamespace NSID NSID |
     TypeError NSID Reason |
     InvalidApplication [TypeDescriptor] [TypeDescriptor] |
-    TypeMismatch TypeDescriptor String |
+    TypeMismatch TypeDescriptor TypeDescriptor String |
+    TypeKindError TypeDescriptor String |
     AccessViolation NSID Visibility
     deriving (Show, Eq)
 

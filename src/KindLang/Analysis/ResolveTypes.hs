@@ -38,14 +38,27 @@ resolveClassMember :: Scope -> ClassMember -> KErr ClassMember
 resolveClassMember s (ClassMember n v d) =
     ClassMember n v <$> resolveDefinition s d
 
+-- | Look up a type and provide a canonical id for it
+typeLookup :: Scope -> TypeDescriptor -> KErr TypeDescriptor
+typeLookup s (SimpleType sid) = do
+    (cid, def) <- scopeLookup s sid
+    return (ResolvedType sid cid def)
+typeLookup _ rt@(ResolvedType _ _ _) = return rt
+typeLookup s (FunctionType parameters rtype) = do
+    rparameters <- mapM (typeLookup s) parameters
+    rrtype <- typeLookup s rtype
+    return $ FunctionType rparameters rrtype
+typeLookup _ InferableType = return InferableType
+-- FIXME other type descriptor constructors must be included here!
+
 -- | Resolve an individual definition against a given scope.
 resolveDefinition :: Scope -> Definition -> KErr Definition 
-resolveDefinition s (VariableDefinition (SimpleType sid) i) = do
+resolveDefinition s (VariableDefinition urt@(SimpleType _) i) = do
     -- fixme how do we use resolveType here?
     -- fixme if 'i' is an init expression it should be resolved & typechecked.
     -- fixme if 'i' is a constructor expression it should be resolved.
-    (cid, def) <- scopeLookup s sid
-    return $ VariableDefinition (ResolvedType sid cid def) i
+    rt <- typeLookup s urt
+    return $ VariableDefinition rt i
 resolveDefinition s (VariableDefinition InferableType (VarInitExpr e)) = do
     ae <- resolveExpr s e
     return $ VariableDefinition (aexprType ae) (VarInitAExpr ae)
@@ -179,9 +192,11 @@ makeFunctionCallAnnotation (ForAllTypes tlist cond
           ftype' = foldr (uncurry substituteTypeVar) ftype substitutions
           unresolvedVars = filter (not . (flip elem) (fst <$> substitutions)) tlist
       errorWhen (length unresolvedVars > 0)
-                (TypeMismatch ftype' "function without type variables")
+                (TypeKindError ftype' "function without type variables")
       makeFunctionCallAnnotation ftype' actual
-makeFunctionCallAnnotation ftype _  = throwError $ TypeMismatch ftype "function"
+makeFunctionCallAnnotation ftype actual =
+    throwError $ TypeMismatch ftype (FunctionType actual InferableType)
+                              "not a function"
 
 -- fixme these functions probably belong in a module for handling type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
@@ -260,15 +275,16 @@ resolveStatement s (StatementBlock ss) = do
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
 resolveInstance s afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
+    atd <- typeLookup s td
     ast <- resolveStatement (makeFunctionScope s td params) st
     astType <- errorIfNothing (astmtType ast)  -- fixme void functions?
-                 (TypeMismatch (functionTypeReturn td)
-                               ErrorMessages.noReturn)
-    errorWhenNot ((functionTypeReturn td) `typeCompatible` astType)
-                 (TypeMismatch (functionTypeReturn td)
+                 (TypeKindError (functionTypeReturn td)
+                                ErrorMessages.noReturn)
+    errorWhenNot ((functionTypeReturn atd) `typeCompatible` astType)
+                 (TypeMismatch astType (functionTypeReturn atd) 
                                ErrorMessages.incompatibleReturn)
     return $ AFunctionInstance
-                td            -- fixme what about return type specialization?
+                atd           -- fixme what about return type specialization?
                 params        -- instance still accepts the same params
                 ast           -- body is fully resolved
                 
