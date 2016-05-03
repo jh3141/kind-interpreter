@@ -1,7 +1,8 @@
 {-# LANGUAGE RankNTypes, TupleSections #-}
 
 module KindLang.Runtime.Eval where
-
+import Debug.Trace
+    
 import qualified Data.Map as Map
 import Control.Monad.ST.Trans
 import Control.Monad.Except
@@ -44,6 +45,12 @@ runtimeScopeAddItem :: RuntimeScope s -> (NSID,Value) -> RunM s (RuntimeScope s)
 runtimeScopeAddItem (RuntimeScope idx sc p) (sid,val) = do
     stref <- newSTRef val
     return $ RuntimeScope (Map.insert sid stref idx) sc p
+
+runtimeScopeAddItemWithDef :: RuntimeScope s -> (String,Value,Definition)
+                           -> RunM s (RuntimeScope s)
+runtimeScopeAddItemWithDef rts1 (lid,val,def) = do
+    (RuntimeScope idx sc p) <- runtimeScopeAddItem rts1 (UnqualifiedID lid,val)
+    return $ RuntimeScope idx (sc |@+| (lid,def)) p
            
 kerrToRun :: KErr a -> RunM s a
 kerrToRun e = either throwError return $ runExcept e
@@ -110,10 +117,16 @@ evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement ->
 evalAStatement s ifc (AExpression _ e) = (s,) <$> evalAExpr s ifc e 
 evalAStatement s ifc (AVarDeclStatement _ lid td varInit) = do
     defaultValue <- evaluateVarInit s ifc td varInit
-    (,KindUnit) <$> runtimeScopeAddItem s                
-                       ((UnqualifiedID lid), defaultValue)
+    (,KindUnit) <$> runtimeScopeAddItemWithDef s
+                       (lid, defaultValue, VariableDefinition td VarInitNone)
 evalAStatement s ifc (AStatementBlock _ stmts) =
-    foldM (flip evalAStatement ifc . fst) (s, KindUnit) stmts
+    foldM (flip evalAStatement ifc . traceRTS . fst) (s, KindUnit) stmts
+
+traceRTS :: RuntimeScope s -> RuntimeScope s
+traceRTS arg@(RuntimeScope index scope _) = 
+    trace ("Index: " ++ (show $ Map.keys index))
+    trace ("Scope: " ++ (show $ Map.keys $ scopeCat scope))
+    arg
 
 evaluateVarInit :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
                    VariableInitializer -> RunM s Value
