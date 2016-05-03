@@ -43,16 +43,21 @@ runTest filename expected =
       source <- readFile ("kindtests/ParseAndEvaluate/" ++ filename ++ ".k")
       modTree <- expectRight $ parse module_ filename source
 
+      putStrLn ("Test running: " ++ filename)
+      putStrLn "Parsed module: "
       print modTree
-      print scopeDefault
             
       value <- runToIO $ do
           (moduleScope, resolvedBootstrap) <- kerrToRun $ do
                                                 
               resolvedModule <- resolveModule modTree scopeDefault
-              -- traceShowM resolvedModule
+
+              traceShowM resolvedModule
+
               catalogues <- buildCatalogues nullModuleLoader resolvedModule
-              -- traceShowM catalogues
+
+              traceShowM catalogues
+
               let moduleScope = (makeModuleScope scopeDefault catalogues)
               resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
               -- traceShowM resolvedBootstrap
@@ -71,5 +76,6 @@ parseAndEvaluateTests =
                   (makeTest "return42" $ makeKindInt 42) :
                   (makeTest "explicit_types" $ makeKindInt 42) :
                   (makeTest "variables" $ makeKindInt 42) :
+                  (makeTest "functions_and_operators" $ makeKindInt 42) :
                   []
  
