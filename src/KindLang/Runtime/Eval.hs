@@ -108,11 +108,20 @@ applyFunctionInstance _ _ (FunctionInstance _ _ _) _ =
 evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement ->
                   RunM s (RuntimeScope s, Value)
 evalAStatement s ifc (AExpression _ e) = (s,) <$> evalAExpr s ifc e 
-evalAStatement s ifc (AVarDeclStatement _ lid td VarInitNone) = do
-    defaultValue <- defaultValueOfType s ifc td
+evalAStatement s ifc (AVarDeclStatement _ lid td varInit) = do
+    defaultValue <- evaluateVarInit s ifc td varInit
     (,KindUnit) <$> runtimeScopeAddItem s                
                        ((UnqualifiedID lid), defaultValue)
+evalAStatement s ifc (AStatementBlock _ stmts) =
+    foldM (flip evalAStatement ifc . fst) (s, KindUnit) stmts
 
+evaluateVarInit :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
+                   VariableInitializer -> RunM s Value
+evaluateVarInit s ifc td VarInitNone = defaultValueOfType s ifc td
+evaluateVarInit s ifc td (VarInitAExpr e) = evalAExpr s ifc e
+evaluateVarInit _ _ _ (VarInitExpr _) = throwError $
+                                        InternalError "Unresolved expression in varinit"
+-- fixme other init types
 
 defaultValueOfType :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
                       RunM s Value
