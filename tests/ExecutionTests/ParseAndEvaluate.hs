@@ -19,7 +19,7 @@ import KindLang.Runtime.Eval
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.Operators
 import Text.Parsec
-    
+
 expectRight :: Show a => Either a b -> IO b
 expectRight (Left err) = error (show err)
 expectRight (Right r)  = return r
@@ -28,48 +28,45 @@ nullModuleLoader :: NSID -> KErr Catalogue
 nullModuleLoader (UnqualifiedID "kind") = return coreTypes
 nullModuleLoader _ = throwError $ InternalError "module loading not available"
 
-makeModuleScope :: Scope -> ModuleCatalogues -> Scope
-makeModuleScope p (ModuleCatalogues pub priv) = Scope (Just p) (Map.union pub priv)
-
 bootstrapExpr :: Expr
 bootstrapExpr = (FunctionApplication (VarRef $ UnqualifiedID "test") [])
 
 failException :: SomeException -> IO ()
 failException e = error $ displayException e
-                   
+
 runTest :: String -> Value -> Assertion
 runTest filename expected =
     do
       source <- readFile ("kindtests/ParseAndEvaluate/" ++ filename ++ ".k")
       modTree <- expectRight $ parse module_ filename source
 
-      putStrLn ("Test running: " ++ filename)
-      putStrLn "Parsed module: "
-      print modTree
-            
+      --putStrLn ("Test running: " ++ filename)
+      --putStrLn "Parsed module: "
+      --print modTree
+
       value <- runToIO $ do
           (moduleScope, resolvedBootstrap) <- kerrToRun $ do
-                                                
-              resolvedModule <- resolveModule modTree scopeDefault
 
-              traceShowM resolvedModule
+              resolvedModule <- resolveModule modTree scopeDefault nullModuleLoader
+
+              -- traceShowM resolvedModule
 
               catalogues <- buildCatalogues nullModuleLoader resolvedModule
 
-              traceShowM catalogues
+              -- traceShowM catalogues
 
               let moduleScope = (makeModuleScope scopeDefault catalogues)
               resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
               -- traceShowM resolvedBootstrap
-              return $ (moduleScope, resolvedBootstrap)           
+              return $ (moduleScope, resolvedBootstrap)
           evalAExpr (newRuntimeScope moduleScope)
                     standardInternalFunctions
                     resolvedBootstrap
-      assertEqual "Returned value" expected value 
-            
+      assertEqual "Returned value" expected value
+
 makeTest :: String -> Value -> TestTree
 makeTest f v = testCase f $ runTest f v
-               
+
 parseAndEvaluateTests :: TestTree
 parseAndEvaluateTests =
     testGroup "Parse and Evaluate" $

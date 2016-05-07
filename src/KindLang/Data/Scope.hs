@@ -33,3 +33,4 @@ makeFunctionScope s (FunctionType types _) names =
     where 
       addVariableToScope :: (String,TypeDescriptor) -> Scope -> Scope
       addVariableToScope (name,td) s = s |@+| (name, VariableDefinition td VarInitNone)
+

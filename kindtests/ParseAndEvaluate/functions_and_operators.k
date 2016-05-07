@@ -1,5 +1,5 @@
-function1 () { 24; }
-function2 (v) { v + 10; }
+function1 () : int { 24; }
+function2 (v:int) : int { v + 10; }
 
 test ()
 {

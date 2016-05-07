@@ -3,6 +3,7 @@ module KindLang.Analysis.ResolveTypes where
 
 import Data.List
 import Data.Maybe
+import Debug.Trace
 import Control.Arrow
 import Control.Monad
 import Control.Monad.Except
@@ -12,13 +13,21 @@ import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 import KindLang.Data.Scope
+import KindLang.Analysis.BuildCatalogue
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.Operators
 
+-- FIXME modules with two functions and foreword references between them
+-- are not correctly resolving.
+
 -- | Return a copy of a module tree with all types resolved, or an error message.
-resolveModule :: Module -> Scope -> KErr Module
-resolveModule (Module name imports deflist) s =
-    Module name imports <$> resolveDefListTypes s deflist
+resolveModule :: Module -> Scope -> ModuleLoader -> KErr Module
+resolveModule (Module name imports deflist) s ldr = do
+    typeResolved <- resolveDefListTypes s deflist
+    catalogues <- buildCatalogues ldr (Module name imports typeResolved)
+    let moduleScope = (makeModuleScope s catalogues)
+    fullyResolved <- resolveFunctionInstances moduleScope typeResolved
+    return $ Module name imports fullyResolved
 
 -- | Return a copy of a definition list resolved against a given scope.
 resolveDefListTypes :: Scope -> DefList -> KErr DefList
@@ -26,7 +35,25 @@ resolveDefListTypes s =
     mapM resolve
     where
       resolve :: (String,Definition) -> KErr (String,Definition)
-      resolve (cid,def) = (cid,) <$> resolveDefinition s def
+      resolve (cid,def) = --trace ("resolve: " ++ cid)
+                          (cid,) <$> resolveDefinition s def
+
+-- | Scans a definition list for functions (including functions inside
+-- classes) and resolves their instance bodies.
+resolveFunctionInstances :: Scope -> DefList -> KErr DefList
+resolveFunctionInstances s =
+    mapM resolveInstances
+    where
+      resolveInstances (cid, def) = (cid,) <$> resolveImplementation s def
+
+-- | Performs second pass of resolution, fixing up implementations
+-- that were skipped when resolveDefinition was used in the first pass.
+resolveImplementation :: Scope -> Definition -> KErr Definition
+resolveImplementation s (FunctionDefinition instances) = do
+    resolvedInstances <- mapM (resolveInstance s) instances
+    return $ FunctionDefinition resolvedInstances
+-- fixme scan classes for memmbers
+resolveImplementation _ other = trace ("resolveImplementation:" ++ show other) $ return other
 
 -- | Return a copy of a class member definition list resolved against a
 -- given scope.
@@ -65,18 +92,18 @@ resolveDefinition s (VariableDefinition InferableType (VarInitExpr e)) = do
 resolveDefinition s (ClassDefinition cdlist) =
     ClassDefinition <$> resolveClassDefListTypes s cdlist
 resolveDefinition s (FunctionDefinition instances) =
-    FunctionDefinition <$> mapM (resolveInstance s) instances
+    FunctionDefinition <$> mapM (resolveInstanceTypes s) instances
 resolveDefinition _ nonMatching = return nonMatching
 
 -- | Resolve an expression tree against a given scope, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
 resolveExpr :: Scope -> Expr -> KErr AExpr
--- pre-annotated expressions can simply be returned                
+-- pre-annotated expressions can simply be returned
 resolveExpr _ (Annotated aexpr) = return aexpr
--- literals have predefined types                                  
+-- literals have predefined types
 resolveExpr _ (IntLiteral v) = return $ AIntLiteral eaKindInt v
 resolveExpr _ (StringLiteral v) = return $ AStringLiteral eaKindString v
--- variable and object references                                    
+-- variable and object references
 resolveExpr s (VarRef sid) =
     scopeLookup s sid >>=
       identDefToExprAnnotation >>=
@@ -273,7 +300,7 @@ resolveStatement s (StatementBlock ss) = do
       updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
 
 resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
-resolveInstance s afi@(AFunctionInstance _ _ _) = return afi
+resolveInstance _ afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
     atd <- typeLookup s td
     ast <- resolveStatement (makeFunctionScope s td params) st
@@ -287,4 +314,15 @@ resolveInstance s (FunctionInstance td params st) = do
                 atd           -- fixme what about return type specialization?
                 params        -- instance still accepts the same params
                 ast           -- body is fully resolved
-                
+
+-- | resolve a function instance's definition, but do not inspect its actual
+-- implementation (which cannot be done safely until after all of a module's
+-- type definitions are resolved).
+resolveInstanceTypes :: Scope -> FunctionInstance -> KErr FunctionInstance
+resolveInstanceTypes _ afi@(AFunctionInstance _ _ _) = return afi
+resolveInstanceTypes s (FunctionInstance td params st) = do
+    atd <- typeLookup s td
+    return $ FunctionInstance
+                atd
+                params
+                st
