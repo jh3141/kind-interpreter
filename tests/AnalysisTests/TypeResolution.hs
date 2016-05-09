@@ -202,8 +202,8 @@ typeResolutionTests =
                            AVarRef (ExprAnnotation (Reference rtKindInt)
                                     [("CanonicalID", EADId $ UnqualifiedID "a")])
                                    (UnqualifiedID "a")),
-        testCase "resolve function definition resolves instances" $
-                 (runExcept $ resolveDefinition testScope
+        testCase "resolve function implementation resolves instances" $
+                 (runExcept $ resolveImplementation testScope
                             (FunctionDefinition [simpleFnInstance])) @?=
                  (Right $ FunctionDefinition [simpleFnInstanceResolved]),
         testCase "resolve function instance canonicalises explicit types" $
