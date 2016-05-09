@@ -2,7 +2,8 @@ module KindLang.Lib.Operators where
 
 import Control.Monad.Except
 import qualified Data.Map as Map
-    
+import Data.List
+
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Error
@@ -28,5 +29,7 @@ findPrefixOperator _ _ =
 standardInternalFunctions :: InternalFunctions
 standardInternalFunctions =
     Map.fromList [
-            ("addInt", \ ((KindInt a):(KindInt b):[]) -> KindInt (a+b))
+            ("(+) (kind::int,kind::int)",
+              \ ((KindInt a):(KindInt b):[]) -> KindInt (a+b))
     ]
+

@@ -16,7 +16,8 @@ data KindError =
     InvalidApplication [TypeDescriptor] [TypeDescriptor] |
     TypeMismatch TypeDescriptor TypeDescriptor String |
     TypeKindError TypeDescriptor String |
-    AccessViolation NSID Visibility
+    AccessViolation NSID Visibility |
+    NoAppropriateInstance NSID TypeDescriptor
     deriving (Show, Eq)
 
 type KErr a = Except KindError a

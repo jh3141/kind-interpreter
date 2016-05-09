@@ -2,6 +2,8 @@
 
 module KindLang.Runtime.Eval where
 import Debug.Trace
+import Data.List
+import Data.Foldable
     
 import qualified Data.Map as Map
 import Control.Monad.ST.Trans
@@ -75,8 +77,13 @@ evalAExpr s _ (AVarRef ae id) =
     -- fixme (performance) - do we need to perform the scope lookup if we already
     -- have an annotated expression including the canonical id?  can we not 
     -- simply shortcircuit lookup at this point?
-    kerrToRun (snd <$> scopeLookup (rtsScope s) id) >>= (definitionToValue s ae) 
-
+    kerrToRun (snd <$> scopeLookup (rtsScope s) id) >>= (definitionToValue s ae)
+evalAExpr s ifns (AInternalRef (ExprAnnotation td _) name) = do
+    name <- kerrToRun $ errorIfNothing
+                           (lookupOverloadedInternalFunctionName name td ifns)
+                           (NoAppropriateInstance name td)
+    return (KindFunctionRef [InternalFunction td name])
+evalAExpr _ _ expr = throwError $ InternalError ("attempted to evaluate unimplemented expression: " ++ show expr)
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
@@ -142,4 +149,44 @@ defaultValueOfType _ _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")
     return $ makeKindInt 0
 defaultValueOfType _ _ t = throwError $ InternalError $
                        "No default value defined for type " ++ show t
-                                                    
+
+lookupOverloadedInternalFunctionName :: NSID -> TypeDescriptor -> InternalFunctions ->
+                                        Maybe String
+lookupOverloadedInternalFunctionName (QualifiedID "kind" sid) td ifns =
+    lookupOverloadedInternalFunctionName sid td ifns
+lookupOverloadedInternalFunctionName sid (FunctionType args rtype) ifns =
+    find ((flip Map.member) ifns) $
+         map buildName (candidateFunctionCallArgTypes args)
+    where
+      buildName targs = nsidString sid ++ " (" ++
+                        (intercalate "," (typeName <$> targs)) ++ ")"
+
+-- fixme this should be somewhere else!
+typeName :: TypeDescriptor -> String
+typeName (SimpleType sid) = nsidString sid
+typeName (ResolvedType _ sid _) = nsidString sid
+typeName (FunctionType args rtype) = "(" ++ (intercalate "," (typeName <$> args))
+                                     ++ ")->" ++ (typeName rtype)
+typeName (ForAllTypes names preds td) = "[" ++ (intercalate "," names) ++ "]" ++
+                                        typeName td
+typeName (TypeVariable n) = n
+typeName (SumType tds) = "(" ++ (intercalate "|" (typeName <$> tds)) ++ ")"
+typeName (TupleType tds) = "(" ++ (intercalate "," (typeName <$> tds)) ++ ")"
+typeName InferableType = "<inferred>"
+typeName (RecordType rid tds) = nsidString rid ++ "{" ++
+                                (intercalate "," (typeName <$> tds)) ++ "}"
+typeName (Reference td) = "&" ++ typeName td
+                          
+
+-- this should be somewhere else too
+candidateFunctionCallArgTypes :: [TypeDescriptor] -> [[TypeDescriptor]]
+candidateFunctionCallArgTypes args = foldrM prependAlternatives []
+                                            (map getAlternativeTypes args)
+
+getAlternativeTypes :: TypeDescriptor -> [TypeDescriptor]
+getAlternativeTypes (Reference t) = [Reference t, t]
+getAlternativeTypes t = [t]
+
+prependAlternatives :: [a] -> [a] -> [[a]]
+prependAlternatives x l = map (\z -> z : l) x
+                         
