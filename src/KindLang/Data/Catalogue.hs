@@ -1,11 +1,12 @@
 module KindLang.Data.Catalogue where
 
 import qualified Data.Map as Map
-import Control.Monad.Except    
+import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
-    
+import qualified KindLang.Locale.ErrorMessages as ErrorMessages
+
 type ModuleLoader = NSID -> KErr Catalogue
 -- The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "definition".
@@ -18,7 +19,7 @@ newCatalogue = Map.empty
 -- | @catAdd c rid cid def@ adds a new item for definition @def@ with the
 -- resolvable id @rid@ and canonical id @cid@ to a catalogue @c@, creating
 -- new namespaces as necessary, and returning the updated catalogue.
--- 
+--
 -- May fail with an 'error' if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition,
 -- therefore callers should be careful to avoid this situation or to catch
@@ -27,20 +28,19 @@ catAdd :: Catalogue -> NSID -> NSID -> Definition -> Catalogue
 catAdd cat rid cid def =
     updatedCat cat rid []
     where
-      updatedCat c' (UnqualifiedID s) _ =
-          Map.insert s (cid,def) c'
-      updatedCat c' (QualifiedID s s') qualifiers | s `Map.notMember` c' =
+      updatedCat c (UnqualifiedID s) _ =
+          Map.insert s (cid,def) c
+      updatedCat c (QualifiedID s s') qualifiers | s `Map.notMember` c =
           Map.insert s (s `qualifiedByStrings` qualifiers,
-                        Namespace $ updatedCat newCatalogue s' (s:qualifiers)) c'
-      updatedCat c' (QualifiedID s s') qualifiers =
-          case Map.lookup s c' of
+                        Namespace $ updatedCat newCatalogue s' (s:qualifiers)) c
+      updatedCat c (QualifiedID s s') qualifiers =
+          case Map.lookup s c of
             Just (nssid, Namespace nscat) ->
                 Map.insert s
                        (nssid,
                         Namespace $ updatedCat nscat s' (s:qualifiers))
-                       c'
-            _ -> error ("attempted to insert item into non-namespace definition "
-                        ++ "of catalogue " ++ show rid)
+                       c
+            _ -> error (ErrorMessages.insertedIntoNonNamespace rid)
 
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
@@ -56,7 +56,7 @@ infixl 6 |+|
 (|++|) :: Catalogue -> (NSID, NSID, Definition) -> Catalogue
 c |++| (rid, cid, def) = catAdd c rid cid def
 infixl 6 |++|
-    
+
 -- | Filter a catalogue to contain only the items specified in a list
 -- of string identifiers.  Only examines top-level identifiers in the catalogue,
 -- so not useful for operating across scope levels.
@@ -97,7 +97,7 @@ infixl 5 |@|
 -- 'cat', returning the modified catalogue.
 makeNamespace :: NSID -> Catalogue -> Catalogue
 makeNamespace sid cat =
-    recurse sid [] 
+    recurse sid []
     where
       recurse (QualifiedID s s') qualifiers =
           Map.singleton s
@@ -107,7 +107,7 @@ makeNamespace sid cat =
           Map.singleton s
              (s `qualifiedByStrings` qualifiers,
               Namespace cat)
-             
+
 
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
@@ -121,13 +121,11 @@ catFlatten =
                      [(NSID,NSID,Definition)]
       processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
       processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
-                              
+
 -- FIXME document and test these:
 resolveType :: Catalogue -> NSID -> KErr TypeDescriptor
 resolveType cat sid =
     makeResolvedType sid <$> lookupHierarchical cat sid
 
 makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
-makeResolvedType sid (cid, def) = ResolvedType sid cid def                    
-                                    
-                                
+makeResolvedType sid (cid, def) = ResolvedType sid cid def
