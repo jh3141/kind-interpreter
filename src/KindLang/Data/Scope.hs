@@ -5,7 +5,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
 import KindLang.Data.Error
-    
+
 data Scope =
     Scope
     {
@@ -13,7 +13,7 @@ data Scope =
       scopeCat :: Catalogue
     }
     deriving (Show, Eq)
-             
+
 scopeLookup :: Scope -> NSID -> KErr IdentDefinition
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
@@ -25,12 +25,13 @@ scopeLookup s i =
 (|@+|) :: Scope -> (String,Definition) -> Scope
 (Scope p cat) |@+| (n,d) = Scope p (cat |+| (UnqualifiedID n, d))
 infixl 6 |@+|
-    
-    
+
+
 makeFunctionScope :: Scope -> TypeDescriptor -> [String] -> Scope
 makeFunctionScope s (FunctionType types _) names =
     foldr addVariableToScope (Scope (Just s) newCatalogue) (zip names types)
-    where 
+    where
       addVariableToScope :: (String,TypeDescriptor) -> Scope -> Scope
-      addVariableToScope (name,td) s = s |@+| (name, VariableDefinition td VarInitNone)
-
+      addVariableToScope (name,td) ss =
+          ss |@+| (name, VariableDefinition td VarInitNone)
+makeFunctionScope s _ _ = s
