@@ -122,10 +122,13 @@ catFlatten =
       processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
       processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
 
--- FIXME document and test these:
+-- | Looks up a type in a catalogue by id and returns a type descriptor for it
+-- where possible.
 resolveType :: Catalogue -> NSID -> KErr TypeDescriptor
 resolveType cat sid =
     makeResolvedType sid <$> lookupHierarchical cat sid
 
+-- | Creates a resolved type descriptor refering to an identified type
+-- definition (e.g. a definition returned by 'lookupHierarchical').
 makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
 makeResolvedType sid (cid, def) = ResolvedType sid cid def
