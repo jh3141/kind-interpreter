@@ -4,7 +4,6 @@ module KindLang.Analysis.ResolveTypes where
 import Data.List
 import Data.Maybe
 import Debug.Trace
-import Control.Arrow
 import Control.Monad
 import Control.Monad.Except
 import KindLang.Data.BasicTypes
@@ -167,7 +166,7 @@ identDefToExprAnnotation (cid, FunctionDefinition []) =
     throwError $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, FunctionDefinition (fnInstance:[])) =
     return $ crefAnnotation cid (fnInstanceType fnInstance)
-identDefToExprAnnotation (cid, FunctionDefinition _) =
+identDefToExprAnnotation (_, FunctionDefinition _) =
     error "overloaded functions not implemented"
 identDefToExprAnnotation (cid, def) =
     throwError $ TypeError cid ("referenced as a variable but is a " ++
@@ -205,11 +204,11 @@ resolveTypeRef _ t _ =
 -- function, or an error message if the application is malformed.
 makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
                               KErr ExprAnnotation
-makeFunctionCallAnnotation (FunctionType formal res) actual
-    | typesCompatible formal actual = return $ ExprAnnotation res []
-    | otherwise                     = throwError $ InvalidApplication formal actual
-makeFunctionCallAnnotation (ForAllTypes tlist cond
-                                        ftype@(FunctionType formal res))
+makeFunctionCallAnnotation (FunctionType fml res) actl
+    | typesCompatible fml actl = return $ ExprAnnotation res []
+    | otherwise                = throwError $ InvalidApplication fml actl
+makeFunctionCallAnnotation (ForAllTypes tlist _
+                                        ftype@(FunctionType formal _))
                            actual =
     do
       let substitutions :: [(String,TypeDescriptor)]
@@ -217,7 +216,9 @@ makeFunctionCallAnnotation (ForAllTypes tlist cond
                              (uncurry generateSubstitution)
                              (zip formal actual)
           ftype' = foldr (uncurry substituteTypeVar) ftype substitutions
-          unresolvedVars = filter (not . (flip elem) (fst <$> substitutions)) tlist
+          unresolvedVars = filter
+                             (not . (flip elem) (fst <$> substitutions))
+                             tlist
       errorWhen (length unresolvedVars > 0)
                 (TypeKindError ftype' "function without type variables")
       makeFunctionCallAnnotation ftype' actual
@@ -225,12 +226,12 @@ makeFunctionCallAnnotation ftype actual =
     throwError $ TypeMismatch ftype (FunctionType actual InferableType)
                               "not a function"
 
--- fixme these functions probably belong in a module for handling type expressions
+-- fixme these functions probably belong in a module for type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
                         Maybe (String, TypeDescriptor)
 -- don't propagate reference nature into inferred type variable bindings
-generateSubstitution (TypeVariable name) (Reference actual) = Just (name, actual)
-generateSubstitution (TypeVariable name) actual = Just (name, actual)
+generateSubstitution (TypeVariable name) (Reference act) = Just (name, act)
+generateSubstitution (TypeVariable name) act = Just (name, act)
 generateSubstitution _ _ = Nothing
 
 substituteTypeVar :: String -> TypeDescriptor -> TypeDescriptor ->
@@ -262,37 +263,37 @@ typeCompatible (Reference t1) (Reference t2) = typeCompatible t1 t2
 typeCompatible t1 (Reference t2) = typeCompatible t1 t2
 -- otherwise, we expect types to be the same...
 typeCompatible x y = x == y   -- fixme - subtypes?
-                 
+
 resolveStatement :: Scope -> Statement -> KErr AStatement
 resolveStatement s (Expression expr) = do
     aexpr <- resolveExpr s expr
     return $ AExpression (StmtAnnotation (Just (aexprType aexpr)) [] []) aexpr
-    
+
 resolveStatement s (VarDeclStatement name tdesc varinit) = do
     -- reuse the existing code for resolving a top-level variable definition
     (VariableDefinition rtdesc rvarinit) <-
         resolveDefinition s (VariableDefinition tdesc varinit)
     return $ AVarDeclStatement
-               (StmtAnnotation Nothing
-                               [(name,VariableDefinition rtdesc VarInitNone)] [])
-               name rtdesc rvarinit
-                        
+              (StmtAnnotation Nothing
+                              [(name,VariableDefinition rtdesc VarInitNone)] [])
+              name rtdesc rvarinit
+
 resolveStatement s (StatementBlock ss) = do
     -- it's annoying that this produces a reversed block, but unfortunately
     -- we *must* use a left fold in order to have results of previous
-    -- statement resolution available, and right folds cannot efficiently produce
-    -- non-reversed lists.
+    -- statement resolution available, and right folds cannot efficiently
+    -- produce non-reversed lists.
     (s', reversedBlock) <- foldM resolvePrepend (s, []) ss
     return $ AStatementBlock
                (makeAnnotation reversedBlock)
                (reverse reversedBlock)
     where
-      resolvePrepend :: (Scope, [AStatement]) -> Statement -> 
+      resolvePrepend :: (Scope, [AStatement]) -> Statement ->
                         KErr (Scope, [AStatement])
       resolvePrepend (cs, reversedBlock) stmt = do
           astmt <- resolveStatement cs stmt
           return (updatedScope cs (astmtAnnotation astmt), astmt:reversedBlock)
-                 
+
       makeAnnotation (stmt:_) = StmtAnnotation (astmtType stmt) [] []
       makeAnnotation []       = StmtAnnotation Nothing [] []
 
@@ -308,7 +309,7 @@ resolveInstance s (FunctionInstance td params st) = do
                  (TypeKindError (functionTypeReturn td)
                                 ErrorMessages.noReturn)
     errorWhenNot ((functionTypeReturn atd) `typeCompatible` astType)
-                 (TypeMismatch astType (functionTypeReturn atd) 
+                 (TypeMismatch astType (functionTypeReturn atd)
                                ErrorMessages.incompatibleReturn)
     return $ AFunctionInstance
                 atd           -- fixme what about return type specialization?
