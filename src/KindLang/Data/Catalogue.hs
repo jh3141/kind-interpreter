@@ -7,8 +7,11 @@ import KindLang.Data.Error
 import KindLang.Data.AST
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 
+-- | A type for functions that are able to load the public catalogue from a
+-- module with a specified id.
 type ModuleLoader = NSID -> KErr Catalogue
--- The type of catalogues.  Catalogues are a map from a hierarchical
+
+-- | The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "definition".
 type Catalogue = IdentMap Definition
 
