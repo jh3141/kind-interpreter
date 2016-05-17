@@ -13,8 +13,8 @@ import KindLang.Util.Control
 -- FIXME look into changing maps-stored-in-ST into actual mutable structures
 data KStatRoot s = KStatRoot
     {
-      loadedModules :: STRef s (Map.Map NSID (STRef s Module)),
-      definitions :: STRef s (Map.Map NSID Definition)
+      kstatLoadedModules :: STRef s (Map.Map NSID (STRef s Module)),
+      kstatDefinitions :: STRef s (Map.Map NSID Definition)
     }
 type KStat s a = ReaderT (KStatRoot s) (STT s (Except KindError)) a
 
@@ -41,3 +41,27 @@ kstatReadRef = lift . readSTRef
 
 kstatWriteRef :: STRef s a -> a -> KStat s ()
 kstatWriteRef r v = lift $ writeSTRef r v
+
+kstatStoreModule :: Module -> KStat s ()
+kstatStoreModule m =
+    case moduleName m of
+      Nothing -> do
+        -- no ID implies module is the default module, so shouldn't ever
+        -- be referred to from externally, therefore it doesn't need to be
+        -- stored.
+        return ()
+
+      Just sid -> do
+        modulesRef <- kstatLoadedModules <$> ask
+        modules <- kstatReadRef modulesRef
+        moduleRef <- kstatNewRef m
+        kstatWriteRef modulesRef $ Map.insert sid moduleRef modules
+
+kstatFindModule :: NSID -> KStat s (Maybe Module)
+kstatFindModule sid = do
+    modulesRef <- kstatLoadedModules <$> ask
+    loadedModules <- kstatReadRef modulesRef
+    case Map.lookup sid loadedModules of
+      Nothing -> return Nothing
+      Just mRef -> Just <$> kstatReadRef mRef
+
