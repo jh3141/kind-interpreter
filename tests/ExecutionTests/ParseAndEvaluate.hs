@@ -15,6 +15,7 @@ import KindLang.Data.Value
 import KindLang.Data.Scope
 import KindLang.Analysis.BuildCatalogue
 import KindLang.Analysis.ResolveTypes
+import KindLang.Data.KStat
 import KindLang.Runtime.Eval
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.Operators
@@ -24,7 +25,7 @@ expectRight :: Show a => Either a b -> IO b
 expectRight (Left err) = error (show err)
 expectRight (Right r)  = return r
 
-nullModuleLoader :: NSID -> KErr Catalogue
+nullModuleLoader :: NSID -> KStat s Catalogue
 nullModuleLoader (UnqualifiedID "kind") = return coreTypes
 nullModuleLoader _ = throwError $ InternalError "module loading not available"
 
@@ -45,20 +46,18 @@ runTest filename expected =
       --print modTree
 
       value <- runToIO $ do
-          (moduleScope, resolvedBootstrap) <- kerrToRun $ do
+          resolvedModule <- resolveModule modTree scopeDefault nullModuleLoader
 
-              resolvedModule <- resolveModule modTree scopeDefault nullModuleLoader
+          -- traceShowM resolvedModule
 
-              -- traceShowM resolvedModule
+          catalogues <- buildCatalogues nullModuleLoader resolvedModule
 
-              catalogues <- buildCatalogues nullModuleLoader resolvedModule
+          -- traceShowM catalogues
 
-              -- traceShowM catalogues
+          let moduleScope = (makeModuleScope scopeDefault catalogues)
+          resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
+          -- traceShowM resolvedBootstrap
 
-              let moduleScope = (makeModuleScope scopeDefault catalogues)
-              resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
-              -- traceShowM resolvedBootstrap
-              return $ (moduleScope, resolvedBootstrap)
           evalAExpr (newRuntimeScope moduleScope)
                     standardInternalFunctions
                     resolvedBootstrap
@@ -75,4 +74,3 @@ parseAndEvaluateTests =
                   (makeTest "variables" $ makeKindInt 42) :
                   (makeTest "functions_and_operators" $ makeKindInt 42) :
                   []
- 

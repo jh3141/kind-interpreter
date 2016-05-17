@@ -1,12 +1,15 @@
 module KindLang.Data.Types where
 
+import Data.Foldable
+import Data.List
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Scope
 import KindLang.Data.Error
-    
+import KindLang.Data.KStat
+
 -- | Look up a type and provide a canonical id for it
-typeLookup :: Scope -> TypeDescriptor -> KErr TypeDescriptor
+typeLookup :: Scope -> TypeDescriptor -> KStat s TypeDescriptor
 typeLookup s (SimpleType sid) = do
     (cid, def) <- scopeLookup s sid
     return (ResolvedType sid cid def)
@@ -55,3 +58,31 @@ typeCompatible (Reference t1) (Reference t2) = typeCompatible t1 t2
 typeCompatible t1 (Reference t2) = typeCompatible t1 t2
 -- otherwise, we expect types to be the same...
 typeCompatible x y = x == y   -- fixme - subtypes?
+
+-- fixme document this
+typeName :: TypeDescriptor -> String
+typeName (SimpleType sid) = nsidString sid
+typeName (ResolvedType _ sid _) = nsidString sid
+typeName (FunctionType args rtype) = "(" ++ (intercalate "," (typeName <$> args))
+                                     ++ ")->" ++ (typeName rtype)
+typeName (ForAllTypes names preds td) = "[" ++ (intercalate "," names) ++ "]" ++
+                                        typeName td
+typeName (TypeVariable n) = n
+typeName (SumType tds) = "(" ++ (intercalate "|" (typeName <$> tds)) ++ ")"
+typeName (TupleType tds) = "(" ++ (intercalate "," (typeName <$> tds)) ++ ")"
+typeName InferableType = "<inferred>"
+typeName (RecordType rid tds) = nsidString rid ++ "{" ++
+                                (intercalate "," (typeName <$> tds)) ++ "}"
+typeName (Reference td) = "&" ++ typeName td
+
+
+candidateFunctionCallArgTypes :: [TypeDescriptor] -> [[TypeDescriptor]]
+candidateFunctionCallArgTypes args = foldrM prependAlternatives []
+                                            (map getAlternativeTypes args)
+
+getAlternativeTypes :: TypeDescriptor -> [TypeDescriptor]
+getAlternativeTypes (Reference t) = [Reference t, t]
+getAlternativeTypes t = [t]
+
+prependAlternatives :: [a] -> [a] -> [[a]]
+prependAlternatives x l = map (\z -> z : l) x

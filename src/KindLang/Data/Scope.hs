@@ -5,6 +5,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
 import KindLang.Data.Error
+import KindLang.Data.KStat
 
 -- | Scope associates names with definitions.  It is a nested structure (a scope
 -- may have a parent scope, and if it does the definitions in that scope are
@@ -20,7 +21,7 @@ data Scope =
 
 -- | Look up an identifier in a scope, returning its canonical id and
 -- definition, or an error otherwise.
-scopeLookup :: Scope -> NSID -> KErr IdentDefinition
+scopeLookup :: Scope -> NSID -> KStat s IdentDefinition
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
                (deferToParent s)

@@ -8,10 +8,11 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.Value
+import KindLang.Data.KStat
 import KindLang.Lib.CoreTypes
 import KindLang.Runtime.Eval  -- fixme shouldn't need this!
     
-findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KErr AExpr
+findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KStat s AExpr
 findBinaryOperator "+" t1 t2 =
     return $ AInternalRef
                (ExprAnnotation (FunctionType [t1, t2] t2) [])
@@ -19,7 +20,7 @@ findBinaryOperator "+" t1 t2 =
 findBinaryOperator _ _ _ =
     throwError $ InternalError "haven't finished implementing operators"
 -- ditto
-findPrefixOperator :: String -> TypeDescriptor -> KErr AExpr
+findPrefixOperator :: String -> TypeDescriptor -> KStat s AExpr
 findPrefixOperator "-" t =
     return $ AInternalRef (ExprAnnotation (FunctionType [t] t) []) (coreId "(u-)")
 findPrefixOperator _ _ =

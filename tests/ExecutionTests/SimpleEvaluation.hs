@@ -13,21 +13,22 @@ import KindLang.Data.Catalogue
 import KindLang.Lib.CoreTypes
 import KindLang.Runtime.Eval
 import KindLang.Analysis.ResolveTypes
-
+import KindLang.Data.KStat
+    
 -- evaluate expression resolved against scope and extract from error wrapper
 execTest :: Scope -> Expr -> Value
 execTest s ex = execTestWithData s [] ex
-                
+
 execTestWithData :: Scope -> [(NSID,Value)] -> Expr -> Value
 execTestWithData s v ex =
     either
       (\e -> error (show e)) -- if there's an error
       id                     -- otherwise
-      (runExcept $ (resolveExpr s ex) >>=
-                   (\ f -> runST $ do
-                             rts <- runtimeScopeAddItems (newRuntimeScope s) v
-                             evalAExpr rts ifc f))
-      
+      (runToEither $ do
+                         f <- resolveExpr s ex
+                         rts <- runtimeScopeAddItems (newRuntimeScope s) v
+                         evalAExpr rts ifc f)
+
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
     testGroup "Simple evaluation" (

@@ -11,6 +11,7 @@ import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import KindLang.Data.Types
+import KindLang.Data.KStat
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 import KindLang.Data.Scope
 import KindLang.Analysis.BuildCatalogue
@@ -21,7 +22,7 @@ import KindLang.Lib.Operators
 -- are not correctly resolving.
 
 -- | Return a copy of a module tree with all types resolved, or an error message.
-resolveModule :: Module -> Scope -> ModuleLoader -> KErr Module
+resolveModule :: Module -> Scope -> ModuleLoader s -> KStat s Module
 resolveModule (Module name imports deflist) s ldr = do
     typeResolved <- resolveDefListTypes s deflist
     catalogues <- buildCatalogues ldr (Module name imports typeResolved)
@@ -30,17 +31,17 @@ resolveModule (Module name imports deflist) s ldr = do
     return $ Module name imports fullyResolved
 
 -- | Return a copy of a definition list resolved against a given scope.
-resolveDefListTypes :: Scope -> DefList -> KErr DefList
+resolveDefListTypes :: Scope -> DefList -> KStat s DefList
 resolveDefListTypes s =
     mapM resolve
     where
-      resolve :: (String,Definition) -> KErr (String,Definition)
+      resolve :: (String,Definition) -> KStat s (String,Definition)
       resolve (cid,def) = --trace ("resolve: " ++ cid)
                           (cid,) <$> resolveDefinition s def
 
 -- | Scans a definition list for functions (including functions inside
 -- classes) and resolves their instance bodies.
-resolveFunctionInstances :: Scope -> DefList -> KErr DefList
+resolveFunctionInstances :: Scope -> DefList -> KStat s DefList
 resolveFunctionInstances s =
     mapM resolveInstances
     where
@@ -48,7 +49,7 @@ resolveFunctionInstances s =
 
 -- | Performs second pass of resolution, fixing up implementations
 -- that were skipped when resolveDefinition was used in the first pass.
-resolveImplementation :: Scope -> Definition -> KErr Definition
+resolveImplementation :: Scope -> Definition -> KStat s Definition
 resolveImplementation s (FunctionDefinition instances) = do
     resolvedInstances <- mapM (resolveInstance s) instances
     return $ FunctionDefinition resolvedInstances
@@ -57,16 +58,16 @@ resolveImplementation _ other = trace ("resolveImplementation:" ++ show other) $
 
 -- | Return a copy of a class member definition list resolved against a
 -- given scope.
-resolveClassDefListTypes :: Scope -> [ClassMember] -> KErr [ClassMember]
+resolveClassDefListTypes :: Scope -> [ClassMember] -> KStat s [ClassMember]
 resolveClassDefListTypes s = mapM (resolveClassMember s)
 
 -- | Resolve an individual class member definition against a given scope.
-resolveClassMember :: Scope -> ClassMember -> KErr ClassMember
+resolveClassMember :: Scope -> ClassMember -> KStat s ClassMember
 resolveClassMember s (ClassMember n v d) =
     ClassMember n v <$> resolveDefinition s d
 
 -- | Resolve an individual definition against a given scope.
-resolveDefinition :: Scope -> Definition -> KErr Definition 
+resolveDefinition :: Scope -> Definition -> KStat s Definition 
 resolveDefinition s (VariableDefinition urt@(SimpleType _) i) = do
     -- fixme how do we use resolveType here?
     -- fixme if 'i' is an init expression it should be resolved & typechecked.
@@ -84,7 +85,7 @@ resolveDefinition _ nonMatching = return nonMatching
 
 -- | Resolve an expression tree against a given scope, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
-resolveExpr :: Scope -> Expr -> KErr AExpr
+resolveExpr :: Scope -> Expr -> KStat s AExpr
 -- pre-annotated expressions can simply be returned
 resolveExpr _ (Annotated aexpr) = return aexpr
 -- literals have predefined types
@@ -142,7 +143,7 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 -- refers to the object defined with the definition.  The definition
 -- must be fully resolved and must refer to an object that has a
 -- referencable value.  Returns an annotation or an error on failure.
-identDefToExprAnnotation :: IdentDefinition -> KErr ExprAnnotation
+identDefToExprAnnotation :: IdentDefinition -> KStat s ExprAnnotation
 identDefToExprAnnotation (cid, VariableDefinition (Reference t) x) =
     identDefToExprAnnotation (cid, VariableDefinition t x)
 identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
@@ -165,7 +166,7 @@ identDefToExprAnnotation (cid, def) =
 -- of type @desc@ refered to in scope @s@, or an error message if no such
 -- object can be resolved.
 resolveTypeRef :: Scope -> TypeDescriptor -> NSID ->
-                  KErr (Identified TypeDescriptor)
+                  KStat s (Identified TypeDescriptor)
 resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
                  sid@(UnqualifiedID memberId) = 
     -- fixme may be better if classdef has a map rather than a list?
@@ -191,7 +192,7 @@ resolveTypeRef _ t _ =
 -- an oppropriate annotation for the result of applying the arguments to the
 -- function, or an error message if the application is malformed.
 makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
-                              KErr ExprAnnotation
+                              KStat s ExprAnnotation
 makeFunctionCallAnnotation (FunctionType fml res) actl
     | typesCompatible fml actl = return $ ExprAnnotation res []
     | otherwise                = throwError $ InvalidApplication fml actl
@@ -215,7 +216,7 @@ makeFunctionCallAnnotation ftype actual =
                               "not a function"
 
 
-resolveStatement :: Scope -> Statement -> KErr AStatement
+resolveStatement :: Scope -> Statement -> KStat s AStatement
 resolveStatement s (Expression expr) = do
     aexpr <- resolveExpr s expr
     return $ AExpression (StmtAnnotation (Just (aexprType aexpr)) [] []) aexpr
@@ -240,7 +241,7 @@ resolveStatement s (StatementBlock ss) = do
                (reverse reversedBlock)
     where
       resolvePrepend :: (Scope, [AStatement]) -> Statement ->
-                        KErr (Scope, [AStatement])
+                        KStat s (Scope, [AStatement])
       resolvePrepend (cs, reversedBlock) stmt = do
           astmt <- resolveStatement cs stmt
           return (updatedScope cs (astmtAnnotation astmt), astmt:reversedBlock)
@@ -251,7 +252,7 @@ resolveStatement s (StatementBlock ss) = do
       updatedScope cs (StmtAnnotation _ [] _) = cs
       updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
 
-resolveInstance :: Scope -> FunctionInstance -> KErr FunctionInstance
+resolveInstance :: Scope -> FunctionInstance -> KStat s FunctionInstance
 resolveInstance _ afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
     atd <- typeLookup s td
@@ -270,7 +271,7 @@ resolveInstance s (FunctionInstance td params st) = do
 -- | resolve a function instance's definition, but do not inspect its actual
 -- implementation (which cannot be done safely until after all of a module's
 -- type definitions are resolved).
-resolveInstanceTypes :: Scope -> FunctionInstance -> KErr FunctionInstance
+resolveInstanceTypes :: Scope -> FunctionInstance -> KStat s FunctionInstance
 resolveInstanceTypes _ afi@(AFunctionInstance _ _ _) = return afi
 resolveInstanceTypes s (FunctionInstance td params st) = do
     atd <- typeLookup s td

@@ -5,12 +5,13 @@ import KindLang.Data.Catalogue
 import KindLang.Data.Scope
 import KindLang.Data.AST
 import KindLang.Data.Error
+import KindLang.Data.KStat
 import qualified Data.Map as Map
 
 -- | Function to create an ID in the core module given a string
 coreId :: String -> NSID
 coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
-          
+
 coreTypes :: Catalogue
 coreTypes = namespaceCatalogue $
              expectNoErrors "kind::* undefined" (coreTypesQualified |@| sidKind)
@@ -23,7 +24,7 @@ coreTypesQualified =
 
 scopeDefault :: Scope
 scopeDefault = Scope Nothing coreTypes
-               
+
 -- note convention of naming of kind types:
 --   namespaces - lower case
 --   value types - lower case
@@ -51,7 +52,7 @@ saKindInt :: StmtAnnotation
 saKindInt = StmtAnnotation (Just rtKindInt) [] []
 sarefKindInt :: StmtAnnotation
 sarefKindInt = StmtAnnotation (Just $ Reference rtKindInt) [] []
-            
+
 rtKindString :: TypeDescriptor
 rtKindString = expectNoErrors "Internal error: string not defined" $
                resolveType coreTypes sidString
@@ -61,9 +62,8 @@ saKindString :: StmtAnnotation
 saKindString = StmtAnnotation (Just rtKindString) [] []
 sarefKindString :: StmtAnnotation
 sarefKindString = StmtAnnotation (Just $ Reference rtKindString) [] []
-               
+
 fnIntIntInt :: TypeDescriptor
 fnIntIntInt = FunctionType [rtKindInt,rtKindInt] rtKindInt
 fnIntInt :: TypeDescriptor
 fnIntInt = FunctionType [rtKindInt] rtKindInt
-              

@@ -5,6 +5,7 @@ import Control.Monad.Except
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
+import KindLang.Data.KStat
 import KindLang.Locale.ErrorMessages
 import KindLang.Data.Catalogue
 import KindLang.Data.Scope
@@ -21,7 +22,7 @@ data ModuleCatalogues = ModuleCatalogues {
 
 -- | Generates the catalogues for a module, using the specified module loader
 -- to generate catalogues for any module that is imported to the module.
-buildCatalogues :: ModuleLoader -> Module -> KErr ModuleCatalogues
+buildCatalogues :: ModuleLoader s -> Module -> KStat s ModuleCatalogues
 buildCatalogues loader m =
     ModuleCatalogues (addScopedIds definitionMap) <$>
       importModules loader (moduleImportList m) Map.empty
@@ -38,8 +39,8 @@ buildCatalogues loader m =
 -- out how right now.
 -- | Loads all modules imported in a list of import statements and adds them
 -- to the specified catalogue, returning the updated catalogue or an error.
-importModules :: ModuleLoader -> [ModuleImport] -> Catalogue ->
-                 KErr Catalogue
+importModules :: ModuleLoader s -> [ModuleImport] -> Catalogue ->
+                 KStat s Catalogue
 
 importModules _ [] imported = return imported
 
@@ -52,7 +53,7 @@ importModules loader (moduleImport:imports) imported =
 -- | Produces the required catalogue of changes for a given module import
 -- statement.  Note that this may not be exactly the same as the module's
 -- export list, e.g. if a module is only partially imported.
-importModule :: ModuleLoader -> ModuleImport -> KErr Catalogue
+importModule :: ModuleLoader s -> ModuleImport -> KStat s Catalogue
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
 importModule loader (QualifiedModuleImport sid True reqid) =
@@ -61,7 +62,7 @@ importModule loader (QualifiedModuleImport sid False reqid) =
     makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid) <$> loadItem loader sid
 
 -- | load a single item from the module identified by its qualified id
-loadItem :: ModuleLoader -> NSID -> KErr Catalogue
+loadItem :: ModuleLoader s -> NSID -> KStat s Catalogue
 loadItem loader sid =
     case qualifierOf sid of
       Just msid -> (`catalogueWithOnly` [withoutNamespace sid]) <$> loader msid

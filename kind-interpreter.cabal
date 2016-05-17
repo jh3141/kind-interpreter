@@ -28,6 +28,7 @@ library
                     KindLang.Data.BasicTypes
                     KindLang.Data.Catalogue
                     KindLang.Data.Error
+                    KindLang.Data.KStat
                     KindLang.Data.Scope
                     KindLang.Data.Types
                     KindLang.Data.Value

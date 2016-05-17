@@ -5,11 +5,12 @@ import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
+import KindLang.Data.KStat
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 
 -- | A type for functions that are able to load the public catalogue from a
 -- module with a specified id.
-type ModuleLoader = NSID -> KErr Catalogue
+type ModuleLoader s = NSID -> KStat s Catalogue
 
 -- | The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "definition".
@@ -78,7 +79,7 @@ catalogueWithOnly cat identifiers =
 -- | Look up an identifier in a catalogue, returning a tuple of the the
 -- canonical identifier and definition for the item found, or an error
 -- otherwise.
-lookupHierarchical :: Catalogue -> NSID -> KErr IdentDefinition
+lookupHierarchical :: Catalogue -> NSID -> KStat s IdentDefinition
 lookupHierarchical cat sid@(QualifiedID s s') =
     case Map.lookup s cat of
       Nothing -> throwError $ IdentifierNotFound sid
@@ -92,7 +93,7 @@ lookupHierarchical cat sid@(UnqualifiedID s) =
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@|) :: Catalogue -> NSID -> KErr Definition
+(|@|) :: Catalogue -> NSID -> KStat s Definition
 c |@| i =  (lookupHierarchical c i) >>= (return . snd)
 infixl 5 |@|
 
@@ -127,7 +128,7 @@ catFlatten =
 
 -- | Looks up a type in a catalogue by id and returns a type descriptor for it
 -- where possible.
-resolveType :: Catalogue -> NSID -> KErr TypeDescriptor
+resolveType :: Catalogue -> NSID -> KStat s TypeDescriptor
 resolveType cat sid =
     makeResolvedType sid <$> lookupHierarchical cat sid
 

@@ -1,10 +1,10 @@
-{-# LANGUAGE RankNTypes, TupleSections #-}
+{-# LANGUAGE TupleSections #-}
 
 module KindLang.Runtime.Eval where
 import Debug.Trace
 import Data.List
 import Data.Foldable
-    
+
 import qualified Data.Map as Map
 import Control.Monad.ST.Trans
 import Control.Monad.Except
@@ -13,11 +13,12 @@ import KindLang.Data.Value
 import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.Scope
+import KindLang.Data.KStat
+import KindLang.Data.Types
 import KindLang.Locale.ErrorMessages
-    
+
 type InternalFunctions = Map.Map InternalFunctionName ([Value] -> Value)
-type RunM s a = STT s (Except KindError) a
-    
+
 data RuntimeScope s = RuntimeScope {
       rtsStateIndex  :: Map.Map NSID (STRef s Value),
       rtsScope       :: Scope,
@@ -33,41 +34,30 @@ makeChildRuntimeScope p@(RuntimeScope si ps pp) sc
     | otherwise                 = error
                                   "scope has incorrect parent in makeChildRuntimeScope"
 
-rtsLookupRef :: RuntimeScope s -> NSID -> RunM s (STRef s Value)
+rtsLookupRef :: RuntimeScope s -> NSID -> KStat s (STRef s Value)
 rtsLookupRef (RuntimeScope index _ _) i =
     maybe
       (throwError $ InternalError $ "runtime reference not found for " ++ nsidString i)
       return
       (Map.lookup i index)
 
-runtimeScopeAddItems :: RuntimeScope s -> [(NSID,Value)] -> RunM s (RuntimeScope s)
+runtimeScopeAddItems :: RuntimeScope s -> [(NSID,Value)] -> KStat s (RuntimeScope s)
 runtimeScopeAddItems scope values = foldM runtimeScopeAddItem scope values
 
-runtimeScopeAddItem :: RuntimeScope s -> (NSID,Value) -> RunM s (RuntimeScope s)
+runtimeScopeAddItem :: RuntimeScope s -> (NSID,Value) -> KStat s (RuntimeScope s)
 runtimeScopeAddItem (RuntimeScope idx sc p) (sid,val) = do
     stref <- newSTRef val
     return $ RuntimeScope (Map.insert sid stref idx) sc p
 
 runtimeScopeAddItemWithDef :: RuntimeScope s -> (String,Value,Definition)
-                           -> RunM s (RuntimeScope s)
+                           -> KStat s (RuntimeScope s)
 runtimeScopeAddItemWithDef rts1 (lid,val,def) = do
     (RuntimeScope idx sc p) <- runtimeScopeAddItem rts1 (UnqualifiedID lid,val)
     return $ RuntimeScope idx (sc |@+| (lid,def)) p
-           
-kerrToRun :: KErr a -> RunM s a
-kerrToRun e = either throwError return $ runExcept e
 
-runToKErr :: (forall s . RunM s a) -> KErr a
-runToKErr r = runST r
 
-runToIO :: (forall s . RunM s a) -> IO a
-runToIO r = either (error . show) return $ runExcept $ runST r
-
-runToEither :: (forall s . RunM s a) -> Either KindError a
-runToEither r = runExcept $ runST r
-                
 -- fixme: going to need access to program mutable state, and ability to mutate it!
-evalAExpr :: RuntimeScope s -> InternalFunctions -> AExpr -> RunM s Value
+evalAExpr :: RuntimeScope s -> InternalFunctions -> AExpr -> KStat s Value
 evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
 evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     fn <- evalAExpr s ifc efn
@@ -77,31 +67,30 @@ evalAExpr s _ (AVarRef ae id) =
     -- fixme (performance) - do we need to perform the scope lookup if we already
     -- have an annotated expression including the canonical id?  can we not 
     -- simply shortcircuit lookup at this point?
-    kerrToRun (snd <$> scopeLookup (rtsScope s) id) >>= (definitionToValue s ae)
+    snd <$> scopeLookup (rtsScope s) id >>= definitionToValue s ae
 evalAExpr s ifns (AInternalRef (ExprAnnotation td _) name) = do
-    name <- kerrToRun $ errorIfNothing
-                           (lookupOverloadedInternalFunctionName name td ifns)
+    name <- errorIfNothing (lookupOverloadedInternalFunctionName name td ifns)
                            (NoAppropriateInstance name td)
     return (KindFunctionRef [InternalFunction td name])
 evalAExpr _ _ expr = throwError $ InternalError ("attempted to evaluate unimplemented expression: " ++ show expr)
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
-definitionToValue :: RuntimeScope s -> ExprAnnotation -> Definition -> RunM s Value
+definitionToValue :: RuntimeScope s -> ExprAnnotation -> Definition -> KStat s Value
 definitionToValue _ _ (FunctionDefinition insts) = return $ makeKindFunctionRef insts
 definitionToValue s ea (VariableDefinition _ _) = do
-    canonicalID <- kerrToRun $ errorIfNothing (exprAnnotationCanonicalID ea)
-                                              (InternalError requiredCanonicalID)
+    canonicalID <- errorIfNothing (exprAnnotationCanonicalID ea)
+                                  (InternalError requiredCanonicalID)
     stref <- rtsLookupRef s canonicalID
     readSTRef stref
 
 applyFunction :: RuntimeScope s -> InternalFunctions -> [FunctionInstance] -> [Value] ->
-                 RunM s Value
+                 KStat s Value
 applyFunction s ifc (inst:[]) v = applyFunctionInstance s ifc inst v
 -- fixme handle overloaded functions
 
 applyFunctionInstance :: RuntimeScope s -> InternalFunctions -> FunctionInstance ->
-                         [Value] -> RunM s Value
+                         [Value] -> KStat s Value
 applyFunctionInstance _ ifc (InternalFunction _ n) vs =
     maybe (throwError $ InternalError $ "Unknown internal function " ++ n) -- if Nothing
           (\f -> return $ f vs)                                            -- if Just f
@@ -116,12 +105,12 @@ applyFunctionInstance s ifc (AFunctionInstance td formal stmt) actual = do
 applyFunctionInstance _ _ (FunctionInstance _ _ _) _ =
     throwError $ InternalError
                  "Function instances should be resolved before application"
-               
+
 -- fixme on-demand function body type resolution
 
 evalAStatement :: RuntimeScope s -> InternalFunctions -> AStatement ->
-                  RunM s (RuntimeScope s, Value)
-evalAStatement s ifc (AExpression _ e) = (s,) <$> evalAExpr s ifc e 
+                  KStat s (RuntimeScope s, Value)
+evalAStatement s ifc (AExpression _ e) = (s,) <$> evalAExpr s ifc e
 evalAStatement s ifc (AVarDeclStatement _ lid td varInit) = do
     defaultValue <- evaluateVarInit s ifc td varInit
     (,KindUnit) <$> runtimeScopeAddItemWithDef s
@@ -130,13 +119,13 @@ evalAStatement s ifc (AStatementBlock _ stmts) =
     foldM (flip evalAStatement ifc . traceRTS . fst) (s, KindUnit) stmts
 
 traceRTS :: RuntimeScope s -> RuntimeScope s
-traceRTS arg@(RuntimeScope index scope _) = 
+traceRTS arg@(RuntimeScope index scope _) =
     trace ("Index: " ++ (show $ Map.keys index))
     trace ("Scope: " ++ (show $ Map.keys $ scopeCat scope))
     arg
 
 evaluateVarInit :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
-                   VariableInitializer -> RunM s Value
+                   VariableInitializer -> KStat s Value
 evaluateVarInit s ifc td VarInitNone = defaultValueOfType s ifc td
 evaluateVarInit s ifc td (VarInitAExpr e) = evalAExpr s ifc e
 evaluateVarInit _ _ _ (VarInitExpr _) = throwError $
@@ -144,7 +133,7 @@ evaluateVarInit _ _ _ (VarInitExpr _) = throwError $
 -- fixme other init types
 
 defaultValueOfType :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
-                      RunM s Value
+                      KStat s Value
 defaultValueOfType _ _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")) _) =
     return $ makeKindInt 0
 defaultValueOfType _ _ t = throwError $ InternalError $
@@ -161,32 +150,3 @@ lookupOverloadedInternalFunctionName sid (FunctionType args rtype) ifns =
       buildName targs = nsidString sid ++ " (" ++
                         (intercalate "," (typeName <$> targs)) ++ ")"
 
--- fixme this should be somewhere else!
-typeName :: TypeDescriptor -> String
-typeName (SimpleType sid) = nsidString sid
-typeName (ResolvedType _ sid _) = nsidString sid
-typeName (FunctionType args rtype) = "(" ++ (intercalate "," (typeName <$> args))
-                                     ++ ")->" ++ (typeName rtype)
-typeName (ForAllTypes names preds td) = "[" ++ (intercalate "," names) ++ "]" ++
-                                        typeName td
-typeName (TypeVariable n) = n
-typeName (SumType tds) = "(" ++ (intercalate "|" (typeName <$> tds)) ++ ")"
-typeName (TupleType tds) = "(" ++ (intercalate "," (typeName <$> tds)) ++ ")"
-typeName InferableType = "<inferred>"
-typeName (RecordType rid tds) = nsidString rid ++ "{" ++
-                                (intercalate "," (typeName <$> tds)) ++ "}"
-typeName (Reference td) = "&" ++ typeName td
-                          
-
--- this should be somewhere else too
-candidateFunctionCallArgTypes :: [TypeDescriptor] -> [[TypeDescriptor]]
-candidateFunctionCallArgTypes args = foldrM prependAlternatives []
-                                            (map getAlternativeTypes args)
-
-getAlternativeTypes :: TypeDescriptor -> [TypeDescriptor]
-getAlternativeTypes (Reference t) = [Reference t, t]
-getAlternativeTypes t = [t]
-
-prependAlternatives :: [a] -> [a] -> [[a]]
-prependAlternatives x l = map (\z -> z : l) x
-                         
