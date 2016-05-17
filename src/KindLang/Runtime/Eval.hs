@@ -46,7 +46,7 @@ runtimeScopeAddItems scope values = foldM runtimeScopeAddItem scope values
 
 runtimeScopeAddItem :: RuntimeScope s -> (NSID,Value) -> KStat s (RuntimeScope s)
 runtimeScopeAddItem (RuntimeScope idx sc p) (sid,val) = do
-    stref <- newSTRef val
+    stref <- lift $ newSTRef val
     return $ RuntimeScope (Map.insert sid stref idx) sc p
 
 runtimeScopeAddItemWithDef :: RuntimeScope s -> (String,Value,Definition)
@@ -82,7 +82,7 @@ definitionToValue s ea (VariableDefinition _ _) = do
     canonicalID <- errorIfNothing (exprAnnotationCanonicalID ea)
                                   (InternalError requiredCanonicalID)
     stref <- rtsLookupRef s canonicalID
-    readSTRef stref
+    lift $ readSTRef stref
 
 applyFunction :: RuntimeScope s -> InternalFunctions -> [FunctionInstance] -> [Value] ->
                  KStat s Value
