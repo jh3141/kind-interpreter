@@ -32,3 +32,12 @@ runToEither r = runExcept $ runST $ initKStat r
 
 expectNoErrors :: String -> (forall s . KStat s a) -> a
 expectNoErrors err r = rightOrFail err $ runExcept $ runST $ initKStat r
+
+kstatNewRef :: a -> KStat s (STRef s a)
+kstatNewRef = lift . newSTRef
+
+kstatReadRef :: STRef s a -> KStat s a
+kstatReadRef = lift . readSTRef
+
+kstatWriteRef :: STRef s a -> a -> KStat s ()
+kstatWriteRef r v = lift $ writeSTRef r v
