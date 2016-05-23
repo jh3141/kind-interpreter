@@ -12,18 +12,12 @@ import qualified Data.Map as Map
 coreId :: String -> NSID
 coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
 
-coreTypes :: Catalogue
-coreTypes = namespaceCatalogue $
-             expectNoErrors "kind::* undefined" (coreTypesQualified |@| sidKind)
-
-coreTypesQualified :: Catalogue
-coreTypesQualified =
-    newCatalogue |+| (sidKindInt, InternalTypeDefinition)
-                 |+| (sidKindString, InternalTypeDefinition)
-                 |+| (coreId "(+)", InternalObject fnIntIntInt)
-
 scopeDefault :: Scope
-scopeDefault = Scope Nothing coreTypes
+scopeDefault =
+    Scope Nothing newCatalogue
+           |++| (sidInt, sidKindInt, InternalTypeDefinition)
+           |++| (sidString, sidKindString, InternalTypeDefinition)
+           |++| (UnqualifiedID "(+)", coreId "(+)", InternalObject fnIntIntInt)
 
 -- note convention of naming of kind types:
 --   namespaces - lower case
@@ -45,7 +39,7 @@ sidKindString = sidString `qualifiedBy` sidKind
 -- fixme should these be qualified or unqualified?
 rtKindInt :: TypeDescriptor
 rtKindInt = expectNoErrors "Internal error: int not defined" $
-            resolveType coreTypes sidInt
+            resolveType scopeDefault sidInt
 eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
 saKindInt :: StmtAnnotation
@@ -55,7 +49,7 @@ sarefKindInt = StmtAnnotation (Just $ Reference rtKindInt) [] []
 
 rtKindString :: TypeDescriptor
 rtKindString = expectNoErrors "Internal error: string not defined" $
-               resolveType coreTypes sidString
+               resolveType scopeDefault sidString
 eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []
 saKindString :: StmtAnnotation

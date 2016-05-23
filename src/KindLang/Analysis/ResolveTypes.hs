@@ -8,7 +8,6 @@ import Control.Monad
 import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
-import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import KindLang.Data.Types
 import KindLang.Data.KStat
@@ -25,8 +24,7 @@ import KindLang.Lib.Operators
 resolveModule :: Module -> Scope -> ModuleLoader s -> KStat s Module
 resolveModule (Module name imports deflist) s ldr = do
     typeResolved <- resolveDefListTypes s deflist
-    catalogues <- buildCatalogues ldr (Module name imports typeResolved)
-    let moduleScope = (makeModuleScope s catalogues)
+    moduleScope <- buildScope ldr s (Module name imports typeResolved)
     fullyResolved <- resolveFunctionInstances moduleScope typeResolved
     return $ Module name imports fullyResolved
 

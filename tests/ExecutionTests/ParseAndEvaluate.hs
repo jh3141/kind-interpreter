@@ -9,7 +9,6 @@ import Test.Tasty.HUnit
 import KindLang.Parser.ModuleParser
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
-import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import KindLang.Data.Value
 import KindLang.Data.Scope
@@ -24,10 +23,6 @@ import Text.Parsec
 expectRight :: Show a => Either a b -> IO b
 expectRight (Left err) = error (show err)
 expectRight (Right r)  = return r
-
-nullModuleLoader :: NSID -> KStat s Catalogue
-nullModuleLoader (UnqualifiedID "kind") = return coreTypes
-nullModuleLoader _ = throwError $ InternalError "module loading not available"
 
 bootstrapExpr :: Expr
 bootstrapExpr = (FunctionApplication (VarRef $ UnqualifiedID "test") [])
@@ -50,11 +45,10 @@ runTest filename expected =
 
           -- traceShowM resolvedModule
 
-          catalogues <- buildCatalogues nullModuleLoader resolvedModule
+          moduleScope <- buildScope nullModuleLoader scopeDefault resolvedModule
 
-          -- traceShowM catalogues
+          -- traceShowM moduleScope
 
-          let moduleScope = (makeModuleScope scopeDefault catalogues)
           resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
           -- traceShowM resolvedBootstrap
 

@@ -31,8 +31,27 @@ scopeLookup s i =
 
 -- | Adds an item with an unqualified identifier and a definition to a scope.
 (|@+|) :: Scope -> (String,Definition) -> Scope
-(Scope p cat) |@+| (n,d) = Scope p (cat |+| (UnqualifiedID n, d))
+(Scope p cat) |@+| (n,d) = Scope p (cat |+~| (UnqualifiedID n, d))
 infixl 6 |@+|
+
+-- | Add an item to the scope using its canonical identifier as its resolvable
+-- id (a shortcut to the more flexible '(|++|)').
+(|+|) :: Scope -> (NSID, Definition) -> Scope
+(Scope p cat) |+| identDef = Scope p (cat |+~| identDef)
+infixl 6 |+|
+
+-- | Add an item to the scope with both its resolvable and canonical ids
+-- specified.
+(|++|) :: Scope -> (NSID, NSID, Definition) -> Scope
+(Scope p cat) |++| identCanidDef = Scope p (cat |++~| identCanidDef)
+infixl 6 |++|
+
+-- | Like 'scopeLookup', but don't include the canonical ID in the result,
+-- just the definition. Binds at level (infixl 5), i.e. stronger than
+-- comparisons, but looser than arithmetic.
+(|@|) :: Scope -> NSID -> KStat s Definition
+s |@| i =  (scopeLookup s i) >>= (return . snd)
+infixl 5 |@|
 
 -- | 'makeFunctionScope s td names' makes a new Scope with parent 's'
 -- containing the list of arguments for a function whose type is 'td' and whose
@@ -46,3 +65,14 @@ makeFunctionScope s (FunctionType types _) names =
       addVariableToScope (name,td) ss =
           ss |@+| (name, VariableDefinition td VarInitNone)
 makeFunctionScope s _ _ = s
+
+-- | Looks up a type in a catalogue by id and returns a type descriptor for it
+-- where possible.
+resolveType :: Scope -> NSID -> KStat s TypeDescriptor
+resolveType s sid =
+    makeResolvedType sid <$> scopeLookup s sid
+
+-- | Creates a resolved type descriptor refering to an identified type
+-- definition (e.g. a definition returned by 'scopeLookup').
+makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
+makeResolvedType sid (cid, def) = ResolvedType sid cid def

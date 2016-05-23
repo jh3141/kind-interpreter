@@ -5,7 +5,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import KindLang.Data.AST
 import KindLang.Analysis.ResolveTypes
-import KindLang.Data.Catalogue
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.Scope
@@ -248,9 +247,10 @@ method = UnqualifiedID "method"
 privateField :: NSID
 privateField = UnqualifiedID "privateField"
          
-testCatalogue :: Catalogue
-testCatalogue =
-    coreTypes |+| (simpleClass, ClassDefinition [])
+testScope :: Scope
+testScope =
+    scopeDefault
+              |+| (simpleClass, ClassDefinition [])
               |+| (complexClass,
                    ClassDefinition
                      [ClassMember "v" Public
@@ -270,8 +270,6 @@ testCatalogue =
                                  (VariableDefinition rtSimpleClass VarInitNone)])
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
 
-testScope :: Scope
-testScope = Scope Nothing testCatalogue
             
 def :: Definition
 def = (ClassDefinition [])       
@@ -279,10 +277,10 @@ rtSimpleClass :: TypeDescriptor
 rtSimpleClass = ResolvedType simpleClass simpleClass def
 rtComplexClass :: TypeDescriptor
 rtComplexClass = expectNoErrors "internal error" $
-                 resolveType testCatalogue complexClass
+                 resolveType testScope complexClass
 rtMethodClass :: TypeDescriptor
 rtMethodClass = expectNoErrors "internal error" $
-                resolveType testCatalogue methodClass
+                resolveType testScope methodClass
                             
 simpleFnInstance :: FunctionInstance
 simpleFnInstance = FunctionInstance

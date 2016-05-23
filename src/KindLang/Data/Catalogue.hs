@@ -8,10 +8,6 @@ import KindLang.Data.AST
 import KindLang.Data.KStat
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 
--- | A type for functions that are able to load the public catalogue from a
--- module with a specified id.
-type ModuleLoader s = NSID -> KStat s Catalogue
-
 -- | The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "definition".
 type Catalogue = IdentMap Definition
@@ -47,19 +43,19 @@ catAdd cat rid cid def =
             _ -> error (ErrorMessages.insertedIntoNonNamespace rid)
 
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
--- @cat |+| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
--- Binds more tightly than |@|.
-(|+|) :: Catalogue -> (NSID, Definition) -> Catalogue
-c |+| (sid,def) = catAdd c sid sid def
-infixl 6 |+|
+-- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
+-- Binds more tightly than |@~|.
+(|+~|) :: Catalogue -> (NSID, Definition) -> Catalogue
+c |+~| (sid,def) = catAdd c sid sid def
+infixl 6 |+~|
 
 -- | An operator for invoking 'catAdd' with different resolvable and canonical
--- ids. @cat |++| (rid,cid,def)@ adds resolvable identifier @rid@ for
+-- ids. @cat |++~| (rid,cid,def)@ adds resolvable identifier @rid@ for
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
--- level as |+|.
-(|++|) :: Catalogue -> (NSID, NSID, Definition) -> Catalogue
-c |++| (rid, cid, def) = catAdd c rid cid def
-infixl 6 |++|
+-- level as |+~|.
+(|++~|) :: Catalogue -> (NSID, NSID, Definition) -> Catalogue
+c |++~| (rid, cid, def) = catAdd c rid cid def
+infixl 6 |++~|
 
 -- | Filter a catalogue to contain only the items specified in a list
 -- of string identifiers.  Only examines top-level identifiers in the catalogue,
@@ -93,9 +89,9 @@ lookupHierarchical cat sid@(UnqualifiedID s) =
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@|) :: Catalogue -> NSID -> KStat s Definition
-c |@| i =  (lookupHierarchical c i) >>= (return . snd)
-infixl 5 |@|
+(|@~|) :: Catalogue -> NSID -> KStat s Definition
+c |@~| i =  (lookupHierarchical c i) >>= (return . snd)
+infixl 5 |@~|
 
 -- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue
 -- 'cat', returning the modified catalogue.
@@ -125,14 +121,3 @@ catFlatten =
                      [(NSID,NSID,Definition)]
       processItem q k (i,Namespace c) t = Map.foldWithKey (processItem (k:q)) t c
       processItem q k (i,d) t = (k `qualifiedByStrings` reverse q, i, d) : t
-
--- | Looks up a type in a catalogue by id and returns a type descriptor for it
--- where possible.
-resolveType :: Catalogue -> NSID -> KStat s TypeDescriptor
-resolveType cat sid =
-    makeResolvedType sid <$> lookupHierarchical cat sid
-
--- | Creates a resolved type descriptor refering to an identified type
--- definition (e.g. a definition returned by 'lookupHierarchical').
-makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
-makeResolvedType sid (cid, def) = ResolvedType sid cid def

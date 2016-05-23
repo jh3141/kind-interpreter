@@ -11,6 +11,10 @@ import KindLang.Data.Catalogue
 import KindLang.Data.Scope
 import qualified Data.Map as Map
 
+-- | A type for functions that are able to load the public catalogue from a
+-- module with a specified id.
+type ModuleLoader s = NSID -> KStat s Catalogue
+
 -- | Defines the catalogues (i.e. maps of symbols to definitions) produced by a
 -- module; one provides the public API of the module, while another provides
 -- those definitions that are private to the module (including the public APIs
@@ -72,3 +76,10 @@ loadItem loader sid =
 -- are provided.
 makeModuleScope :: Scope -> ModuleCatalogues -> Scope
 makeModuleScope p (ModuleCatalogues pub priv) = Scope (Just p) (Map.union pub priv)
+
+buildScope :: ModuleLoader s -> Scope -> Module -> KStat s Scope
+buildScope ldr s m = makeModuleScope s <$> buildCatalogues ldr m
+
+-- | A module loader implementation that fails if any module is requested
+nullModuleLoader :: NSID -> KStat s Catalogue
+nullModuleLoader _ = throwError $ InternalError "module loading not available"
