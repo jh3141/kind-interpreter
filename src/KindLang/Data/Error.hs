@@ -13,6 +13,7 @@ data KindError =
     InvalidImport NSID Reason |
     IdentifierNotFound NSID |
     NotNamespace NSID NSID |
+    IsNamespace NSID |
     TypeError NSID Reason |
     InvalidApplication [TypeDescriptor] [TypeDescriptor] |
     TypeMismatch TypeDescriptor TypeDescriptor String |

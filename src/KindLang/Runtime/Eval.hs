@@ -21,14 +21,14 @@ type InternalFunctions = Map.Map InternalFunctionName ([Value] -> Value)
 
 data RuntimeScope s = RuntimeScope {
       rtsStateIndex  :: Map.Map NSID (STRef s Value),
-      rtsScope       :: Scope,
+      rtsScope       :: Scope s,
       rtsParent      :: Maybe (RuntimeScope s)
      }
 
-newRuntimeScope :: Scope -> RuntimeScope s
+newRuntimeScope :: Scope s -> RuntimeScope s
 newRuntimeScope sc = RuntimeScope Map.empty sc Nothing
 
-makeChildRuntimeScope :: RuntimeScope s -> Scope -> RuntimeScope s
+makeChildRuntimeScope :: RuntimeScope s -> Scope s -> RuntimeScope s
 makeChildRuntimeScope p@(RuntimeScope si ps pp) sc
     | scopeParent sc == Just ps = RuntimeScope si sc (Just p)
     | otherwise                 = error

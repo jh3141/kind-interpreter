@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 coreId :: String -> NSID
 coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
 
-scopeDefault :: Scope
+scopeDefault :: Scope s
 scopeDefault =
     Scope Nothing newCatalogue
            |++| (sidInt, sidKindInt, InternalTypeDefinition)

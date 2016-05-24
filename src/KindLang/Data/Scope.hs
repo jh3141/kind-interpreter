@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module KindLang.Data.Scope where
 
 import Control.Monad.Except
@@ -11,17 +12,21 @@ import KindLang.Data.KStat
 -- may have a parent scope, and if it does the definitions in that scope are
 -- considered included in the child scope, except where a new definition with
 -- the same name is present).
-data Scope =
+--
+-- Scopes are intended to use inside an ST monad execution thread, so receive an
+-- 'stt' type to identify the thread (i.e. if using "KStat s n", the scope's
+-- parameter should be "s").
+data Scope stt =
     Scope
     {
-      scopeParent :: Maybe Scope,
-      scopeCat :: Catalogue
+      scopeParent :: Maybe (Scope stt),
+      scopeCat :: Catalogue stt
     }
     deriving (Show, Eq)
 
 -- | Look up an identifier in a scope, returning its canonical id and
 -- definition, or an error otherwise.
-scopeLookup :: Scope -> NSID -> KStat s IdentDefinition
+scopeLookup :: Scope s -> NSID -> KStat s IdentDefinition
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
                (deferToParent s)
@@ -30,26 +35,26 @@ scopeLookup s i =
       deferToParent (Scope (Just p) _) _  = scopeLookup p i
 
 -- | Adds an item with an unqualified identifier and a definition to a scope.
-(|@+|) :: Scope -> (String,Definition) -> Scope
+(|@+|) :: Scope s -> (String,Definition) -> Scope s
 (Scope p cat) |@+| (n,d) = Scope p (cat |+~| (UnqualifiedID n, d))
 infixl 6 |@+|
 
 -- | Add an item to the scope using its canonical identifier as its resolvable
 -- id (a shortcut to the more flexible '(|++|)').
-(|+|) :: Scope -> (NSID, Definition) -> Scope
+(|+|) :: Scope s -> (NSID, Definition) -> Scope s
 (Scope p cat) |+| identDef = Scope p (cat |+~| identDef)
 infixl 6 |+|
 
 -- | Add an item to the scope with both its resolvable and canonical ids
 -- specified.
-(|++|) :: Scope -> (NSID, NSID, Definition) -> Scope
+(|++|) :: Scope s -> (NSID, NSID, Definition) -> Scope s
 (Scope p cat) |++| identCanidDef = Scope p (cat |++~| identCanidDef)
 infixl 6 |++|
 
 -- | Like 'scopeLookup', but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@|) :: Scope -> NSID -> KStat s Definition
+(|@|) :: Scope s -> NSID -> KStat s Definition
 s |@| i =  (scopeLookup s i) >>= (return . snd)
 infixl 5 |@|
 
@@ -57,18 +62,18 @@ infixl 5 |@|
 -- containing the list of arguments for a function whose type is 'td' and whose
 -- argument names are given as 'names'.  If 'td' does not identify a function
 -- type, returns 's'.
-makeFunctionScope :: Scope -> TypeDescriptor -> [String] -> Scope
+makeFunctionScope :: Scope s -> TypeDescriptor -> [String] -> Scope s
 makeFunctionScope s (FunctionType types _) names =
     foldr addVariableToScope (Scope (Just s) newCatalogue) (zip names types)
     where
-      addVariableToScope :: (String,TypeDescriptor) -> Scope -> Scope
+      addVariableToScope :: (String,TypeDescriptor) -> Scope s -> Scope s
       addVariableToScope (name,td) ss =
           ss |@+| (name, VariableDefinition td VarInitNone)
 makeFunctionScope s _ _ = s
 
 -- | Looks up a type in a catalogue by id and returns a type descriptor for it
 -- where possible.
-resolveType :: Scope -> NSID -> KStat s TypeDescriptor
+resolveType :: Scope s -> NSID -> KStat s TypeDescriptor
 resolveType s sid =
     makeResolvedType sid <$> scopeLookup s sid
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
 import Control.Monad.Except
@@ -14,12 +15,12 @@ import KindLang.Lib.CoreTypes
 import KindLang.Runtime.Eval
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.KStat
-    
+
 -- evaluate expression resolved against scope and extract from error wrapper
-execTest :: Scope -> Expr -> Value
+execTest :: (forall s . Scope s) -> Expr -> Value
 execTest s ex = execTestWithData s [] ex
 
-execTestWithData :: Scope -> [(NSID,Value)] -> Expr -> Value
+execTestWithData :: (forall s . Scope s) -> [(NSID,Value)] -> Expr -> Value
 execTestWithData s v ex =
     either
       (\e -> error (show e)) -- if there's an error
@@ -62,10 +63,10 @@ simpleEvaluationTests =
                                                          rtKindInt VarInitNone)] [])
                                  "d" rtKindInt VarInitNone)
                     ref <- rtsLookupRef s (UnqualifiedID "d")
-                    return ()) @?= Right ()) :        
+                    return ()) @?= Right ()) :
         [])
 
-testScope :: Scope
+testScope :: Scope s
 testScope = scopeDefault
             |@+| ("ret42", FunctionDefinition [
                               InternalFunction (FunctionType [] rtKindInt) "ret42"
@@ -85,14 +86,14 @@ testScope = scopeDefault
                                     idA)
                               ])
             |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
-              
+
 ifc :: InternalFunctions
 ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
-      
+
 idRet42 :: NSID
 idRet42 = listToNSID ["ret42"]
 idRet43 :: NSID
-idRet43 = listToNSID ["ret43"]       
+idRet43 = listToNSID ["ret43"]
 idIdentity :: NSID
 idIdentity = listToNSID ["identity"]
 idVar1 :: NSID

@@ -246,8 +246,8 @@ method :: NSID
 method = UnqualifiedID "method"
 privateField :: NSID
 privateField = UnqualifiedID "privateField"
-         
-testScope :: Scope
+
+testScope :: Scope s
 testScope =
     scopeDefault
               |+| (simpleClass, ClassDefinition [])
@@ -270,9 +270,9 @@ testScope =
                                  (VariableDefinition rtSimpleClass VarInitNone)])
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
 
-            
+
 def :: Definition
-def = (ClassDefinition [])       
+def = (ClassDefinition [])
 rtSimpleClass :: TypeDescriptor
 rtSimpleClass = ResolvedType simpleClass simpleClass def
 rtComplexClass :: TypeDescriptor
@@ -281,7 +281,7 @@ rtComplexClass = expectNoErrors "internal error" $
 rtMethodClass :: TypeDescriptor
 rtMethodClass = expectNoErrors "internal error" $
                 resolveType testScope methodClass
-                            
+
 simpleFnInstance :: FunctionInstance
 simpleFnInstance = FunctionInstance
                      (FunctionType [rtSimpleClass] rtComplexClass)
@@ -290,14 +290,14 @@ simpleFnInstance = FunctionInstance
 
 simpleFnInstanceResolved :: FunctionInstance
 simpleFnInstanceResolved =
-    AFunctionInstance tdSimpleFn ["a"] 
+    AFunctionInstance tdSimpleFn ["a"]
                       (AExpression
                        (StmtAnnotation (Just $ Reference rtComplexClass) [] []) $
                        (AVarRef
                         (ExprAnnotation (Reference rtComplexClass)
                                             [("CanonicalID", EADId ccInst)])
                         ccInst))
-                      
+
 typeVarFnInstance :: FunctionInstance
 typeVarFnInstance =
     FunctionInstance

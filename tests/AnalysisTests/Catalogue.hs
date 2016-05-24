@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module AnalysisTests.Catalogue (catalogueTests) where
 
 import Control.Monad.Except
@@ -16,88 +16,114 @@ import Data.Map ((!))
 nullLoader :: ModuleLoader s
 nullLoader sid = throwError $ InvalidImport sid "Could not find module"
 
-buildAndGetCat :: (forall s . ModuleLoader s) -> Module -> ModuleCatalogues
-buildAndGetCat l m = case runToEither $ buildCatalogues l m of
-                       Left err -> error $ "Unexpected error " ++ show err
-                       Right cat -> cat
+buildAndLookupM :: ModuleLoader s -> Module -> Visibility -> NSID ->
+                   KStat s IdentDefinition
+buildAndLookupM l m v s = do
+    cats <- buildCatalogues l m
+    cat <- catalogueForVisibility v cats
+    lookupHierarchical cat s
 
+buildAndLookup :: (forall s . ModuleLoader s) -> Module -> Visibility -> String ->
+                  IdentDefinition
+buildAndLookup l m v s =
+    case buildAndLookupNS l m v (UnqualifiedID s) of
+         Left err -> error $ "Unexpected error " ++ show err
+         Right def -> def
+
+buildAndLookupNS :: (forall s . ModuleLoader s) -> Module -> Visibility -> NSID ->
+                    Either KindError IdentDefinition
+buildAndLookupNS l m v s = runToEither $ buildAndLookupM l m v s
+
+catalogueForVisibility :: Visibility -> ModuleCatalogues s -> KStat s (Catalogue s)
+catalogueForVisibility Public c = return $ moduleCataloguePublic c
+catalogueForVisibility Private c = return $ moduleCataloguePrivate c
+catalogueForVisibility Protected _ =
+    throwError $ InternalError "modules don't have protected catalogues"
+
+buildToFlatList :: (forall s . ModuleLoader s) -> Module -> Visibility ->
+                   [(NSID, NSID, Definition)]
+buildToFlatList l m v = expectNoErrors "unexpected error" $
+                          catFlatten <$>
+                          (buildCatalogues l m >>= catalogueForVisibility v)
+
+flatListLookup :: [(NSID, NSID, Definition)] -> NSID -> Maybe (NSID, Definition)
+flatListLookup l k = lookup k $ (extractFirst <$> l)
+
+extractFirst :: (a,b,c) -> (a,(b,c))
+extractFirst (a,b,c) = (a,(b,c))
+
+buildAndReturnError :: (forall s . ModuleLoader s) -> Module -> Maybe KindError
+buildAndReturnError l m = expectNoErrors "unexpected error" $
+                            catchError (buildCatalogues l m >> return Nothing)
+                                       (\ e -> return $ Just e)
 catalogueTests :: TestTree
 catalogueTests =
     testGroup "Module catalogues"
     [
-        testCase "Empty module produces empty catalogue" $
-                 (runToEither $ buildCatalogues nullLoader (Module Nothing [] [])) @?=
-                 Right (ModuleCatalogues Map.empty Map.empty),
+        testCase "Empty module produces empty public catalogue" $
+                 (buildToFlatList nullLoader (Module Nothing [] []) Public) @?= [],
+        testCase "Empty module produces empty private catalogue" $
+                 (buildToFlatList nullLoader (Module Nothing [] []) Private) @?= [],
         testCase "Catalogue contains module class definition" $
-                 (moduleCataloguePublic (buildAndGetCat
+                 (buildAndLookup
                    nullLoader
                    (Module Nothing []
-                        [("MyClass", ClassDefinition[])])) ! "MyClass") @?=
+                        [("MyClass", ClassDefinition[])])
+                   Public "MyClass") @?=
                  (UnqualifiedID "MyClass", ClassDefinition []),
         testCase "Catalogue contains module function definition" $
-                 (moduleCataloguePublic (buildAndGetCat
+                 (buildAndLookup
                    nullLoader
                    (Module Nothing []
-                        [("myFunction", FunctionDefinition [])]))
-                  ! "myFunction") @?=
+                        [("myFunction", FunctionDefinition [])])
+                   Public "myFunction") @?=
                  (UnqualifiedID "myFunction", FunctionDefinition []),
         testCase "Catalogue items qualified when module has name" $
-                 ((moduleCataloguePublic
-                   (buildAndGetCat nullLoader myModule)) ! "MyClass") @?=
+                 (buildAndLookup nullLoader myModule Public "MyClass") @?=
                  (myClassSID, ClassDefinition []),
         testCase "Error importing unknown module" $
-                 (runToEither $ buildCatalogues nullLoader myModuleWithImports) @?=
-                 (Left $ InvalidImport myModuleId "Could not find module"),
+                 (buildAndReturnError nullLoader myModuleWithImports) @?=
+                 (Just $ InvalidImport myModuleId "Could not find module"),
         testCase "Imported module items in private list" $
-                 ((moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookup
                     (loaderForModule myModuleId myModule)
-                    myModuleWithImports)) ! "MyClass") @?=
+                    myModuleWithImports Private "MyClass") @?=
                  (myClassSID, ClassDefinition []),
         testCase "Imported module with filter contains included item" $
-                 ((moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookup
                     (loaderForModule myModuleId myModule)
-                    myModuleWithFilteredImports)) ! "MyClass") @?=
+                    myModuleWithFilteredImports Private "MyClass") @?=
                  (myClassSID, ClassDefinition []),
         testCase "Item filtered from import not in map" $
-                 (Map.lookup "MyOtherClass"
-                  (moduleCataloguePrivate
-                   (buildAndGetCat
-                    (loaderForModule myModuleId myModule)
-                    myModuleWithFilteredImports))) @?=
-                 Nothing,
+                 (flatListLookup (buildToFlatList
+                                    (loaderForModule myModuleId myModule)
+                                    myModuleWithFilteredImports Private)
+                                 (UnqualifiedID "MyOtherClass"))
+                 @?= Nothing,
         testCase "Import qualified" $
-                 (runToEither $ lookupHierarchical
-                  (moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
-                    myModuleWithQualifiedImports))
-                  myClassSID) @?= Right (myClassSID, ClassDefinition []),
+                    myModuleWithQualifiedImports
+                    Private myClassSID) @?=
+                 Right (myClassSID, ClassDefinition []),
         testCase "Import qualified with renaming" $
-                 (runToEither $ lookupHierarchical
-                  (moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
-                    myModuleWithRenamedImports))
-                  (QualifiedID "I" $ UnqualifiedID "MyClass"))
+                    myModuleWithRenamedImports
+                    Private (QualifiedID "I" $ UnqualifiedID "MyClass"))
                  @?= Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports includes requested item" $
-                 (runToEither $ lookupHierarchical
-                  (moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
-                    myModuleWithQualifiedFilteredImports))
-                  myClassSID) @?= Right (myClassSID, ClassDefinition []),
+                    myModuleWithQualifiedFilteredImports
+                    Private myClassSID) @?=
+                 Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports excludes unrequested item" $
-                 (runToEither $ lookupHierarchical
-                  (moduleCataloguePrivate
-                   (buildAndGetCat
+                 (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
-                    myModuleWithQualifiedFilteredImports))
-                  myOtherClassSID) @?=
+                    myModuleWithQualifiedFilteredImports
+                    Private myOtherClassSID) @?=
                  Left (IdentifierNotFound myOtherClassSID)
-
     ]
 
 myModuleId :: NSID

@@ -9,7 +9,7 @@ import KindLang.Data.Error
 import KindLang.Data.KStat
 
 -- | Look up a type and provide a canonical id for it
-typeLookup :: Scope -> TypeDescriptor -> KStat s TypeDescriptor
+typeLookup :: Scope s -> TypeDescriptor -> KStat s TypeDescriptor
 typeLookup s (SimpleType sid) = do
     (cid, def) <- scopeLookup s sid
     return (ResolvedType sid cid def)
