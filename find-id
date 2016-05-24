@@ -1,0 +1,1 @@
+find src -name '*.hs' -exec grep -Hn "$1" '{}' ';'
