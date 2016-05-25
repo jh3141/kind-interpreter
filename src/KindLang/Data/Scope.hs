@@ -51,13 +51,6 @@ infixl 6 |+|
 (Scope p cat) |++| identCanidDef = Scope p (cat |++~| identCanidDef)
 infixl 6 |++|
 
--- | Like 'scopeLookup', but don't include the canonical ID in the result,
--- just the definition. Binds at level (infixl 5), i.e. stronger than
--- comparisons, but looser than arithmetic.
-(|@|) :: Scope s -> NSID -> KStat s Definition
-s |@| i =  (scopeLookup s i) >>= (return . snd)
-infixl 5 |@|
-
 -- | 'makeFunctionScope s td names' makes a new Scope with parent 's'
 -- containing the list of arguments for a function whose type is 'td' and whose
 -- argument names are given as 'names'.  If 'td' does not identify a function
