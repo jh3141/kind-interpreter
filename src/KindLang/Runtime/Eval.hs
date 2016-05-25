@@ -6,7 +6,7 @@ import Data.List
 import Data.Foldable
 
 import qualified Data.Map as Map
-import Control.Monad.ST.Trans
+import Data.STRef
 import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.Value
