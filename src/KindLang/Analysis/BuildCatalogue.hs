@@ -82,7 +82,3 @@ buildScope ldr s m = makeModuleScope s <$> buildCatalogues ldr m
 -- | A module loader implementation that fails if any module is requested
 nullModuleLoader :: NSID -> KStat s (Catalogue s)
 nullModuleLoader _ = throwError $ InternalError "module loading not available"
-
-stripModuleCatalogueState :: ModuleCatalogues s1 -> ModuleCatalogues s2
-stripModuleCatalogueState (ModuleCatalogues a b) =
-    ModuleCatalogues (stripCatalogueState a) (stripCatalogueState b)

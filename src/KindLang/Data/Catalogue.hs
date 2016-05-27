@@ -147,10 +147,3 @@ catalogueForDefinitionList makeNsid definitions =
                   <$> definitions)
     where
       identifyEntry (rid, def) = (rid, (rid, def))
-
-stripCatalogueState :: Catalogue s1 -> Catalogue s2
-stripCatalogueState cat =
-    (second stripEntryState) <$> cat
-    where
-      stripEntryState (CatEntry def) = CatEntry def
-      stripEntryState (CatNamespace ns) = CatNamespace $ stripCatalogueState ns
