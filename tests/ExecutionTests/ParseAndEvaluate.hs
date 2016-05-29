@@ -41,11 +41,12 @@ runTest filename expected =
       --print modTree
 
       value <- runToIO $ do
-          resolvedModule <- resolveModule modTree scopeDefault nullModuleLoader
+          scope <- scopeDefault
+          resolvedModule <- resolveModule modTree scope nullModuleLoader
 
           -- traceShowM resolvedModule
 
-          moduleScope <- buildScope nullModuleLoader scopeDefault resolvedModule
+          moduleScope <- buildScope nullModuleLoader scope resolvedModule
 
           -- traceShowM moduleScope
 

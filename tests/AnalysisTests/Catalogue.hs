@@ -43,8 +43,8 @@ catalogueForVisibility Protected _ =
 buildToFlatList :: (forall s . ModuleLoader s) -> Module -> Visibility ->
                    [(NSID, NSID, Definition)]
 buildToFlatList l m v = expectNoErrors "unexpected error" $
-                          catFlatten <$>
-                          (buildCatalogues l m >>= catalogueForVisibility v)
+                          buildCatalogues l m >>= catalogueForVisibility v
+                                              >>= catFlatten
 
 flatListLookup :: [(NSID, NSID, Definition)] -> NSID -> Maybe (NSID, Definition)
 flatListLookup l k = lookup k $ (extractFirst <$> l)

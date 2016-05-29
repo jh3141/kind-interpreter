@@ -53,8 +53,8 @@ runtimeScopeAddItemWithDef :: RuntimeScope s -> (String,Value,Definition)
                            -> KStat s (RuntimeScope s)
 runtimeScopeAddItemWithDef rts1 (lid,val,def) = do
     (RuntimeScope idx sc p) <- runtimeScopeAddItem rts1 (UnqualifiedID lid,val)
-    return $ RuntimeScope idx (sc |@+| (lid,def)) p
-
+    newScope <- scopeUpdate sc |@+| (lid,def)
+    return $ RuntimeScope idx newScope p
 
 -- fixme: going to need access to program mutable state, and ability to mutate it!
 evalAExpr :: RuntimeScope s -> InternalFunctions -> AExpr -> KStat s Value
@@ -96,9 +96,9 @@ applyFunctionInstance _ ifc (InternalFunction _ n) vs =
           (\f -> return $ f vs)                                            -- if Just f
           (Map.lookup n ifc)
 applyFunctionInstance s ifc (AFunctionInstance td formal stmt) actual = do
+    functionScope <- makeFunctionScope (rtsScope s) td formal
     childScope <- runtimeScopeAddItems
-                      (makeChildRuntimeScope s
-                       (makeFunctionScope (rtsScope s) td formal))
+                      (makeChildRuntimeScope s functionScope)
                       (zip (UnqualifiedID <$> formal) actual)
     (_, val) <- evalAStatement childScope ifc stmt
     return $ val

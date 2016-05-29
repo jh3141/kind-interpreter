@@ -4,17 +4,15 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.Scope
 import KindLang.Data.AST
-import KindLang.Data.Error
 import KindLang.Data.KStat
-import qualified Data.Map as Map
 
 -- | Function to create an ID in the core module given a string
 coreId :: String -> NSID
 coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
 
-scopeDefault :: Scope s
+scopeDefault :: KStat s (Scope s)
 scopeDefault =
-    Scope Nothing newCatalogue
+    scopeUpdate (Scope Nothing newCatalogue)
            |++| (sidInt, sidKindInt, InternalTypeDefinition)
            |++| (sidString, sidKindString, InternalTypeDefinition)
            |++| (UnqualifiedID "(+)", coreId "(+)", InternalObject fnIntIntInt)
@@ -39,7 +37,7 @@ sidKindString = sidString `qualifiedBy` sidKind
 -- fixme should these be qualified or unqualified?
 rtKindInt :: TypeDescriptor
 rtKindInt = expectNoErrors "Internal error: int not defined" $
-            resolveType scopeDefault sidInt
+            resolveTypeKS scopeDefault sidInt
 eaKindInt :: ExprAnnotation
 eaKindInt = ExprAnnotation rtKindInt []
 saKindInt :: StmtAnnotation
@@ -49,7 +47,7 @@ sarefKindInt = StmtAnnotation (Just $ Reference rtKindInt) [] []
 
 rtKindString :: TypeDescriptor
 rtKindString = expectNoErrors "Internal error: string not defined" $
-               resolveType scopeDefault sidString
+               resolveTypeKS scopeDefault sidString
 eaKindString :: ExprAnnotation
 eaKindString = ExprAnnotation rtKindString []
 saKindString :: StmtAnnotation

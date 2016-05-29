@@ -4,22 +4,8 @@ import Data.Foldable
 import Data.List
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
-import KindLang.Data.Scope
 import KindLang.Data.Error
 import KindLang.Data.KStat
-
--- | Look up a type and provide a canonical id for it
-typeLookup :: Scope s -> TypeDescriptor -> KStat s TypeDescriptor
-typeLookup s (SimpleType sid) = do
-    (cid, def) <- scopeLookup s sid
-    return (ResolvedType sid cid def)
-typeLookup _ rt@(ResolvedType _ _ _) = return rt
-typeLookup s (FunctionType parameters rtype) = do
-    rparameters <- mapM (typeLookup s) parameters
-    rrtype <- typeLookup s rtype
-    return $ FunctionType rparameters rrtype
-typeLookup _ InferableType = return InferableType
--- FIXME other type descriptor constructors must be included here!
 
 -- fixme these functions probably belong in a module for type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->

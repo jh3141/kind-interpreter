@@ -29,7 +29,7 @@ data ModuleCatalogues s = ModuleCatalogues {
 buildCatalogues :: ModuleLoader s -> Module -> KStat s (ModuleCatalogues s)
 buildCatalogues loader m = do
     importedModuleSymbols <- importModules loader (moduleImportList m) Map.empty
-    let publicSymbols =
+    publicSymbols <-
            catalogueForDefinitionList qualifyStringIds $ moduleDeclarationList m
     return $ ModuleCatalogues publicSymbols importedModuleSymbols
     where
@@ -60,15 +60,18 @@ importModule :: ModuleLoader s -> ModuleImport -> KStat s (Catalogue s)
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
 importModule loader (QualifiedModuleImport sid True reqid) =
-    makeNamespace (maybe sid id reqid) <$> loader sid
+     loader sid >>= makeNamespace (maybe sid id reqid)
 importModule loader (QualifiedModuleImport sid False reqid) =
-    makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid) <$> loadItem loader sid
+     loadItem loader sid >>=
+              makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid)
 
 -- | load a single item from the module identified by its qualified id
 loadItem :: ModuleLoader s -> NSID -> KStat s (Catalogue s)
 loadItem loader sid =
     case qualifierOf sid of
-      Just msid -> (`catalogueWithOnly` [withoutNamespace sid]) <$> loader msid
+      Just msid -> loader msid >>=
+                   (`catalogueWithOnly` [withoutNamespace sid])
+                   -- fixme the above line is unnecessarily cryptic.
       Nothing   -> throwError $ InvalidImport sid filterRequiresIdentifier
 
 -- | Creates a child of a given parent scope for a module whose catalogues

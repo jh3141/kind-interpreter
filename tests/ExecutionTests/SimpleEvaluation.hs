@@ -2,7 +2,6 @@
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
 import Control.Monad.Except
-import Control.Monad.ST.Trans
 import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -17,17 +16,18 @@ import KindLang.Analysis.ResolveTypes
 import KindLang.Data.KStat
 
 -- evaluate expression resolved against scope and extract from error wrapper
-execTest :: (forall s . Scope s) -> Expr -> Value
+execTest :: (forall s . KStat s (Scope s)) -> Expr -> Value
 execTest s ex = execTestWithData s [] ex
 
-execTestWithData :: (forall s . Scope s) -> [(NSID,Value)] -> Expr -> Value
+execTestWithData :: (forall s . KStat s (Scope s)) -> [(NSID,Value)] -> Expr -> Value
 execTestWithData s v ex =
     either
       (\e -> error (show e)) -- if there's an error
       id                     -- otherwise
       (runToEither $ do
-                         f <- resolveExpr s ex
-                         rts <- runtimeScopeAddItems (newRuntimeScope s) v
+                         s' <- s
+                         f <- resolveExpr s' ex
+                         rts <- runtimeScopeAddItems (newRuntimeScope s') v
                          evalAExpr rts ifc f)
 
 simpleEvaluationTests :: TestTree
@@ -54,8 +54,9 @@ simpleEvaluationTests =
                   @?= 86) :
         (testCase "Variable definition statement" $
                   (runToEither $ do
+                    newScope <- newRuntimeScope <$> scopeDefault
                     (s, _) <- evalAStatement
-                                (newRuntimeScope scopeDefault)
+                                newScope
                                 ifc
                                 (AVarDeclStatement
                                  (StmtAnnotation Nothing
@@ -66,7 +67,7 @@ simpleEvaluationTests =
                     return ()) @?= Right ()) :
         [])
 
-testScope :: Scope s
+testScope :: KStat s (Scope s)
 testScope = scopeDefault
             |@+| ("ret42", FunctionDefinition [
                               InternalFunction (FunctionType [] rtKindInt) "ret42"

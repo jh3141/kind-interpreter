@@ -37,6 +37,11 @@ resolveDefListTypes s =
       resolve (cid,def) = --trace ("resolve: " ++ cid)
                           (cid,) <$> resolveDefinition s def
 
+-- | A utility function for calling resolveDefListTypes when the scope is held
+-- in a KStat monad
+resolveDefListTypesKS :: KStat s (Scope s) -> DefList -> KStat s DefList
+resolveDefListTypesKS kss lst = kss >>= (flip resolveDefListTypes) lst
+
 -- | Scans a definition list for functions (including functions inside
 -- classes) and resolves their instance bodies.
 resolveFunctionInstances :: Scope s -> DefList -> KStat s DefList
@@ -53,6 +58,9 @@ resolveImplementation s (FunctionDefinition instances) = do
     return $ FunctionDefinition resolvedInstances
 -- fixme scan classes for memmbers
 resolveImplementation _ other = trace ("resolveImplementation:" ++ show other) $ return other
+
+resolveImplementationKS :: KStat s (Scope s) -> Definition -> KStat s Definition
+resolveImplementationKS kss def = kss >>= (flip resolveImplementation) def
 
 -- | Return a copy of a class member definition list resolved against a
 -- given scope.
@@ -80,6 +88,11 @@ resolveDefinition s (ClassDefinition cdlist) =
 resolveDefinition s (FunctionDefinition instances) =
     FunctionDefinition <$> mapM (resolveInstanceTypes s) instances
 resolveDefinition _ nonMatching = return nonMatching
+
+-- | A utility function for calling resolveDefinition when the scope is held
+-- in a KStat monad
+resolveDefinitionKS :: KStat s (Scope s) -> Definition -> KStat s Definition
+resolveDefinitionKS kss lst = kss >>= (flip resolveDefinition) lst
 
 -- | Resolve an expression tree against a given scope, returning a resolved
 -- copy (an 'AExpr' with the same meaning as the unresolved 'Expr') or an error.
@@ -129,7 +142,12 @@ resolveExpr s (OMethod obExpr sid paramExprs) = do
     rParams <- sequence $ fmap (resolveExpr s) paramExprs
     annotation <- makeFunctionCallAnnotation methodType (aexprType <$> rParams)
     return $ AOMethod annotation aObExpr methodType cid rParams
-    
+
+-- | A utility function for calling resolveExpr when the scope is held
+-- in a KStat monad
+resolveExprKS :: KStat s (Scope s) -> Expr -> KStat s AExpr
+resolveExprKS kss e = kss >>= (flip resolveExpr) e
+
 -- fixme - this function should be handled by the scope the id is found in
 -- as different scope types should be able to produce different annotations.
 
@@ -242,19 +260,24 @@ resolveStatement s (StatementBlock ss) = do
                         KStat s (Scope s, [AStatement])
       resolvePrepend (cs, reversedBlock) stmt = do
           astmt <- resolveStatement cs stmt
-          return (updatedScope cs (astmtAnnotation astmt), astmt:reversedBlock)
+          scope <- updatedScope cs (astmtAnnotation astmt)
+          return (scope, astmt:reversedBlock)
 
       makeAnnotation (stmt:_) = StmtAnnotation (astmtType stmt) [] []
       makeAnnotation []       = StmtAnnotation Nothing [] []
 
-      updatedScope cs (StmtAnnotation _ [] _) = cs
-      updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) cs dl
+      updatedScope cs (StmtAnnotation _ [] _) = return cs
+      updatedScope cs (StmtAnnotation _ dl _) = foldl' (|@+|) (scopeUpdate cs) dl
+
+resolveStatementKS :: KStat s (Scope s) -> Statement -> KStat s AStatement
+resolveStatementKS scope stat = scope >>= (flip resolveStatement) stat
 
 resolveInstance :: Scope s -> FunctionInstance -> KStat s FunctionInstance
 resolveInstance _ afi@(AFunctionInstance _ _ _) = return afi
 resolveInstance s (FunctionInstance td params st) = do
     atd <- typeLookup s td
-    ast <- resolveStatement (makeFunctionScope s td params) st
+    fnScope <- makeFunctionScope s td params
+    ast <- resolveStatement fnScope st
     astType <- errorIfNothing (astmtType ast)  -- fixme void functions?
                  (TypeKindError (functionTypeReturn td)
                                 ErrorMessages.noReturn)
@@ -265,6 +288,10 @@ resolveInstance s (FunctionInstance td params st) = do
                 atd           -- fixme what about return type specialization?
                 params        -- instance still accepts the same params
                 ast           -- body is fully resolved
+
+resolveInstanceKS :: KStat s (Scope s) -> FunctionInstance ->
+                     KStat s FunctionInstance
+resolveInstanceKS kss inst = kss >>= (flip resolveInstance) inst
 
 -- | resolve a function instance's definition, but do not inspect its actual
 -- implementation (which cannot be done safely until after all of a module's

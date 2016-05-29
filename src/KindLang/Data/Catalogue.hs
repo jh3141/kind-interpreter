@@ -31,35 +31,37 @@ makeCatEntry = CatEntry
 -- resolvable id @rid@ and canonical id @cid@ to a catalogue @c@, creating
 -- new namespaces as necessary, and returning the updated catalogue.
 --
--- May fail with an 'error' if an attempt is made to insert an item into
--- a namespace but the namespace already exists as a non-namespace definition,
--- therefore callers should be careful to avoid this situation or to catch
--- it in the IO monad.
-catAdd :: Catalogue s -> NSID -> NSID -> Definition -> Catalogue s
+-- May throw a NotNamespace error if an attempt is made to insert an item into
+-- a namespace but the namespace already exists as a non-namespace definition.
+catAdd :: forall s .
+          Catalogue s -> NSID -> NSID -> Definition -> KStat s (Catalogue s)
 catAdd cat rid cid def =
     updatedCat cat rid []
     where
+      updatedCat :: Catalogue s -> NSID -> [String] -> KStat s (Catalogue s)
       -- we've found the correct namespace to insert in
       updatedCat c (UnqualifiedID s) _ =
-          Map.insert s (cid,makeCatEntry def) c
+          return $ Map.insert s (cid,makeCatEntry def) c
       -- need to create a new namespace
-      updatedCat c (QualifiedID s s') qualifiers | s `Map.notMember` c =
-          Map.insert s (s `qualifiedByStrings` qualifiers,
-                        CatNamespace $ updatedCat newCatalogue s' (s:qualifiers)) c
+      updatedCat c (QualifiedID s s') qualifiers | s `Map.notMember` c = do
+          newNsCat <- updatedCat newCatalogue s' (s:qualifiers)
+          return $ Map.insert s (s `qualifiedByStrings` qualifiers,
+                                 CatNamespace newNsCat) c
       -- insert into existing namespace
       updatedCat c (QualifiedID s s') qualifiers =
           case Map.lookup s c of
-            Just (nssid, CatNamespace nscat) ->
-                Map.insert s
-                       (nssid,
-                        CatNamespace $ updatedCat nscat s' (s:qualifiers))
-                       c
-            _ -> error (ErrorMessages.insertedIntoNonNamespace rid)
+            Just (nssid, CatNamespace nscat) -> do
+                inserted <- updatedCat nscat s' (s:qualifiers)
+                return $ Map.insert s (nssid, CatNamespace inserted) c
+            Just (cid, _) -> throwError $ NotNamespace cid s'
+            Nothing       -> throwError $ InternalError $
+                             "Nothing unexpected while updating category to " ++
+                             "add to existing namespace"
 
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
 -- Binds more tightly than |@~|.
-(|+~|) :: Catalogue s -> (NSID, Definition) -> Catalogue s
+(|+~|) :: Catalogue s -> (NSID, Definition) -> KStat s (Catalogue s)
 c |+~| (sid,def) = catAdd c sid sid def
 infixl 6 |+~|
 
@@ -67,7 +69,7 @@ infixl 6 |+~|
 -- ids. @cat |++~| (rid,cid,def)@ adds resolvable identifier @rid@ for
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
 -- level as |+~|.
-(|++~|) :: Catalogue s -> (NSID, NSID, Definition) -> Catalogue s
+(|++~|) :: Catalogue s -> (NSID, NSID, Definition) -> KStat s (Catalogue s)
 c |++~| (rid, cid, def) = catAdd c rid cid def
 infixl 6 |++~|
 
@@ -82,9 +84,9 @@ infixl 6 |++~|
 -- also consider what existing typeclasses could be used instead of
 -- a list of strings, in order to allow for the caller to decide what
 -- is the most appropriate structure for them.
-catalogueWithOnly :: Catalogue s -> [String] -> Catalogue s
+catalogueWithOnly :: Catalogue s -> [String] -> KStat s (Catalogue s)
 catalogueWithOnly cat identifiers =
-    Map.filterWithKey (\k _ -> elem k identifiers) cat
+    return $ Map.filterWithKey (\k _ -> elem k identifiers) cat
 
 -- | Look up an identifier in a catalogue, returning a tuple of the the
 -- canonical identifier and definition for the item found, or an error
@@ -112,9 +114,9 @@ infixl 5 |@~|
 
 -- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue
 -- 'cat', returning the modified catalogue.
-makeNamespace :: NSID -> Catalogue s -> Catalogue s
+makeNamespace :: NSID -> Catalogue s -> KStat s (Catalogue s)
 makeNamespace sid cat =
-    recurse sid []
+    return $ recurse sid []
     where
       recurse (QualifiedID s s') qualifiers =
           Map.singleton s
@@ -129,9 +131,9 @@ makeNamespace sid cat =
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
 -- and its definition.
-catFlatten :: Catalogue s -> [(NSID,NSID,Definition)]
+catFlatten :: Catalogue s -> KStat s [(NSID,NSID,Definition)]
 catFlatten =
-    Map.foldWithKey (processItem []) []
+    return . Map.foldWithKey (processItem []) []
     where
       processItem :: [String] -> String -> (NSID, CatEntry s) ->
                      [(NSID,NSID,Definition)] ->
@@ -141,9 +143,12 @@ catFlatten =
 
 -- | Create a catalogue from a definition list, given a function that converts
 -- plain strings to qualified ids.
-catalogueForDefinitionList :: (String -> NSID) -> DefList -> Catalogue s
+catalogueForDefinitionList :: (String -> NSID) -> DefList -> KStat s (Catalogue s)
 catalogueForDefinitionList makeNsid definitions =
-    Map.fromList ((identifyEntry >>> second (first makeNsid >>> second CatEntry))
-                  <$> definitions)
+    return $ Map.fromList
+               ((identifyEntry >>>          -- extract the id to an outer tuple
+                 second (first makeNsid >>> -- qualify the id in the inner tuple
+                         second CatEntry))  -- and turn the definition into an entry
+                <$> definitions)            -- over all definitions
     where
       identifyEntry (rid, def) = (rid, (rid, def))
