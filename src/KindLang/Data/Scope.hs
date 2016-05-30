@@ -8,7 +8,7 @@ import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.KStat
 import KindLang.Data.Types
-    
+
 -- | Scope associates names with definitions.  It is a nested structure (a scope
 -- may have a parent scope, and if it does the definitions in that scope are
 -- considered included in the child scope, except where a new definition with
@@ -23,7 +23,7 @@ data Scope stt =
       scopeParent :: Maybe (Scope stt),
       scopeCat :: Catalogue stt
     }
-    deriving (Show, Eq)
+    deriving (Show)
 
 -- | Look up an identifier in a scope, returning its canonical id and
 -- definition, or an error otherwise.
@@ -64,10 +64,12 @@ infixl 6 |++|
 -- argument names are given as 'names'.  If 'td' does not identify a function
 -- type, throws an internal error.
 makeFunctionScope :: Scope s -> TypeDescriptor -> [String] -> KStat s (Scope s)
-makeFunctionScope s (FunctionType types _) names =
-    foldM addVariableToScope (Scope (Just s) newCatalogue) (zip names types)
+makeFunctionScope s (FunctionType types _) names = do
+    newCat <- newCatalogue
+    foldM addVariableToScope (Scope (Just s) newCat) (zip names types)
     where
-      addVariableToScope :: Scope s -> (String,TypeDescriptor) -> KStat s (Scope s)
+      addVariableToScope :: Scope s -> (String,TypeDescriptor) ->
+                            KStat s (Scope s)
       addVariableToScope ss (name,td) =
           scopeUpdate ss |@+| (name, VariableDefinition td VarInitNone)
 makeFunctionScope _ td _ = throwError $ InternalError
@@ -82,7 +84,7 @@ resolveType s sid =
 -- | Utility function for resolving a type from a scope held in the KS monad
 resolveTypeKS :: KStat s (Scope s) -> NSID -> KStat s TypeDescriptor
 resolveTypeKS kss sid = kss >>= (flip resolveType) sid
-                        
+
 -- | Creates a resolved type descriptor refering to an identified type
 -- definition (e.g. a definition returned by 'scopeLookup').
 makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor

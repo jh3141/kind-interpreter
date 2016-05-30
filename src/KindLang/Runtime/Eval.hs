@@ -28,11 +28,12 @@ data RuntimeScope s = RuntimeScope {
 newRuntimeScope :: Scope s -> RuntimeScope s
 newRuntimeScope sc = RuntimeScope Map.empty sc Nothing
 
+-- fixme - had to remove check that scopeParent sc == Just ps because
+-- scope is no longer an instance of Eq; find another way of doing this
+-- check. if we still need it. (previously just gave an error if not equal)
+
 makeChildRuntimeScope :: RuntimeScope s -> Scope s -> RuntimeScope s
-makeChildRuntimeScope p@(RuntimeScope si ps pp) sc
-    | scopeParent sc == Just ps = RuntimeScope si sc (Just p)
-    | otherwise                 = error
-                                  "scope has incorrect parent in makeChildRuntimeScope"
+makeChildRuntimeScope p@(RuntimeScope si ps pp) sc = RuntimeScope si sc (Just p)
 
 rtsLookupRef :: RuntimeScope s -> NSID -> KStat s (STRef s Value)
 rtsLookupRef (RuntimeScope index _ _) i =
@@ -116,13 +117,7 @@ evalAStatement s ifc (AVarDeclStatement _ lid td varInit) = do
     (,KindUnit) <$> runtimeScopeAddItemWithDef s
                        (lid, defaultValue, VariableDefinition td VarInitNone)
 evalAStatement s ifc (AStatementBlock _ stmts) =
-    foldM (flip evalAStatement ifc . traceRTS . fst) (s, KindUnit) stmts
-
-traceRTS :: RuntimeScope s -> RuntimeScope s
-traceRTS arg@(RuntimeScope index scope _) =
-    trace ("Index: " ++ (show $ Map.keys index))
-    trace ("Scope: " ++ (show $ Map.keys $ scopeCat scope))
-    arg
+    foldM (flip evalAStatement ifc . fst) (s, KindUnit) stmts
 
 evaluateVarInit :: RuntimeScope s -> InternalFunctions -> TypeDescriptor ->
                    VariableInitializer -> KStat s Value

@@ -12,7 +12,7 @@ coreId i =  (UnqualifiedID i) `qualifiedBy` sidKind
 
 scopeDefault :: KStat s (Scope s)
 scopeDefault =
-    scopeUpdate (Scope Nothing newCatalogue)
+    (Scope Nothing <$> newCatalogue)
            |++| (sidInt, sidKindInt, InternalTypeDefinition)
            |++| (sidString, sidKindString, InternalTypeDefinition)
            |++| (UnqualifiedID "(+)", coreId "(+)", InternalObject fnIntIntInt)

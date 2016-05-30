@@ -1,6 +1,8 @@
 module TypeTests.Catalogue(catalogueTypeTests) where
 
-import qualified Data.Map as Map
+import qualified Data.HashTable.ST.Basic as HT
+import qualified Data.HashTable.Class as HTC
+import Data.List
 import Control.Monad.Except
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -14,43 +16,47 @@ catalogueTypeTests :: TestTree
 catalogueTypeTests =
     testGroup "Catalogue" [
         testCase "Empty catalogue is empty" $
-                 Map.size newCatalogue @?= 0,
+                 runToEither (newCatalogue >>= catFlatten) @?= Right [],
         testCase "Add item to catalogue" $
-                 runToEither ((newCatalogue |+~| (nqid, def)) >>= (|@~| nqid)) @?=
+                 runToEither (newCatalogue >>= (|+~| (nqid, def))
+                                           >>= (|@~| nqid)) @?=
                  (Right def),
         testCase "Add qualified item to catalogue" $
-                 runToEither ((newCatalogue |+~| (qid, def)) >>= (|@~| qid)) @?=
+                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                                           >>= (|@~| qid)) @?=
                  (Right def),
         testCase "Add qualified item to catalogue in existing namespace" $
-                 runToEither ((newCatalogue |+~| (qid, def) >>=
-                                           (|+~| (qid2, def2))) >>=
-                                           (|@~| qid2)) @?=
+                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                                           >>= (|+~| (qid2, def2))
+                                           >>= (|@~| qid2)) @?=
                  (Right def2),
         testCase "Adding item to existing namespace doesn't affect other items" $
-                 runToEither ((newCatalogue |+~| (qid, def) >>=
-                                           (|+~| (qid2, def2))) >>=
-                                           (|@~| qid)) @?=
+                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                                           >>= (|+~| (qid2, def2))
+                                           >>= (|@~| qid)) @?=
                  (Right def),
         testCase "Items with multiple levels of qualification" $
-                 expectNoErrors "unexpected error"
-                 (newCatalogue
-                      |+~| (mqid, def) >>=
+                 (sortOn flatCid $ expectNoErrors "unexpected error"
+                  (newCatalogue >>=
+                     (|+~| (mqid, def)) >>=
                      (|+~| (mmqid2, def)) >>=
-                     (|+~| (mmqid, def)) >>= catFlatten) @?=
+                     (|+~| (mmqid, def)) >>= catFlatten)) @?=
                  [ (mmqid, mmqid, def), (mmqid2, mmqid2, def), (mqid, mqid, def) ],
         testCase "Flatten catalogue with only unqualified items" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue |+~| (nqid, def) >>=
-                              (|+~| (nqid2, def)) >>= catFlatten) @?=
+                 (newCatalogue >>= (|+~| (nqid, def))
+                               >>= (|+~| (nqid2, def))
+                               >>= catFlatten) @?=
                  [ (nqid, nqid, def), (nqid2, nqid2, def) ],
         testCase "Flatten catalogue with qualified items" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue |+~| (qid, def) >>=
-                              (|+~| (qid2, def)) >>= catFlatten) @?=
+                 (newCatalogue >>= (|+~| (qid, def))
+                               >>= (|+~| (qid2, def))
+                               >>= catFlatten) @?=
                  [ (qid2, qid2, def), (qid, qid, def) ], -- qid2 < qid
         testCase "Add item with canonical id different to resolvable id" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue |++~| (nqid, qid, def) >>= catFlatten) @?=
+                 (newCatalogue >>= (|++~| (nqid, qid, def)) >>= catFlatten) @?=
                  [ (nqid, qid, def) ]
     ]
 

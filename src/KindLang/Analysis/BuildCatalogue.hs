@@ -22,36 +22,30 @@ type ModuleLoader s = NSID -> KStat s (Catalogue s)
 data ModuleCatalogues s = ModuleCatalogues {
       moduleCataloguePublic :: Catalogue s,
       moduleCataloguePrivate :: Catalogue s
-      } deriving (Show, Eq)
+      } deriving (Show)
 
 -- | Generates the catalogues for a module, using the specified module loader
 -- to generate catalogues for any module that is imported to the module.
 buildCatalogues :: ModuleLoader s -> Module -> KStat s (ModuleCatalogues s)
 buildCatalogues loader m = do
-    importedModuleSymbols <- importModules loader (moduleImportList m) Map.empty
+    newCat <- newCatalogue
+    importModules loader (moduleImportList m) newCat
     publicSymbols <-
            catalogueForDefinitionList qualifyStringIds $ moduleDeclarationList m
-    return $ ModuleCatalogues publicSymbols importedModuleSymbols
+    return $ ModuleCatalogues publicSymbols newCat
     where
       qualifyStringIds string =
           case moduleName m of
-            Just mid -> (UnqualifiedID string) `qualifiedBy`mid
+            Just mid -> (UnqualifiedID string) `qualifiedBy` mid
             Nothing  -> (UnqualifiedID string)
 
--- fixme this could be implemented as  a fold, but I'm too lazy to work
--- out how right now.
 -- | Loads all modules imported in a list of import statements and adds them
--- to the specified catalogue, returning the updated catalogue or an error.
+-- to the specified catalogue, returning () or an error.
 importModules :: ModuleLoader s -> [ModuleImport] -> Catalogue s ->
-                 KStat s (Catalogue s)
+                 KStat s ()
 
-importModules _ [] imported = return imported
-
-importModules loader (moduleImport:imports) imported =
-    importModule loader moduleImport >>= recurse
-    where
-      recurse importedDefinitions = importModules loader imports
-                                        (Map.union imported importedDefinitions)
+importModules loader imports target =
+    mapM_ (\ m -> importModule loader m >>= catalogueCopyTo target) imports
 
 -- | Produces the required catalogue of changes for a given module import
 -- statement.  Note that this may not be exactly the same as the module's
@@ -59,11 +53,14 @@ importModules loader (moduleImport:imports) imported =
 importModule :: ModuleLoader s -> ModuleImport -> KStat s (Catalogue s)
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
-importModule loader (QualifiedModuleImport sid True reqid) =
-     loader sid >>= makeNamespace (maybe sid id reqid)
-importModule loader (QualifiedModuleImport sid False reqid) =
-     loadItem loader sid >>=
-              makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid)
+importModule loader (QualifiedModuleImport sid True reqid) = do
+     cat <- loader sid
+     makeNamespace (maybe sid id reqid) cat
+     return cat
+importModule loader (QualifiedModuleImport sid False reqid) = do
+     cat <- loadItem loader sid
+     makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid) cat
+     return cat
 
 -- | load a single item from the module identified by its qualified id
 loadItem :: ModuleLoader s -> NSID -> KStat s (Catalogue s)
@@ -77,7 +74,10 @@ loadItem loader sid =
 -- | Creates a child of a given parent scope for a module whose catalogues
 -- are provided.
 makeModuleScope :: Scope s -> ModuleCatalogues s -> Scope s
-makeModuleScope p (ModuleCatalogues pub priv) = Scope (Just p) (Map.union pub priv)
+makeModuleScope p (ModuleCatalogues pub priv) = publicScope
+    where
+      publicScope  = Scope (Just privateScope) pub
+      privateScope = Scope (Just p)            priv
 
 buildScope :: ModuleLoader s -> Scope s -> Module -> KStat s (Scope s)
 buildScope ldr s m = makeModuleScope s <$> buildCatalogues ldr m
