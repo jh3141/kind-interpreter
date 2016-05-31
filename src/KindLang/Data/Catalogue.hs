@@ -26,6 +26,13 @@ data CatEntry s = CatEntry Definition |
 newCatalogue :: KStat s (Catalogue s)
 newCatalogue = liftToST HT.new
 
+-- | A catalogue containing a single item
+newCatalogueWith :: String -> NSID -> CatEntry s -> KStat s (Catalogue s)
+newCatalogueWith k cid ent = do
+    cat <- newCatalogue
+    liftToST $ HT.insert cat k (cid,ent)
+    return cat
+
 makeCatEntry :: Definition -> CatEntry s
 makeCatEntry = CatEntry
 
@@ -121,39 +128,17 @@ lookupHierarchical cat sid@(UnqualifiedID s) = do
 c |@~| i =  (lookupHierarchical c i) >>= (return . snd)
 infixl 5 |@~|
 
--- | 'makeNamespace sid cat' adds a new namespace with name 'sid' to catalogue
--- 'cat'.
-makeNamespace :: NSID -> Catalogue s -> KStat s ()
-makeNamespace sid cat =
-    recurse sid cat []
+-- | 'makeNamespace sid cat' creates a new catalogue containing an existing
+-- catalogue as a namespace.
+makeNamespace :: NSID -> Catalogue s -> KStat s (Catalogue s)
+makeNamespace sid cat = do
+    recurse sid []
     where
-      recurse sid@(UnqualifiedID s) cat qualifiers =
-          do
-            lookupResult <- liftToST $ HT.lookup cat s
-            emptyCatalogue <- newCatalogue
-            case lookupResult of
-              Nothing -> liftToST $ HT.insert cat s
-                              (s `qualifiedByStrings` reverse qualifiers,
-                               CatNamespace emptyCatalogue)
-              Just (_, CatNamespace _)
-                      -> return ()
-              Just (cid, _)
-                      -> throwError $ NotNamespace cid sid
-
-      recurse sid@(QualifiedID s s') cat qualifiers =
-          do
-            lookupResult <- liftToST $ HT.lookup cat s
-            case lookupResult of
-              Nothing -> do
-                sub <- newCatalogue
-                recurse s' sub (s:qualifiers)
-                liftToST $
-                  HT.insert cat s (s `qualifiedByStrings` reverse qualifiers,
-                                   CatNamespace sub)
-              Just (_, CatNamespace sub)
-                      -> recurse s' sub (s:qualifiers)
-              Just (cid, _)
-                      -> throwError $ NotNamespace cid sid
+      recurse (UnqualifiedID s) qualifiers =
+          newCatalogueWith s sid (CatNamespace cat)
+      recurse (QualifiedID s s') qualifiers =
+          (CatNamespace <$> recurse s' (s:qualifiers)) >>=
+          newCatalogueWith s (s `qualifiedByStrings` qualifiers)
 
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
@@ -174,6 +159,10 @@ catFlatten cat =
 flatCid :: (NSID, NSID, Definition) -> NSID
 flatCid (_,cid,_) = cid
 
+-- | Extract the relative ID from a flattened catalogue entry
+flatRid :: (NSID, NSID, Definition) -> NSID
+flatRid (rid,_,_) = rid
+                    
 -- | Create a catalogue from a definition list, given a function that converts
 -- plain strings to qualified ids.
 catalogueForDefinitionList :: (String -> NSID) -> DefList -> KStat s (Catalogue s)
@@ -187,6 +176,6 @@ catalogueForDefinitionList makeNsid definitions =
       identifyEntry (rid, def) = (rid, (rid, def))
 
 catalogueCopyTo :: Catalogue s -> Catalogue s -> KStat s ()
-catalogueCopyTo src dst = liftToST $ HTC.mapM_ copyToDst src
+catalogueCopyTo dst src = liftToST $ HTC.mapM_ copyToDst src
     where
       copyToDst (k,v) = HT.insert dst k v

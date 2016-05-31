@@ -1,5 +1,6 @@
 module KindLang.Analysis.BuildCatalogue where
 
+import Debug.Trace
 import Data.Maybe
 import Control.Monad.Except
 import KindLang.Data.AST
@@ -56,11 +57,11 @@ importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
 importModule loader (QualifiedModuleImport sid True reqid) = do
      cat <- loader sid
      makeNamespace (maybe sid id reqid) cat
-     return cat
+
 importModule loader (QualifiedModuleImport sid False reqid) = do
      cat <- loadItem loader sid
      makeNamespace (maybe (fromJust $ qualifierOf sid) id reqid) cat
-     return cat
+
 
 -- | load a single item from the module identified by its qualified id
 loadItem :: ModuleLoader s -> NSID -> KStat s (Catalogue s)

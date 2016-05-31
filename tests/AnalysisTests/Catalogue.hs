@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module AnalysisTests.Catalogue (catalogueTests) where
 
+import Debug.Trace
 import Control.Monad.Except
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -17,22 +18,31 @@ nullLoader :: ModuleLoader s
 nullLoader sid = throwError $ InvalidImport sid "Could not find module"
 
 buildAndLookupM :: ModuleLoader s -> Module -> Visibility -> NSID ->
-                   KStat s IdentDefinition
-buildAndLookupM l m v s = do
+                   Bool -> KStat s IdentDefinition
+buildAndLookupM l m v s errMode = do
     cats <- buildCatalogues l m
     cat <- catalogueForVisibility v cats
-    lookupHierarchical cat s
+    catchError
+      (lookupHierarchical cat s)
+      (optionallyAnnotateError errMode cat)
+    where
+      optionallyAnnotateError True cat e = do
+         flattened <- catFlatten cat
+         throwError $ InternalError $
+                        (show e ++ " -- " ++ show s
+                                ++ " -- " ++ show (flatRid <$> flattened))
+      optionallyAnnotateError False _ e = throwError e
 
 buildAndLookup :: (forall s . ModuleLoader s) -> Module -> Visibility -> String ->
                   IdentDefinition
 buildAndLookup l m v s =
-    case buildAndLookupNS l m v (UnqualifiedID s) of
+    case buildAndLookupNS l m v (UnqualifiedID s) True of
          Left err -> error $ "Unexpected error " ++ show err
          Right def -> def
 
 buildAndLookupNS :: (forall s . ModuleLoader s) -> Module -> Visibility -> NSID ->
-                    Either KindError IdentDefinition
-buildAndLookupNS l m v s = runToEither $ buildAndLookupM l m v s
+                    Bool -> Either KindError IdentDefinition
+buildAndLookupNS l m v s errMode = runToEither $ buildAndLookupM l m v s errMode
 
 catalogueForVisibility :: Visibility -> ModuleCatalogues s -> KStat s (Catalogue s)
 catalogueForVisibility Public c = return $ moduleCataloguePublic c
@@ -104,25 +114,25 @@ catalogueTests =
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedImports
-                    Private myClassSID) @?=
+                    Private myClassSID True) @?=
                  Right (myClassSID, ClassDefinition []),
         testCase "Import qualified with renaming" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithRenamedImports
-                    Private (QualifiedID "I" $ UnqualifiedID "MyClass"))
+                    Private (QualifiedID "I" $ UnqualifiedID "MyClass") True)
                  @?= Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports includes requested item" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedFilteredImports
-                    Private myClassSID) @?=
+                    Private myClassSID True) @?=
                  Right (myClassSID, ClassDefinition []),
         testCase "Qualified filtered imports excludes unrequested item" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedFilteredImports
-                    Private myOtherClassSID) @?=
+                    Private myOtherClassSID False) @?=
                  Left (IdentifierNotFound myOtherClassSID)
     ]
 
