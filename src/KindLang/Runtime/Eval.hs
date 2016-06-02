@@ -77,13 +77,19 @@ evalAExpr _ _ expr = throwError $ InternalError ("attempted to evaluate unimplem
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
-definitionToValue :: RuntimeScope s -> ExprAnnotation -> Definition -> KStat s Value
-definitionToValue _ _ (FunctionDefinition insts) = return $ makeKindFunctionRef insts
-definitionToValue s ea (VariableDefinition _ _) = do
+-- | A scope lookup may return either a definition or a value.  If we always
+-- want a value, we can convert the definition to a value using this function.
+definitionToValue :: RuntimeScope s -> ExprAnnotation -> DefinitionOrValue ->
+                     KStat s Value
+definitionToValue _ _ (Left (FunctionDefinition insts)) =
+    return $ makeKindFunctionRef insts
+definitionToValue s ea (Left (VariableDefinition _ _)) = do
+    -- fixme should we lazy-initialize at this point?
     canonicalID <- errorIfNothing (exprAnnotationCanonicalID ea)
                                   (InternalError requiredCanonicalID)
     stref <- rtsLookupRef s canonicalID
     kstatReadRef stref
+definitionToValue _ _ (Right (_,v)) = return v  -- was already a value
 
 applyFunction :: RuntimeScope s -> InternalFunctions -> [FunctionInstance] -> [Value] ->
                  KStat s Value

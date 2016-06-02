@@ -159,23 +159,26 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 -- refers to the object defined with the definition.  The definition
 -- must be fully resolved and must refer to an object that has a
 -- referencable value.  Returns an annotation or an error on failure.
-identDefToExprAnnotation :: IdentDefinition -> KStat s ExprAnnotation
-identDefToExprAnnotation (cid, VariableDefinition (Reference t) x) =
-    identDefToExprAnnotation (cid, VariableDefinition t x)
-identDefToExprAnnotation (cid, VariableDefinition rt@(ResolvedType _ _ _) _) =
+identDefToExprAnnotation :: (NSID,DefinitionOrValue) -> KStat s ExprAnnotation
+identDefToExprAnnotation (cid, Left (VariableDefinition (Reference t) x)) =
+    identDefToExprAnnotation (cid, Left $ VariableDefinition t x)
+identDefToExprAnnotation (cid, Left (VariableDefinition rt@(ResolvedType _ _ _)
+                                                        _)) =
     return $ crefAnnotation cid (Reference rt)
-identDefToExprAnnotation (cid, VariableDefinition rt _) =
+identDefToExprAnnotation (cid, Left (VariableDefinition rt _)) =
     throwError $ InternalError (nsidString cid ++ " is not resolved (" ++
                                          show rt ++")")
-identDefToExprAnnotation (cid, FunctionDefinition []) =
+identDefToExprAnnotation (cid, Left (FunctionDefinition [])) =
     throwError $ InternalError (nsidString cid ++ " contains no instances")
-identDefToExprAnnotation (cid, FunctionDefinition (fnInstance:[])) =
+identDefToExprAnnotation (cid, Left (FunctionDefinition (fnInstance:[]))) =
     return $ crefAnnotation cid (fnInstanceType fnInstance)
-identDefToExprAnnotation (_, FunctionDefinition _) =
+identDefToExprAnnotation (_, Left (FunctionDefinition _)) =
     error "overloaded functions not implemented"
-identDefToExprAnnotation (cid, def) =
+identDefToExprAnnotation (cid, Left def) =
     throwError $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
+identDefToExprAnnotation (cid, Right (td,_)) =
+    return $ crefAnnotation cid td  -- FIXME is this right?
 
 -- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
@@ -189,7 +192,7 @@ resolveTypeRef _ (ResolvedType _ cid (ClassDefinition members))
     case find ((== memberId) . classMemberName) members of
       Nothing -> throwError $ IdentifierNotFound $ fqid
       Just (ClassMember _ Public def) -> do
-          (ExprAnnotation rt _) <- identDefToExprAnnotation (fqid, def)
+          (ExprAnnotation rt _) <- identDefToExprAnnotation (fqid, Left def)
           return (fqid, rt)
       Just (ClassMember _ access _) -> throwError $ AccessViolation fqid access
     where

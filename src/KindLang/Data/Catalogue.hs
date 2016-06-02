@@ -8,19 +8,25 @@ import qualified Data.HashTable.Class as HTC
 import Control.Monad.Except
 import Control.Monad.ST
 import Control.Arrow
+import Data.STRef
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
 import KindLang.Data.KStat
+import KindLang.Data.Value
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 
 -- | The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "catalogue entry".
 type Catalogue s = HT.HashTable s String (NSID, CatEntry s)
 
+-- | An encapsulation of what information can be stored about an identifier
+-- in a catalogue, i.e. either a definition or its type and value.
+type DefinitionOrValue = Either Definition (TypeDescriptor,Value)
+
 data CatEntry s = CatEntry Definition |
+                  CatEntryR TypeDescriptor (STRef s Value) |
                   CatNamespace (Catalogue s)
-                  deriving (Show)
 
 -- | An empty catalogue.
 newCatalogue :: KStat s (Catalogue s)
@@ -36,6 +42,9 @@ newCatalogueWith k cid ent = do
 makeCatEntry :: Definition -> CatEntry s
 makeCatEntry = CatEntry
 
+makeCatEntryR :: TypeDescriptor -> Value -> KStat s (CatEntry s)
+makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
+
 -- | @catAdd c rid cid def@ adds a new item for definition @def@ with the
 -- resolvable id @rid@ and canonical id @cid@ to a catalogue @c@, creating
 -- new namespaces as necessary, and returning the updated catalogue.
@@ -43,9 +52,9 @@ makeCatEntry = CatEntry
 -- May throw a NotNamespace error if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition.
 catAdd :: forall s .
-          Catalogue s -> NSID -> NSID -> Definition -> KStat s (Catalogue s)
+          Catalogue s -> NSID -> NSID -> Definition -> KStat s ()
 catAdd cat rid cid def =
-    updateCat cat rid [] >> return cat
+    updateCat cat rid []
     where
       updateCat :: Catalogue s -> NSID -> [String] -> KStat s ()
       -- we've found the correct namespace to insert in
@@ -68,17 +77,17 @@ catAdd cat rid cid def =
 
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
--- Binds more tightly than |@~|.
+-- Binds more tightly than |@~|.  Returns @cat@ for convience of chaining.
 (|+~|) :: Catalogue s -> (NSID, Definition) -> KStat s (Catalogue s)
-c |+~| (sid,def) = catAdd c sid sid def
+c |+~| (sid,def) = catAdd c sid sid def >> return c
 infixl 6 |+~|
 
 -- | An operator for invoking 'catAdd' with different resolvable and canonical
 -- ids. @cat |++~| (rid,cid,def)@ adds resolvable identifier @rid@ for
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
--- level as |+~|.
+-- level as |+~|.  Returns @cat@ for convienence of chaining.
 (|++~|) :: Catalogue s -> (NSID, NSID, Definition) -> KStat s (Catalogue s)
-c |++~| (rid, cid, def) = catAdd c rid cid def
+c |++~| (rid, cid, def) = catAdd c rid cid def >> return c
 infixl 6 |++~|
 
 -- | Filter a catalogue to contain only the items specified in a list
@@ -92,6 +101,9 @@ infixl 6 |++~|
 -- also consider what existing typeclasses could be used instead of
 -- a list of strings, in order to allow for the caller to decide what
 -- is the most appropriate structure for them.
+--
+-- Creates a copy of the catalogue, rather than working on an existing
+-- one.
 catalogueWithOnly :: Catalogue s -> [String] -> KStat s (Catalogue s)
 catalogueWithOnly cat identifiers = do
     newCat <- newCatalogue
@@ -105,7 +117,7 @@ catalogueWithOnly cat identifiers = do
 -- | Look up an identifier in a catalogue, returning a tuple of the the
 -- canonical identifier and definition for the item found, or an error
 -- otherwise.
-lookupHierarchical :: Catalogue s -> NSID -> KStat s IdentDefinition
+lookupHierarchical :: Catalogue s -> NSID -> KStat s (NSID, DefinitionOrValue)
 lookupHierarchical cat sid@(QualifiedID s s') = do
     lookupResult <- liftToST $ HT.lookup cat s
     case lookupResult of
@@ -117,14 +129,17 @@ lookupHierarchical cat sid@(QualifiedID s s') = do
 lookupHierarchical cat sid@(UnqualifiedID s) = do
     lookupResult <- liftToST $ HT.lookup cat s
     case lookupResult of
-      Nothing                    -> throwError $ IdentifierNotFound sid 
-      Just (cid, CatEntry def)   -> return (cid, def)
-      Just (cid, CatNamespace _) -> throwError $ IsNamespace cid
+      Nothing                     -> throwError $ IdentifierNotFound sid 
+      Just (cid, CatEntry def)    -> return (cid, Left def)
+      Just (cid, CatEntryR td vr) -> do
+                                        v <- liftToST $ readSTRef vr
+                                        return (cid, Right (td, v))
+      Just (cid, CatNamespace _)  -> throwError $ IsNamespace cid
 
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@~|) :: Catalogue s -> NSID -> KStat s Definition
+(|@~|) :: Catalogue s -> NSID -> KStat s DefinitionOrValue
 c |@~| i =  (lookupHierarchical c i) >>= (return . snd)
 infixl 5 |@~|
 
@@ -142,27 +157,30 @@ makeNamespace sid cat = do
 
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
--- and its definition.
-catFlatten :: forall s . Catalogue s -> KStat s [(NSID,NSID,Definition)]
+-- and its definition.  Useful for debugging/testing.
+catFlatten :: forall s . Catalogue s -> KStat s [(NSID,NSID,DefinitionOrValue)]
 catFlatten cat =
     liftToST $ HT.foldM (processItem []) [] cat
     where
-      processItem :: [String] -> [(NSID,NSID,Definition)] ->
+      processItem :: [String] -> [(NSID,NSID,DefinitionOrValue)] ->
                      (String, (NSID, CatEntry s)) ->
-                     ST s [(NSID,NSID,Definition)]
+                     ST s [(NSID,NSID,DefinitionOrValue)]
       processItem q accum (k, (i, CatNamespace cat')) =
           HT.foldM (processItem (k:q)) accum cat'
       processItem q accum (k, (i, CatEntry d)) =
-          return $ (k `qualifiedByStrings` reverse q, i, d) : accum
+          return $ (k `qualifiedByStrings` reverse q, i, Left d) : accum
+      processItem q accum (k, (i, CatEntryR td vr)) = do
+          v <- readSTRef vr
+          return $ (k `qualifiedByStrings` reverse q, i, Right (td, v)) : accum
 
 -- | Extract the canonical ID from a flattened catalogue entry
-flatCid :: (NSID, NSID, Definition) -> NSID
+flatCid :: (NSID, NSID, a) -> NSID
 flatCid (_,cid,_) = cid
 
 -- | Extract the relative ID from a flattened catalogue entry
-flatRid :: (NSID, NSID, Definition) -> NSID
+flatRid :: (NSID, NSID, a) -> NSID
 flatRid (rid,_,_) = rid
-                    
+
 -- | Create a catalogue from a definition list, given a function that converts
 -- plain strings to qualified ids.
 catalogueForDefinitionList :: (String -> NSID) -> DefList -> KStat s (Catalogue s)

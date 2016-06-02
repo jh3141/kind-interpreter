@@ -1,5 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module KindLang.Data.Scope where
+module KindLang.Data.Scope
+    (module KindLang.Data.Scope,
+     DefinitionOrValue)          -- reexported from Catalogue
+    where
 
 import Control.Monad.Except
 import KindLang.Data.BasicTypes
@@ -9,13 +12,13 @@ import KindLang.Data.Error
 import KindLang.Data.KStat
 import KindLang.Data.Types
 
--- | Scope associates names with definitions.  It is a nested structure (a scope
--- may have a parent scope, and if it does the definitions in that scope are
--- considered included in the child scope, except where a new definition with
--- the same name is present).
+-- | Scope associates names with types and values.  It is a nested structure
+-- (a scope may have a parent scope, and if it does the definitions in that
+-- scope are considered included in the child scope, except where a new
+-- definition with the same name is present).
 --
--- Scopes are intended to use inside an ST monad execution thread, so receive an
--- 'stt' type to identify the thread (i.e. if using "KStat s n", the scope's
+-- Scopes are intended for use inside an ST monad execution thread, so receive
+-- an 'stt' type to identify the thread (i.e. if using "KStat s n", the scope's
 -- parameter should be "s").
 data Scope stt =
     Scope
@@ -26,8 +29,8 @@ data Scope stt =
     deriving (Show)
 
 -- | Look up an identifier in a scope, returning its canonical id and
--- definition, or an error otherwise.
-scopeLookup :: Scope s -> NSID -> KStat s IdentDefinition
+-- either definition or type and value, or an error otherwise.
+scopeLookup :: Scope s -> NSID -> KStat s (NSID, DefinitionOrValue)
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
                (deferToParent s)
@@ -87,17 +90,21 @@ resolveTypeKS kss sid = kss >>= (flip resolveType) sid
 
 -- | Creates a resolved type descriptor refering to an identified type
 -- definition (e.g. a definition returned by 'scopeLookup').
-makeResolvedType :: NSID -> IdentDefinition -> TypeDescriptor
-makeResolvedType sid (cid, def) = ResolvedType sid cid def
+makeResolvedType :: NSID -> (NSID, DefinitionOrValue) -> TypeDescriptor
+makeResolvedType sid (cid, Left def) = ResolvedType sid cid def
+makeResolvedType _ (_, Right _) =
+    error "makeResolvedType should handle values as well as definitions"
+-- FIXME what do we do when values are returned?  we're not after the type
+-- descriptor of the value (which may, for instance, be a metaclass), but the
+-- type descriptor for the value itself.
 
 -- FIXME this has been removed from Types.hs in order to remove the dependency
 -- from there to this module, but some of its logic clearly belongs there.
 -- consider splitting it so the relevant parts can exist there.
 -- | Look up a type and provide a canonical id for it
 typeLookup :: Scope s -> TypeDescriptor -> KStat s TypeDescriptor
-typeLookup s (SimpleType sid) = do
-    (cid, def) <- scopeLookup s sid
-    return (ResolvedType sid cid def)
+typeLookup s (SimpleType sid) =
+    makeResolvedType sid <$> scopeLookup s sid
 typeLookup _ rt@(ResolvedType _ _ _) = return rt
 typeLookup s (FunctionType parameters rtype) = do
     rparameters <- mapM (typeLookup s) parameters
