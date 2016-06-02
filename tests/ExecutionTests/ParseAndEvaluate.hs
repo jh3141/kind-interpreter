@@ -53,7 +53,7 @@ runTest filename expected =
           resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
           -- traceShowM resolvedBootstrap
 
-          evalAExpr (newRuntimeScope moduleScope)
+          evalAExpr moduleScope
                     standardInternalFunctions
                     resolvedBootstrap
       assertEqual "Returned value" expected value

@@ -51,15 +51,18 @@ makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
 --
 -- May throw a NotNamespace error if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition.
-catAdd :: forall s .
-          Catalogue s -> NSID -> NSID -> Definition -> KStat s ()
-catAdd cat rid cid def =
+catAdd :: Catalogue s -> NSID -> NSID -> Definition -> KStat s ()
+catAdd cat rid cid def = catAddEntry cat rid (cid,makeCatEntry def)
+
+catAddEntry :: forall s .
+               Catalogue s -> NSID -> (NSID, CatEntry s) -> KStat s ()
+catAddEntry cat rid ent =
     updateCat cat rid []
     where
       updateCat :: Catalogue s -> NSID -> [String] -> KStat s ()
       -- we've found the correct namespace to insert in
       updateCat c (UnqualifiedID s) _ =
-          liftToST $ HT.insert c s (cid,makeCatEntry def)
+          liftToST $ HT.insert c s ent
       -- insert into existing or new namespace under current namespace
       updateCat c (QualifiedID s s') qualifiers = do
           lookupResult <- liftToST $ HT.lookup c s
@@ -74,6 +77,15 @@ catAdd cat rid cid def =
                                liftToST $
                                  HT.insert c s (s `qualifiedByStrings` qualifiers,
                                                 CatNamespace newNsCat)
+
+-- | Update an existing entry, or fail with an IdentifierNotFound error.
+catUpdateEntry :: Catalogue s -> NSID -> CatEntry s -> KStat s ()
+catUpdateEntry cat rid ent = do
+    found <- findEntry cat rid
+    case found of
+      Nothing       -> throwError $ IdentifierNotFound rid
+      Just (cid, _) -> catAddEntry cat rid (cid,ent)
+-- FIXME above function scans the catalogue twice.  We can avoid this.
 
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
@@ -118,23 +130,30 @@ catalogueWithOnly cat identifiers = do
 -- canonical identifier and definition for the item found, or an error
 -- otherwise.
 lookupHierarchical :: Catalogue s -> NSID -> KStat s (NSID, DefinitionOrValue)
-lookupHierarchical cat sid@(QualifiedID s s') = do
-    lookupResult <- liftToST $ HT.lookup cat s
-    case lookupResult of
-      Nothing -> throwError $ IdentifierNotFound sid
-      Just (_, CatNamespace cat2) ->
-          catchError (lookupHierarchical cat2 s')
-                     (throwError . replaceErrorIdentifier sid)
-      Just (gsid, _) -> throwError $ NotNamespace gsid s'
-lookupHierarchical cat sid@(UnqualifiedID s) = do
-    lookupResult <- liftToST $ HT.lookup cat s
-    case lookupResult of
+lookupHierarchical cat sid = do
+    ent <- findEntry cat sid
+    case ent of
       Nothing                     -> throwError $ IdentifierNotFound sid 
       Just (cid, CatEntry def)    -> return (cid, Left def)
       Just (cid, CatEntryR td vr) -> do
                                         v <- liftToST $ readSTRef vr
                                         return (cid, Right (td, v))
       Just (cid, CatNamespace _)  -> throwError $ IsNamespace cid
+
+-- | Look up an identifier in a catalogue, returning its canonical
+-- id and entry details, or Nothing.  May throw an error if an identifier
+-- is expected to resolve to a namespace but instead resolves to a different
+-- object type.
+findEntry :: Catalogue s -> NSID -> KStat s (Maybe (NSID, CatEntry s))
+findEntry cat sid@(QualifiedID s s') =  do
+    lookupResult <- liftToST $ HT.lookup cat s
+    case lookupResult of
+      Nothing -> return Nothing
+      Just (_, CatNamespace cat2) ->
+          catchError (findEntry cat2 s')
+                     (throwError . replaceErrorIdentifier sid)
+      Just (gsid, _) -> throwError $ NotNamespace gsid s'
+findEntry cat sid@(UnqualifiedID s) = liftToST $ HT.lookup cat s
 
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than

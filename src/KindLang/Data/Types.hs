@@ -72,3 +72,11 @@ getAlternativeTypes t = [t]
 
 prependAlternatives :: [a] -> [a] -> [[a]]
 prependAlternatives x l = map (\z -> z : l) x
+
+definitionToType :: Definition -> TypeDescriptor
+definitionToType (ClassDefinition members) = undefined -- FIXME metaclass!
+definitionToType (FunctionDefinition (inst:[])) = fnInstanceType inst
+definitionToType (FunctionDefinition _) = undefined    -- FIXME overloading!
+definitionToType (VariableDefinition td _) = td
+definitionToType (Namespace _) = error "Namespaces do not have types"
+definitionToType (InternalObject td) = td

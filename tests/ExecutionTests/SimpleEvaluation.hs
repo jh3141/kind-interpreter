@@ -19,7 +19,7 @@ import KindLang.Data.KStat
 execTest :: (forall s . KStat s (Scope s)) -> Expr -> Value
 execTest s ex = execTestWithData s [] ex
 
-execTestWithData :: (forall s . KStat s (Scope s)) -> [(NSID,Value)] -> Expr -> Value
+execTestWithData :: (forall s . KStat s (Scope s)) -> [(NSID,TypeDescriptor,Value)] -> Expr -> Value
 execTestWithData s v ex =
     either
       (\e -> error (show e)) -- if there's an error
@@ -27,8 +27,8 @@ execTestWithData s v ex =
       (runToEither $ do
                          s' <- s
                          f <- resolveExpr s' ex
-                         rts <- runtimeScopeAddItems (newRuntimeScope s') v
-                         evalAExpr rts ifc f)
+                         scopeAddItems s' v
+                         evalAExpr s' ifc f)
 
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
@@ -44,7 +44,9 @@ simpleEvaluationTests =
                      FunctionApplication (VarRef idRet43) []))
                   @?= 43) :
         (testCase "Evaluate variable reference" $
-                  (getKindInt (execTestWithData testScope [(idVar1, makeKindInt 99)] $
+                  (getKindInt (execTestWithData
+                                testScope
+                                [(idVar1, rtKindInt, makeKindInt 99)] $
                      VarRef idVar1))
                   @?= 99) :
         (testCase "Evaluate function with arguments" $
@@ -54,8 +56,8 @@ simpleEvaluationTests =
                   @?= 86) :
         (testCase "Variable definition statement" $
                   (runToEither $ do
-                    newScope <- newRuntimeScope <$> scopeDefault
-                    (s, _) <- evalAStatement
+                    newScope <- scopeDefault
+                    evalAStatement
                                 newScope
                                 ifc
                                 (AVarDeclStatement
@@ -63,7 +65,7 @@ simpleEvaluationTests =
                                                  [("d",VariableDefinition
                                                          rtKindInt VarInitNone)] [])
                                  "d" rtKindInt VarInitNone)
-                    ref <- rtsLookupRef s (UnqualifiedID "d")
+                    ref <- scopeLookupRef newScope (UnqualifiedID "d") undefined
                     return ()) @?= Right ()) :
         [])
 

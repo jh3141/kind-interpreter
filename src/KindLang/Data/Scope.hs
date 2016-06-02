@@ -5,13 +5,15 @@ module KindLang.Data.Scope
     where
 
 import Control.Monad.Except
+import Data.STRef
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.KStat
 import KindLang.Data.Types
-
+import KindLang.Data.Value
+    
 -- | Scope associates names with types and values.  It is a nested structure
 -- (a scope may have a parent scope, and if it does the definitions in that
 -- scope are considered included in the child scope, except where a new
@@ -112,3 +114,33 @@ typeLookup s (FunctionType parameters rtype) = do
     return $ FunctionType rparameters rrtype
 typeLookup _ InferableType = return InferableType
 -- FIXME other type descriptor constructors must be included here!
+
+scopeLookupRef :: Scope s -> NSID -> ItemInitializer s -> KStat s (STRef s Value)
+scopeLookupRef sc i initializer = do
+    found <- findEntry (scopeCat sc) i
+    case found of
+      Nothing                    -> passRequestUp (scopeParent sc)
+      Just (cid, CatEntry def)   -> initializeRef initializer sc cid i def
+      Just (cid, CatEntryR _ r)  -> return r
+      Just (cid, CatNamespace _) -> throwError $ IsNamespace cid
+    where
+      passRequestUp (Just scp) = scopeLookupRef scp i initializer
+      passRequestUp Nothing    = throwError $ IdentifierNotFound i
+
+-- | Initialize a definition to a runtime variable
+initializeRef :: ItemInitializer s -> Scope s -> NSID -> NSID -> Definition ->
+                 KStat s (STRef s Value)
+initializeRef initializer sc cid i def = do
+    (td, val) <- initializer def
+    ref <- kstatNewRef val
+    catUpdateEntry (scopeCat sc) i
+                   (CatEntryR td ref)
+    return ref
+
+scopeAddItems :: Scope s -> [(NSID,TypeDescriptor,Value)] -> KStat s ()
+scopeAddItems scope values = mapM_ (scopeAddItem scope) values
+
+scopeAddItem :: Scope s -> (NSID,TypeDescriptor,Value) -> KStat s ()
+scopeAddItem sc (sid,td,val) = do
+    ref <- kstatNewRef val
+    catAddEntry (scopeCat sc) sid (sid, CatEntryR td ref)
