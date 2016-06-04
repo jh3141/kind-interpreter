@@ -128,3 +128,23 @@ initializeItem :: Scope s -> InternalFunctions -> Definition ->
 initializeItem s ifc (VariableDefinition td varInit) =
     (td,) <$> evaluateVarInit s ifc td varInit
 -- fixme what about other definition types?
+
+-- | Force definition of a variable/constant for any appropriate items in
+-- the given scope that are currently stored as definitions
+instantiateScopeDefinitions :: Scope s -> KStat s ()
+instantiateScopeDefinitions sc =
+    scopeItems sc >>= mapM_ (instantiateDefinition sc)
+
+instantiateDefinition :: Scope s -> (NSID, NSID, DefinitionOrValue) ->
+                         KStat s ()
+instantiateDefinition s (rid, cid, Left def) =
+    case makeDefinitionValue def of
+      Nothing  -> return ()
+      Just val -> initializeRef (return . const val) s rid cid def >> return ()
+instantiateDefinition s (rid, nsid, _) = return ()
+
+makeDefinitionValue :: Definition -> Maybe (TypeDescriptor,Value)
+makeDefinitionValue (FunctionDefinition (inst:[])) =
+    Just (fnInstanceType inst, makeKindFunctionRef [inst]) -- fixme overloads
+makeDefinitionValue (ClassDefinition members) = Nothing
+makeDefinitionValue _ = Nothing

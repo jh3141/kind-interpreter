@@ -47,6 +47,7 @@ runTest filename expected =
           -- traceShowM resolvedModule
 
           moduleScope <- buildScope nullModuleLoader scope resolvedModule
+                                    instantiateScopeDefinitions
 
           -- traceShowM moduleScope
 
@@ -68,4 +69,4 @@ parseAndEvaluateTests =
                   (makeTest "explicit_types" $ makeKindInt 42) :
                   (makeTest "variables" $ makeKindInt 42) :
                   (makeTest "functions_and_operators" $ makeKindInt 42) :
-                  []
+                  (makeTest "functions2" $ makeKindInt 42) :                  []

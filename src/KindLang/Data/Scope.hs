@@ -144,3 +144,6 @@ scopeAddItem :: Scope s -> (NSID,TypeDescriptor,Value) -> KStat s ()
 scopeAddItem sc (sid,td,val) = do
     ref <- kstatNewRef val
     catAddEntry (scopeCat sc) sid (sid, CatEntryR td ref)
+
+scopeItems :: Scope s -> KStat s [(NSID, NSID, DefinitionOrValue)]
+scopeItems sc = catFlatten $ scopeCat sc

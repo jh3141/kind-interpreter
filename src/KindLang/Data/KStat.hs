@@ -68,3 +68,6 @@ kstatFindModule sid = do
     case Map.lookup sid loadedModules of
       Nothing -> return Nothing
       Just mRef -> Just <$> kstatReadRef mRef
+
+nop :: Monad m => a -> m ()
+nop _ = return ()

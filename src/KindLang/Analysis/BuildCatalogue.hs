@@ -73,15 +73,26 @@ loadItem loader sid =
       Nothing   -> throwError $ InvalidImport sid filterRequiresIdentifier
 
 -- | Creates a child of a given parent scope for a module whose catalogues
--- are provided.
-makeModuleScope :: Scope s -> ModuleCatalogues s -> Scope s
-makeModuleScope p (ModuleCatalogues pub priv) = publicScope
+-- are provided, running the specified preprocessing function on the
+-- new scope(s)
+makeModuleScope :: Scope s -> (Scope s -> KStat s a) -> ModuleCatalogues s -> 
+                   KStat s (Scope s)
+makeModuleScope p process (ModuleCatalogues pub priv) =
+    do
+      process privateScope
+      process publicScope
+      return publicScope
     where
       publicScope  = Scope (Just privateScope) pub
       privateScope = Scope (Just p)            priv
 
-buildScope :: ModuleLoader s -> Scope s -> Module -> KStat s (Scope s)
-buildScope ldr s m = makeModuleScope s <$> buildCatalogues ldr m
+-- | Creates public and private scopes for the specified module,
+-- and runs the specified preprocessing function on them, discarding any
+-- result.
+buildScope :: ModuleLoader s -> Scope s -> Module ->
+              (Scope s -> KStat s a) -> KStat s (Scope s)
+buildScope ldr s m pre = buildCatalogues ldr m >>=
+                         makeModuleScope s pre
 
 -- | A module loader implementation that fails if any module is requested
 nullModuleLoader :: NSID -> KStat s (Catalogue s)

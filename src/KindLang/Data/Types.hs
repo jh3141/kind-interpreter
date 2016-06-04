@@ -80,3 +80,8 @@ definitionToType (FunctionDefinition _) = undefined    -- FIXME overloading!
 definitionToType (VariableDefinition td _) = td
 definitionToType (Namespace _) = error "Namespaces do not have types"
 definitionToType (InternalObject td) = td
+
+typeResolved :: TypeDescriptor -> Bool
+typeResolved (SimpleType _) = False
+typeResolved (Reference td) = typeResolved td
+typeResolved _              = True

@@ -24,7 +24,7 @@ import KindLang.Lib.Operators
 resolveModule :: Module -> Scope s -> ModuleLoader s -> KStat s Module
 resolveModule (Module name imports deflist) s ldr = do
     typeResolved <- resolveDefListTypes s deflist
-    moduleScope <- buildScope ldr s (Module name imports typeResolved)
+    moduleScope <- buildScope ldr s (Module name imports typeResolved) nop
     fullyResolved <- resolveFunctionInstances moduleScope typeResolved
     return $ Module name imports fullyResolved
 
@@ -162,12 +162,11 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 identDefToExprAnnotation :: (NSID,DefinitionOrValue) -> KStat s ExprAnnotation
 identDefToExprAnnotation (cid, Left (VariableDefinition (Reference t) x)) =
     identDefToExprAnnotation (cid, Left $ VariableDefinition t x)
-identDefToExprAnnotation (cid, Left (VariableDefinition rt@(ResolvedType _ _ _)
-                                                        _)) =
-    return $ crefAnnotation cid (Reference rt)
-identDefToExprAnnotation (cid, Left (VariableDefinition rt _)) =
-    throwError $ InternalError (nsidString cid ++ " is not resolved (" ++
-                                         show rt ++")")
+identDefToExprAnnotation (cid, Left (VariableDefinition rt _))
+        | typeResolved rt = return $ crefAnnotation cid (Reference rt)
+        | otherwise       = throwError $ InternalError
+                            (nsidString cid ++ " is not resolved (" ++
+                                        show rt ++")")
 identDefToExprAnnotation (cid, Left (FunctionDefinition [])) =
     throwError $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, Left (FunctionDefinition (fnInstance:[]))) =
@@ -230,6 +229,8 @@ makeFunctionCallAnnotation (ForAllTypes tlist _
       errorWhen (length unresolvedVars > 0)
                 (TypeKindError ftype' "function without type variables")
       makeFunctionCallAnnotation ftype' actual
+makeFunctionCallAnnotation (Reference td) actual =
+    makeFunctionCallAnnotation td actual
 makeFunctionCallAnnotation ftype actual =
     throwError $ TypeMismatch ftype (FunctionType actual InferableType)
                               "not a function"
