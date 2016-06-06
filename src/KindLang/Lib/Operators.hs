@@ -10,7 +10,7 @@ import KindLang.Data.Error
 import KindLang.Data.Value
 import KindLang.Data.KStat
 import KindLang.Lib.CoreTypes
-import KindLang.Runtime.Eval  -- fixme shouldn't need this!
+import KindLang.Lib.InternalFunctions
     
 findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KStat s AExpr
 findBinaryOperator "+" t1 t2 =

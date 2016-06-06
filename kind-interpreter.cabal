@@ -41,6 +41,7 @@ library
                     KindLang.Analysis.BuildCatalogue
                     KindLang.Lib.CoreTypes
                     KindLang.Lib.Operators
+                    KindLang.Lib.InternalFunctions
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
                     KindLang.Runtime.Eval

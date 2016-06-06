@@ -71,7 +71,8 @@ data Expr =
      BinOp String Expr Expr |
      PrefixOp String Expr |
      FunctionApplication Expr [Expr] |
-     OMethod Expr NSID [Expr]
+     OMethod Expr NSID [Expr] |
+     InternalRef TypeDescriptor NSID
      deriving (Show, Eq)
 
 data AExpr =
@@ -83,7 +84,6 @@ data AExpr =
      -- type annotation so do not appear here.
      AFunctionApplication ExprAnnotation AExpr [AExpr] |
      AOMethod ExprAnnotation AExpr TypeDescriptor NSID [AExpr] |
-     -- internal references generated during resolution, e.g. internal functions
      AInternalRef ExprAnnotation NSID
      deriving (Show, Eq)
 
@@ -128,8 +128,7 @@ maybeOrInferable = fromMaybe InferableType
 fnDefInstances :: Definition -> [FunctionInstance]
 fnDefInstances (FunctionDefinition i) = i
 fnDefInstances _ = []
-                   
-                                 
+
 definitionTypeName :: Definition -> String
 definitionTypeName (ClassDefinition _) = "class"
 definitionTypeName (FunctionDefinition _) = "function"
@@ -137,19 +136,19 @@ definitionTypeName (VariableDefinition _ _) = "variable"
 definitionTypeName (Namespace _) = "namespace"
 definitionTypeName (InternalTypeDefinition) = "internal-type"
 definitionTypeName (InternalObject _) = "internal-object"
-                                      
+
 aexprAnnotation :: AExpr -> ExprAnnotation
 aexprAnnotation (AIntLiteral a _) = a
 aexprAnnotation (AStringLiteral a _) = a
 aexprAnnotation (AVarRef a _) = a
-aexprAnnotation (AORef a _ _) = a                      
+aexprAnnotation (AORef a _ _) = a
 aexprAnnotation (AFunctionApplication a _ _) = a
 aexprAnnotation (AOMethod a _ _ _ _) = a
 aexprAnnotation (AInternalRef a _) = a
-                                     
+
 exprAnnotationType :: ExprAnnotation -> TypeDescriptor
 exprAnnotationType (ExprAnnotation t _) = t
-                                                
+
 aexprType :: AExpr -> TypeDescriptor
 aexprType = exprAnnotationType . aexprAnnotation
 
@@ -158,7 +157,7 @@ exprAnnotationCanonicalID (ExprAnnotation _ a) =
     case lookup "CanonicalID" a of
       Just (EADId sid) -> Just sid
       _                -> Nothing
-                         
+
 classMemberName :: ClassMember -> String
 classMemberName (ClassMember name _ _) = name
 
@@ -188,17 +187,17 @@ nullStatement :: Statement
 nullStatement = StatementBlock []
 nullAStatement :: AStatement
 nullAStatement = AStatementBlock (StmtAnnotation Nothing [] []) []
-                 
+
 fnInstanceBody :: FunctionInstance -> Either Statement AStatement
 fnInstanceBody (FunctionInstance _ _ b) = Left b
 fnInstanceBody (AFunctionInstance _ _ ab) = Right ab
 fnInstanceBody (InternalFunction _ _) = Right $ nullAStatement
-                                        
+
 fnInstanceType :: FunctionInstance -> TypeDescriptor
 fnInstanceType (FunctionInstance td _ _) = td
 fnInstanceType (AFunctionInstance td _ _) = td
 fnInstanceType (InternalFunction td _) = td
-                                         
+
 fnInstanceArgs :: FunctionInstance -> [String]
 fnInstanceArgs (FunctionInstance _ a _) = a
 fnInstanceArgs (AFunctionInstance _ a _) = a
@@ -212,5 +211,32 @@ functionTypeArgs :: TypeDescriptor -> [TypeDescriptor]
 functionTypeArgs (FunctionType r _) = r
 functionTypeArgs _ = []
 
+stripFnInstanceAnnotations :: FunctionInstance -> FunctionInstance
+stripFnInstanceAnnotations (AFunctionInstance td f s) = FunctionInstance td f $ stripStatementAnnotations s
+stripFnInstanceAnnotations other = other
 
-                    
+stripStatementAnnotations :: AStatement -> Statement
+stripStatementAnnotations (AExpression _ ae) =
+    Expression $ stripExprAnnotations ae
+stripStatementAnnotations (AVarDeclStatement _ n td vinit) =
+    VarDeclStatement n td $ stripVarInitAnnotations vinit
+stripStatementAnnotations (AStatementBlock _ astmts) =
+    StatementBlock $ map stripStatementAnnotations astmts
+
+stripExprAnnotations :: AExpr -> Expr
+stripExprAnnotations (AIntLiteral _ i) = IntLiteral i
+stripExprAnnotations (AStringLiteral _ s) = StringLiteral s
+stripExprAnnotations (AVarRef _ i) = VarRef i
+stripExprAnnotations (AORef _ ae i) = ORef (stripExprAnnotations ae) i
+stripExprAnnotations (AFunctionApplication _ ae aes) =
+    FunctionApplication (stripExprAnnotations ae) $ map stripExprAnnotations aes
+stripExprAnnotations (AOMethod _ ae _ i aes) =
+    OMethod (stripExprAnnotations ae) i $ map stripExprAnnotations aes
+stripExprAnnotations (AInternalRef (ExprAnnotation t _) i) = InternalRef t i
+
+stripVarInitAnnotations :: VariableInitializer -> VariableInitializer
+stripVarInitAnnotations (VarInitAExpr ae) = VarInitExpr $ stripExprAnnotations ae
+stripVarInitAnnotations (VarInitAConstruct aes) =
+    VarInitConstruct $ map stripExprAnnotations aes
+stripVarInitAnnotations o = o
+

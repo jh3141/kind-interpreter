@@ -16,9 +16,9 @@ import KindLang.Data.Scope
 import KindLang.Data.KStat
 import KindLang.Data.Types
 import KindLang.Locale.ErrorMessages
-
-type InternalFunctions = Map.Map InternalFunctionName ([Value] -> Value)
-
+import KindLang.Analysis.ResolveTypes
+import KindLang.Lib.InternalFunctions
+    
 scopeAddItemWithDef :: Scope s -> (String,Value,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)
@@ -29,7 +29,7 @@ evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
 evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     fn <- evalAExpr s ifc efn
     args <- mapM (evalAExpr s ifc) eargs
-    applyFunction s ifc (getKindFunctionRef fn) args
+    applyFunction s ifc (getKindFunctionRef fn) (aexprType <$> eargs) args
 evalAExpr s ifc (AVarRef ae id) =
     snd <$> scopeLookup s id >>= definitionToValue s ifc ae
 evalAExpr s ifns (AInternalRef (ExprAnnotation td _) name) = do
@@ -57,9 +57,26 @@ definitionToValue s ifc ea (Left (VariableDefinition _ _)) = do
 definitionToValue _ _ _ (Right (_,v)) = return v  -- was already a value
 
 applyFunction :: Scope s -> InternalFunctions -> [FunctionInstance] ->
-                 [Value] -> KStat s Value
-applyFunction s ifc (inst:[]) v = applyFunctionInstance s ifc inst v
+                 [TypeDescriptor] -> [Value] -> KStat s Value
+applyFunction s ifc (inst:[]) argTypes argValues = do
+    inst' <- substituteInferableTypes s inst argTypes
+    applyFunctionInstance s ifc inst argValues
 -- fixme handle overloaded functions
+
+-- fixme this should probably be in another module
+-- fixme the scope here should be the function's outer scope. how do we find that?
+substituteInferableTypes :: Scope s -> FunctionInstance -> [TypeDescriptor] ->
+                            KStat s FunctionInstance
+substituteInferableTypes _ f@(InternalFunction _ _) _ = return f
+substituteInferableTypes sc f@(AFunctionInstance td@(FunctionType pt _) _ _) at
+    | InferableType `notElem` pt = return f
+    | otherwise =  substituteInferableTypes sc (stripFnInstanceAnnotations f) at
+substituteInferableTypes sc (FunctionInstance td@(FunctionType pt rt) f st) at =
+    resolveInstance sc (FunctionInstance updatedType f st)
+    where
+      updatedType = FunctionType (zipWith specializeType pt at) rt
+      specializeType InferableType a = a
+      specializeType p _             = p
 
 applyFunctionInstance :: Scope s -> InternalFunctions ->
                          FunctionInstance -> [Value] -> KStat s Value
