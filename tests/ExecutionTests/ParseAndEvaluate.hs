@@ -71,4 +71,5 @@ parseAndEvaluateTests =
                   (makeTest "functions_and_operators" $ makeKindInt 42) :
                   (makeTest "functions2" $ makeKindInt 42) :
                   (makeTest "overloadedfunctions" $ makeKindInt 42) :
+                  (makeTest "function_inference" $ makeKindInt 42) :
                   []

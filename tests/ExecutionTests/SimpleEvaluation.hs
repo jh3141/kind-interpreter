@@ -11,6 +11,7 @@ import KindLang.Data.Scope
 import KindLang.Data.Value
 import KindLang.Data.Catalogue
 import KindLang.Lib.CoreTypes
+import KindLang.Lib.InternalFunctions
 import KindLang.Runtime.Eval
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.KStat

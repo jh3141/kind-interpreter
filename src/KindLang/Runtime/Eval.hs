@@ -16,9 +16,9 @@ import KindLang.Data.Scope
 import KindLang.Data.KStat
 import KindLang.Data.Types
 import KindLang.Locale.ErrorMessages
-
-type InternalFunctions = Map.Map InternalFunctionName ([Value] -> Value)
-
+import KindLang.Analysis.ResolveTypes
+import KindLang.Lib.InternalFunctions
+    
 scopeAddItemWithDef :: Scope s -> (String,Value,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)
@@ -57,8 +57,26 @@ applyFunction :: Scope s -> InternalFunctions -> [FunctionInstance] ->
                  [TypeDescriptor] -> [Value] -> KStat s Value
 applyFunction s ifc (inst:[]) _ v = applyFunctionInstance s ifc inst v
 applyFunction s ifc (i:is) vTypes v
-              | fnInstCompatible i vTypes = applyFunctionInstance s ifc i v
-              | otherwise                 = applyFunction s ifc is vTypes v
+              | fnInstCompatible i vTypes =
+                            do
+                              i' <- substituteInferableTypes s i vTypes
+                              applyFunctionInstance s ifc i' v
+              | otherwise = applyFunction s ifc is vTypes v
+
+-- fixme this should probably be in another module
+-- fixme the scope here should be the function's outer scope. how do we find that?
+substituteInferableTypes :: Scope s -> FunctionInstance -> [TypeDescriptor] ->
+                            KStat s FunctionInstance
+substituteInferableTypes _ f@(InternalFunction _ _) _ = return f
+substituteInferableTypes sc f@(AFunctionInstance td@(FunctionType pt _) _ _) at
+    | InferableType `notElem` pt = return f
+    | otherwise =  substituteInferableTypes sc (stripFnInstanceAnnotations f) at
+substituteInferableTypes sc (FunctionInstance td@(FunctionType pt rt) f st) at =
+    resolveInstance sc (FunctionInstance updatedType f st)
+    where
+      updatedType = FunctionType (zipWith specializeType pt at) rt
+      specializeType InferableType a = a
+      specializeType p _             = p
 
 applyFunctionInstance :: Scope s -> InternalFunctions ->
                          FunctionInstance -> [Value] -> KStat s Value
