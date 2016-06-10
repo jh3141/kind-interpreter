@@ -26,10 +26,11 @@ scopeAddItemWithDef sc (lid,val,def) =
 -- fixme: going to need access to program mutable state, and ability to mutate it!
 evalAExpr :: Scope s -> InternalFunctions -> AExpr -> KStat s Value
 evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
+evalAExpr _ _ (AStringLiteral _ val) = return $ makeKindString val
 evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     fn <- evalAExpr s ifc efn
     args <- mapM (evalAExpr s ifc) eargs
-    applyFunction s ifc (getKindFunctionRef fn) args
+    applyFunction s ifc (getKindFunctionRef fn) (aexprType <$> eargs) args
 evalAExpr s ifc (AVarRef ae id) =
     snd <$> scopeLookup s id >>= definitionToValue s ifc ae
 evalAExpr s ifns (AInternalRef (ExprAnnotation td _) name) = do
@@ -57,9 +58,11 @@ definitionToValue s ifc ea (Left (VariableDefinition _ _)) = do
 definitionToValue _ _ _ (Right (_,v)) = return v  -- was already a value
 
 applyFunction :: Scope s -> InternalFunctions -> [FunctionInstance] ->
-                 [Value] -> KStat s Value
-applyFunction s ifc (inst:[]) v = applyFunctionInstance s ifc inst v
--- fixme handle overloaded functions
+                 [TypeDescriptor] -> [Value] -> KStat s Value
+applyFunction s ifc (inst:[]) _ v = applyFunctionInstance s ifc inst v
+applyFunction s ifc (i:is) vTypes v
+              | fnInstCompatible i vTypes = applyFunctionInstance s ifc i v
+              | otherwise                 = applyFunction s ifc is vTypes v
 
 applyFunctionInstance :: Scope s -> InternalFunctions ->
                          FunctionInstance -> [Value] -> KStat s Value

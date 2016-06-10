@@ -9,6 +9,7 @@ import KindLang.Data.KStat
 data Value =
     KindUnit |
     KindInt Int |
+    KindString String | -- nb temporary to allow some of our tests to work
     KindFunctionRef [FunctionInstance]
     deriving (Show, Eq)
 
@@ -23,13 +24,15 @@ type ItemInitializer s = Definition -> KStat s (TypeDescriptor, Value)
 -- on a value that is the wrong type.
 getKindInt :: Value -> Int
 getKindInt (KindInt a) = a
-                            
+
 makeKindInt :: Int -> Value
 makeKindInt a = KindInt a
-                
+
 getKindFunctionRef :: Value -> [FunctionInstance]
 getKindFunctionRef (KindFunctionRef a) = a
 
 makeKindFunctionRef :: [FunctionInstance] -> Value
 makeKindFunctionRef a = KindFunctionRef a
-                        
+
+makeKindString :: String -> Value
+makeKindString val = KindString val

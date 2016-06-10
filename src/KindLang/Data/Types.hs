@@ -85,3 +85,15 @@ typeResolved :: TypeDescriptor -> Bool
 typeResolved (SimpleType _) = False
 typeResolved (Reference td) = typeResolved td
 typeResolved _              = True
+
+fnInstCompatible :: FunctionInstance -> [TypeDescriptor] -> Bool
+fnInstCompatible = fnTypeCompatible . fnInstanceType
+
+fnTypeCompatible :: TypeDescriptor -> [TypeDescriptor] -> Bool
+fnTypeCompatible (FunctionType argTypes _) paramTypes =
+    checkAll argTypes paramTypes
+    where
+      checkAll [] [] = True
+      checkAll _ [] = False
+      checkAll [] _ = False
+      checkAll (a:as) (b:bs) = typeCompatible a b && checkAll as bs
