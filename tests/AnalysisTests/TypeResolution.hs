@@ -214,8 +214,13 @@ typeResolutionTests =
                              ["a"]
                              (Expression $ IntLiteral 1))) @?=
                  (Right $ AFunctionInstance fnIntInt ["a"]
-                            (AExpression saKindInt $ AIntLiteral eaKindInt 1))
-
+                            (AExpression saKindInt $ AIntLiteral eaKindInt 1)),
+        testCase "resolve multi-instance function definition -> tuple type" $
+                 (runToEither $ aexprType <$> resolveExprKS testScope
+                  (VarRef multiFn)) @?=
+                 (Right $ TupleType
+                            [FunctionType [rtSimpleClass] rtComplexClass,
+                             FunctionType [rtComplexClass] rtSimpleClass])
     ]
 
 simpleClass :: NSID
@@ -246,7 +251,9 @@ method :: NSID
 method = UnqualifiedID "method"
 privateField :: NSID
 privateField = UnqualifiedID "privateField"
-
+multiFn :: NSID
+multiFn = listToNSID ["multiFn"]
+          
 testScope :: KStat s (Scope s)
 testScope =
     scopeDefault
@@ -269,7 +276,8 @@ testScope =
                      ClassMember "privateField" Private
                                  (VariableDefinition rtSimpleClass VarInitNone)])
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
-
+              |+| (multiFn, FunctionDefinition [simpleFnInstance,
+                                                simpleFnInstance2])
 
 def :: Definition
 def = (ClassDefinition [])
@@ -287,6 +295,12 @@ simpleFnInstance = FunctionInstance
                      (FunctionType [rtSimpleClass] rtComplexClass)
                      ["a"]
                      (Expression $ VarRef ccInst)
+
+simpleFnInstance2 :: FunctionInstance
+simpleFnInstance2 = FunctionInstance
+                     (FunctionType [rtComplexClass] rtSimpleClass)
+                     ["a"]
+                     (Expression $ VarRef scInst)
 
 simpleFnInstanceResolved :: FunctionInstance
 simpleFnInstanceResolved =

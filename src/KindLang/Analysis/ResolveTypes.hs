@@ -171,13 +171,18 @@ identDefToExprAnnotation (cid, Left (FunctionDefinition [])) =
     throwError $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, Left (FunctionDefinition (fnInstance:[]))) =
     return $ crefAnnotation cid (fnInstanceType fnInstance)
-identDefToExprAnnotation (_, Left (FunctionDefinition _)) =
-    error "overloaded functions not implemented"
+identDefToExprAnnotation (cid, Left (FunctionDefinition fnInstances)) =
+    return $ crefAnnotation cid (makeOverloadedFunctionType fnInstances)
 identDefToExprAnnotation (cid, Left def) =
     throwError $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
 identDefToExprAnnotation (cid, Right (td,_)) =
     return $ crefAnnotation cid td  -- FIXME is this right?
+
+-- | produce a type descriptor for an overloaded function containing
+-- a specified list of instances
+makeOverloadedFunctionType :: [FunctionInstance] -> TypeDescriptor
+makeOverloadedFunctionType instances = TupleType (fnInstanceType <$> instances)
 
 -- | @resolveTypeRef s desc sid@ returns the canonical identifier and type
 -- descriptor of an item whose identifier is @sid@ residing inside an object
