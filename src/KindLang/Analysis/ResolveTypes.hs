@@ -216,9 +216,9 @@ resolveTypeRef _ t _ =
 -- function, or an error message if the application is malformed.
 makeFunctionCallAnnotation :: TypeDescriptor -> [TypeDescriptor] ->
                               KStat s ExprAnnotation
-makeFunctionCallAnnotation (FunctionType fml res) actl
+makeFunctionCallAnnotation ft@(FunctionType fml res) actl
     | typesCompatible fml actl = return $ ExprAnnotation res []
-    | otherwise                = throwError $ InvalidApplication fml actl
+    | otherwise                = throwError $ InvalidApplication ft actl
 makeFunctionCallAnnotation (ForAllTypes tlist _
                                         ftype@(FunctionType formal _))
                            actual =
@@ -236,6 +236,15 @@ makeFunctionCallAnnotation (ForAllTypes tlist _
       makeFunctionCallAnnotation ftype' actual
 makeFunctionCallAnnotation (Reference td) actual =
     makeFunctionCallAnnotation td actual
+makeFunctionCallAnnotation (TupleType fns) actual = tryCallContainedFns fns
+    where
+      tryCallContainedFns (f:fs) =
+          catchError (makeFunctionCallAnnotation f actual) (processError fs)
+      tryCallContainedFns [] = throwError $
+                               InvalidApplication (TupleType fns) actual
+      processError fs (InvalidApplication _ _) =
+                               makeFunctionCallAnnotation (TupleType fs) actual
+      processError _ other =   throwError other
 makeFunctionCallAnnotation ftype actual =
     throwError $ TypeMismatch ftype (FunctionType actual InferableType)
                               "not a function"

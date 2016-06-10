@@ -220,7 +220,11 @@ typeResolutionTests =
                   (VarRef multiFn)) @?=
                  (Right $ TupleType
                             [FunctionType [rtSimpleClass] rtComplexClass,
-                             FunctionType [rtComplexClass] rtSimpleClass])
+                             FunctionType [rtComplexClass] rtSimpleClass]),
+        testCase "overloaded function call gives correct result type" $
+                 (runToEither $ aexprType <$> resolveExprKS testScope
+                  (FunctionApplication (VarRef multiFn) [VarRef ccInst])) @?=
+                 (Right $ rtSimpleClass)
     ]
 
 simpleClass :: NSID
