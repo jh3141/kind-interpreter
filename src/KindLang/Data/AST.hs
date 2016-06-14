@@ -71,8 +71,7 @@ data Expr =
      BinOp String Expr Expr |
      PrefixOp String Expr |
      FunctionApplication Expr [Expr] |
-     OMethod Expr NSID [Expr] |
-     InternalRef TypeDescriptor NSID
+     OMethod Expr NSID [Expr]
      deriving (Show, Eq)
 
 data AExpr =
@@ -230,7 +229,6 @@ stripExprAnnotations (AFunctionApplication _ ae aes) =
     FunctionApplication (stripExprAnnotations ae) $ map stripExprAnnotations aes
 stripExprAnnotations (AOMethod _ ae _ i aes) =
     OMethod (stripExprAnnotations ae) i $ map stripExprAnnotations aes
-stripExprAnnotations (AInternalRef (ExprAnnotation t _) i) = InternalRef t i
 
 stripVarInitAnnotations :: VariableInitializer -> VariableInitializer
 stripVarInitAnnotations (VarInitAExpr ae) = VarInitExpr $ stripExprAnnotations ae
