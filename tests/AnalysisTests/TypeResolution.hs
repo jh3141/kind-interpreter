@@ -90,7 +90,7 @@ typeResolutionTests =
                  (runToEither $ resolveExprKS testScope $
                               BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
                  (Right $ AFunctionApplication eaKindInt
-                  (AInternalRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
+                  (AVarRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
                     -- fixme overloads
                   [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)]),
 
@@ -98,7 +98,7 @@ typeResolutionTests =
                  (runToEither $ resolveExprKS testScope $
                               PrefixOp "-" (IntLiteral 42)) @?=
                  (Right $ AFunctionApplication eaKindInt
-                  (AInternalRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
+                  (AVarRef (ExprAnnotation fnIntInt []) (coreId "(u-)"))
                    -- fixme overloads
                   [(AIntLiteral eaKindInt 42)]),
 

@@ -15,7 +15,6 @@ scopeDefault =
     (Scope Nothing <$> newCatalogue)
            |++| (sidInt, sidKindInt, InternalTypeDefinition)
            |++| (sidString, sidKindString, InternalTypeDefinition)
-           |++| (UnqualifiedID "(+)", coreId "(+)", InternalObject fnIntIntInt)
 
 -- note convention of naming of kind types:
 --   namespaces - lower case

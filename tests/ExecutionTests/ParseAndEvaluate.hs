@@ -41,7 +41,7 @@ runTest filename expected =
       --print modTree
 
       value <- runToIO $ do
-          scope <- scopeDefault
+          scope <- (scopeDefault >>= addStandardOperatorsToScope)
           resolvedModule <- resolveModule modTree scope nullModuleLoader
 
           -- traceShowM resolvedModule
