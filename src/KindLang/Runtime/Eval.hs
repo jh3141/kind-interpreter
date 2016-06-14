@@ -33,10 +33,6 @@ evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     applyFunction s ifc (getKindFunctionRef fn) (aexprType <$> eargs) args
 evalAExpr s ifc (AVarRef ae id) =
     snd <$> scopeLookup s id >>= definitionToValue s ifc ae
-evalAExpr s ifns (AInternalRef (ExprAnnotation td _) name) = do
-    name <- errorIfNothing (lookupOverloadedInternalFunctionName name td ifns)
-                           (NoAppropriateInstance name td)
-    return (KindFunctionRef [InternalFunction td name])
 evalAExpr _ _ expr = throwError $ InternalError
                      ("attempted to evaluate unimplemented expression: " ++
                       show expr)
@@ -112,17 +108,6 @@ defaultValueOfType _ _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")
     return $ makeKindInt 0
 defaultValueOfType _ _ t = throwError $ InternalError $
                        "No default value defined for type " ++ show t
-
-lookupOverloadedInternalFunctionName :: NSID -> TypeDescriptor -> InternalFunctions ->
-                                        Maybe String
-lookupOverloadedInternalFunctionName (QualifiedID "kind" sid) td ifns =
-    lookupOverloadedInternalFunctionName sid td ifns
-lookupOverloadedInternalFunctionName sid (FunctionType args rtype) ifns =
-    find ((flip Map.member) ifns) $
-         map buildName (candidateFunctionCallArgTypes args)
-    where
-      buildName targs = nsidString sid ++ " (" ++
-                        (intercalate "," (typeName <$> targs)) ++ ")"
 
 -- FIXME shouldn't initialization occur in the scope in which the definition
 -- was written?

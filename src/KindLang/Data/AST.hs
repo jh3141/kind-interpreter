@@ -82,9 +82,7 @@ data AExpr =
      -- operators are transformed to function/method applications during
      -- type annotation so do not appear here.
      AFunctionApplication ExprAnnotation AExpr [AExpr] |
-     AOMethod ExprAnnotation AExpr TypeDescriptor NSID [AExpr] |
-     -- internal references generated during resolution, e.g. internal functions
-     AInternalRef ExprAnnotation NSID
+     AOMethod ExprAnnotation AExpr TypeDescriptor NSID [AExpr]
      deriving (Show, Eq)
 
 data ExprAnnotation =
@@ -142,11 +140,10 @@ aexprAnnotation :: AExpr -> ExprAnnotation
 aexprAnnotation (AIntLiteral a _) = a
 aexprAnnotation (AStringLiteral a _) = a
 aexprAnnotation (AVarRef a _) = a
-aexprAnnotation (AORef a _ _) = a                      
+aexprAnnotation (AORef a _ _) = a
 aexprAnnotation (AFunctionApplication a _ _) = a
 aexprAnnotation (AOMethod a _ _ _ _) = a
-aexprAnnotation (AInternalRef a _) = a
-                                     
+
 exprAnnotationType :: ExprAnnotation -> TypeDescriptor
 exprAnnotationType (ExprAnnotation t _) = t
                                                 
