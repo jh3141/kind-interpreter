@@ -142,8 +142,6 @@ resolveExpr s (OMethod obExpr sid paramExprs) = do
     rParams <- sequence $ fmap (resolveExpr s) paramExprs
     annotation <- makeFunctionCallAnnotation methodType (aexprType <$> rParams)
     return $ AOMethod annotation aObExpr methodType cid rParams
--- internal reference. should only be encountered in explicitly deannotated
--- expressions.
 
 -- | A utility function for calling resolveExpr when the scope is held
 -- in a KStat monad
