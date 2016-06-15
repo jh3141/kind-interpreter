@@ -13,12 +13,6 @@ data Value =
     KindFunctionRef [FunctionInstance]
     deriving (Show, Eq)
 
--- | Type of functions that can be used to provide a fully initialized variable
--- or constant instance from a definition.  Note that such a function may
--- necessarily execute user code, and therefore cannot be defined at the
--- low levels where it is required for initialization-on-demand.
-type ItemInitializer s = Definition -> KStat s (TypeDescriptor, Value)
-
 -- Note that the 'get' functions are incomplete.  This should be fine, as assuming
 -- the program we are evaluating type-checks correctly, they should never be used
 -- on a value that is the wrong type.

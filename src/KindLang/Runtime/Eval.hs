@@ -32,26 +32,13 @@ evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
     args <- mapM (evalAExpr s ifc) eargs
     applyFunction s ifc (getKindFunctionRef fn) (aexprType <$> eargs) args
 evalAExpr s ifc (AVarRef ae id) =
-    snd <$> scopeLookup s id >>= definitionToValue s ifc ae
+    snd <$> scopeLookupValue s id (initializeItem ifc)
 evalAExpr _ _ expr = throwError $ InternalError
                      ("attempted to evaluate unimplemented expression: " ++
                       show expr)
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
--- | A scope lookup may return either a definition or a value.  If we always
--- want a value, we can convert the definition to a value using this function.
-definitionToValue :: Scope s -> InternalFunctions -> ExprAnnotation ->
-                     DefinitionOrValue -> KStat s Value
-definitionToValue _ _ _ (Left (FunctionDefinition insts)) =
-    return $ makeKindFunctionRef insts
-definitionToValue s ifc ea (Left (VariableDefinition _ _)) = do
-    -- fixme should we lazy-initialize at this point?
-    canonicalID <- errorIfNothing (exprAnnotationCanonicalID ea)
-                                  (InternalError requiredCanonicalID)
-    stref <- scopeLookupRef s canonicalID (initializeItem s ifc)
-    kstatReadRef stref
-definitionToValue _ _ _ (Right (_,v)) = return v  -- was already a value
 
 applyFunction :: Scope s -> InternalFunctions -> [FunctionInstance] ->
                  [TypeDescriptor] -> [Value] -> KStat s Value
@@ -129,10 +116,12 @@ defaultValueOfType _ _ t = throwError $ InternalError $
 
 -- FIXME shouldn't initialization occur in the scope in which the definition
 -- was written?
-initializeItem :: Scope s -> InternalFunctions -> Definition ->
+initializeItem :: InternalFunctions -> Scope s -> Definition ->
                   KStat s (TypeDescriptor, Value)
-initializeItem s ifc (VariableDefinition td varInit) =
+initializeItem ifc s (VariableDefinition td varInit) =
     (td,) <$> evaluateVarInit s ifc td varInit
+initializeItem _ _ (FunctionDefinition insts) =
+    return $ (makeFunctionType insts, makeKindFunctionRef insts)
 -- fixme what about other definition types?
 
 -- | Force definition of a variable/constant for any appropriate items in
@@ -146,7 +135,8 @@ instantiateDefinition :: Scope s -> (NSID, NSID, DefinitionOrValue) ->
 instantiateDefinition s (rid, cid, Left def) =
     case makeDefinitionValue def of
       Nothing  -> return ()
-      Just val -> initializeRef (return . const val) s rid cid def >> return ()
+      Just val -> initializeRef (\_ -> return . const val) s rid cid def >>
+                  return ()
 instantiateDefinition s (rid, nsid, _) = return ()
 
 makeDefinitionValue :: Definition -> Maybe (TypeDescriptor,Value)

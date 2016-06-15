@@ -4,6 +4,7 @@ module KindLang.Data.Scope
      DefinitionOrValue)          -- reexported from Catalogue
     where
 
+import Control.Arrow
 import Control.Monad.Except
 import Data.STRef
 import KindLang.Data.BasicTypes
@@ -29,6 +30,12 @@ data Scope stt =
       scopeCat :: Catalogue stt
     }
     deriving (Show)
+
+-- | Type of functions that can be used to provide a fully initialized variable
+-- or constant instance from a definition.  Note that such a function may
+-- necessarily execute user code, and therefore cannot be defined at the
+-- low levels where it is required for initialization-on-demand.
+type ItemInitializer s = Scope s -> Definition -> KStat s (TypeDescriptor, Value)
 
 -- | Look up an identifier in a scope, returning its canonical id and
 -- either definition or type and value, or an error otherwise.
@@ -115,27 +122,31 @@ typeLookup s (FunctionType parameters rtype) = do
 typeLookup _ InferableType = return InferableType
 -- FIXME other type descriptor constructors must be included here!
 
-scopeLookupRef :: Scope s -> NSID -> ItemInitializer s -> KStat s (STRef s Value)
+scopeLookupRef :: Scope s -> NSID -> ItemInitializer s -> KStat s (NSID, STRef s Value)
 scopeLookupRef sc i initializer = do
     found <- findEntry (scopeCat sc) i
     case found of
       Nothing                    -> passRequestUp (scopeParent sc)
       Just (cid, CatEntry def)   -> initializeRef initializer sc cid i def
-      Just (cid, CatEntryR _ r)  -> return r
+      Just (cid, CatEntryR _ r)  -> return (cid, r)
       Just (cid, CatNamespace _) -> throwError $ IsNamespace cid
     where
       passRequestUp (Just scp) = scopeLookupRef scp i initializer
       passRequestUp Nothing    = throwError $ IdentifierNotFound i
 
+scopeLookupValue :: Scope s -> NSID -> ItemInitializer s -> KStat s (NSID, Value)
+scopeLookupValue sc i ii = scopeLookupRef sc i ii >>=
+                           (runKleisli $ second (Kleisli kstatReadRef))
+
 -- | Initialize a definition to a runtime variable
 initializeRef :: ItemInitializer s -> Scope s -> NSID -> NSID -> Definition ->
-                 KStat s (STRef s Value)
+                 KStat s (NSID, STRef s Value)
 initializeRef initializer sc cid i def = do
-    (td, val) <- initializer def
+    (td, val) <- initializer sc def
     ref <- kstatNewRef val
     catUpdateEntry (scopeCat sc) i
                    (CatEntryR td ref)
-    return ref
+    return (cid, ref)
 
 scopeAddItems :: Scope s -> [(NSID,TypeDescriptor,Value)] -> KStat s ()
 scopeAddItems scope values = mapM_ (scopeAddItem scope) values
@@ -147,3 +158,4 @@ scopeAddItem sc (sid,td,val) = do
 
 scopeItems :: Scope s -> KStat s [(NSID, NSID, DefinitionOrValue)]
 scopeItems sc = catFlatten $ scopeCat sc
+
