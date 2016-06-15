@@ -45,6 +45,7 @@ library
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
                     KindLang.Runtime.Eval
+                    KindLang.Runtime.Data
 
 executable runkind
   default-language:Haskell2010
@@ -65,7 +66,8 @@ test-suite kind-tests
                    kind-interpreter,
                    containers >= 0.5.6.2 && < 0.6,
                    mtl >= 2,
-                   STMonadTrans >= 0.3
+                   STMonadTrans >= 0.3,
+                   hashtables >= 1.2 && < 2
   other-modules:   ParserTests.Module
                    ParserTests.Util
                    ParserTests.CombinatorTests

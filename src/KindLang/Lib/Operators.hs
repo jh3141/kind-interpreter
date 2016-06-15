@@ -12,6 +12,7 @@ import KindLang.Data.KStat
 import KindLang.Data.Scope
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.InternalFunctions
+import KindLang.Runtime.Data
     
 findBinaryOperator :: String -> TypeDescriptor -> TypeDescriptor -> KStat s AExpr
 findBinaryOperator "+" t1 t2 =

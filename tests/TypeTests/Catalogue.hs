@@ -16,28 +16,28 @@ catalogueTypeTests :: TestTree
 catalogueTypeTests =
     testGroup "Catalogue" [
         testCase "Empty catalogue is empty" $
-                 runToEither (newCatalogue >>= catFlatten) @?= Right [],
+                 runToEither (strCatalogue >>= catFlatten) @?= Right [],
         testCase "Add item to catalogue" $
-                 runToEither (newCatalogue >>= (|+~| (nqid, def))
+                 runToEither (strCatalogue >>= (|+~| (nqid, def))
                                            >>= (|@~| nqid)) @?=
                  (Right $ Left def),
         testCase "Add qualified item to catalogue" $
-                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                 runToEither (strCatalogue >>= (|+~| (qid, def))
                                            >>= (|@~| qid)) @?=
                  (Right $ Left def),
         testCase "Add qualified item to catalogue in existing namespace" $
-                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                 runToEither (strCatalogue >>= (|+~| (qid, def))
                                            >>= (|+~| (qid2, def2))
                                            >>= (|@~| qid2)) @?=
                  (Right $ Left def2),
         testCase "Adding item to existing namespace doesn't affect other items" $
-                 runToEither (newCatalogue >>= (|+~| (qid, def))
+                 runToEither (strCatalogue >>= (|+~| (qid, def))
                                            >>= (|+~| (qid2, def2))
                                            >>= (|@~| qid)) @?=
                  (Right $ Left def),
         testCase "Items with multiple levels of qualification" $
                  (sortOn flatCid $ expectNoErrors "unexpected error"
-                  (newCatalogue >>=
+                  (strCatalogue >>=
                      (|+~| (mqid, def)) >>=
                      (|+~| (mmqid2, def)) >>=
                      (|+~| (mmqid, def)) >>= catFlatten)) @?=
@@ -46,19 +46,19 @@ catalogueTypeTests =
                    (mqid, mqid, Left def) ],
         testCase "Flatten catalogue with only unqualified items" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue >>= (|+~| (nqid, def))
+                 (strCatalogue >>= (|+~| (nqid, def))
                                >>= (|+~| (nqid2, def))
                                >>= catFlatten) @?=
                  [ (nqid, nqid, Left def), (nqid2, nqid2, Left def) ],
         testCase "Flatten catalogue with qualified items" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue >>= (|+~| (qid, def))
+                 (strCatalogue >>= (|+~| (qid, def))
                                >>= (|+~| (qid2, def))
                                >>= catFlatten) @?=
                  [ (qid2, qid2, Left def), (qid, qid, Left def) ], -- qid2 < qid
         testCase "Add item with canonical id different to resolvable id" $
                  expectNoErrors "unexpected error"
-                 (newCatalogue >>= (|++~| (nqid, qid, def)) >>= catFlatten) @?=
+                 (strCatalogue >>= (|++~| (nqid, qid, def)) >>= catFlatten) @?=
                  [ (nqid, qid, Left def) ]
     ]
 
@@ -81,3 +81,6 @@ mmqid = foldrn QualifiedID UnqualifiedID ["a","b","c","d","e","f"]
 mmqid2 :: NSID
 mmqid2 = foldrn QualifiedID UnqualifiedID ["a","b","c","g","h","i"]
         
+
+strCatalogue :: KStat s (Catalogue s String)
+strCatalogue = newCatalogue

@@ -2,9 +2,10 @@ module KindLang.Lib.CoreTypes where
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
-import KindLang.Data.Scope
 import KindLang.Data.AST
 import KindLang.Data.KStat
+import KindLang.Data.Scope((|++|),resolveTypeKS)
+import KindLang.Runtime.Data
 
 -- | Function to create an ID in the core module given a string
 coreId :: String -> NSID

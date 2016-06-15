@@ -18,7 +18,8 @@ import KindLang.Data.Types
 import KindLang.Locale.ErrorMessages
 import KindLang.Analysis.ResolveTypes
 import KindLang.Lib.InternalFunctions
-    
+import KindLang.Runtime.Data
+
 scopeAddItemWithDef :: Scope s -> (String,Value,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)

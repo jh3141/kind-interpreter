@@ -1,17 +1,11 @@
-module KindLang.Data.Value where
+module KindLang.Data.Value
+        (module KindLang.Data.Value,
+         Value) where
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.KStat
-
--- fixme probably want a lower-level implementation of this, so we can manage memory
--- ourselves
-data Value =
-    KindUnit |
-    KindInt Int |
-    KindString String | -- nb temporary to allow some of our tests to work
-    KindFunctionRef [FunctionInstance]
-    deriving (Show, Eq)
+import KindLang.Runtime.Data
 
 -- Note that the 'get' functions are incomplete.  This should be fine, as assuming
 -- the program we are evaluating type-checks correctly, they should never be used

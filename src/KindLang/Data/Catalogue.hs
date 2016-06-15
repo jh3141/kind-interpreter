@@ -13,36 +13,35 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
 import KindLang.Data.KStat
-import KindLang.Data.Value
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 
 -- | The type of catalogues.  Catalogues are a map from a hierarchical
 -- "resolvable id" to tuples containing a "canonical id" and a "catalogue entry".
-type Catalogue s = HT.HashTable s String (NSID, CatEntry s)
+type Catalogue s v = HT.HashTable s String (NSID, CatEntry s v)
 
 -- | An encapsulation of what information can be stored about an identifier
 -- in a catalogue, i.e. either a definition or its type and value.
-type DefinitionOrValue = Either Definition (TypeDescriptor,Value)
+type DefinitionOr v = Either Definition (TypeDescriptor,v)
 
-data CatEntry s = CatEntry Definition |
-                  CatEntryR TypeDescriptor (STRef s Value) |
-                  CatNamespace (Catalogue s)
+data CatEntry s v = CatEntry Definition |
+                    CatEntryR TypeDescriptor (STRef s v) |
+                    CatNamespace (Catalogue s v)
 
 -- | An empty catalogue.
-newCatalogue :: KStat s (Catalogue s)
+newCatalogue :: KStat s (Catalogue s v)
 newCatalogue = liftToST HT.new
 
 -- | A catalogue containing a single item
-newCatalogueWith :: String -> NSID -> CatEntry s -> KStat s (Catalogue s)
+newCatalogueWith :: String -> NSID -> CatEntry s v -> KStat s (Catalogue s v)
 newCatalogueWith k cid ent = do
     cat <- newCatalogue
     liftToST $ HT.insert cat k (cid,ent)
     return cat
 
-makeCatEntry :: Definition -> CatEntry s
+makeCatEntry :: Definition -> CatEntry s v
 makeCatEntry = CatEntry
 
-makeCatEntryR :: TypeDescriptor -> Value -> KStat s (CatEntry s)
+makeCatEntryR :: TypeDescriptor -> v -> KStat s (CatEntry s v)
 makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
 
 -- | @catAdd c rid cid def@ adds a new item for definition @def@ with the
@@ -51,15 +50,15 @@ makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
 --
 -- May throw a NotNamespace error if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition.
-catAdd :: Catalogue s -> NSID -> NSID -> Definition -> KStat s ()
+catAdd :: Catalogue s v -> NSID -> NSID -> Definition -> KStat s ()
 catAdd cat rid cid def = catAddEntry cat rid (cid,makeCatEntry def)
 
-catAddEntry :: forall s .
-               Catalogue s -> NSID -> (NSID, CatEntry s) -> KStat s ()
+catAddEntry :: forall s v .
+               Catalogue s v -> NSID -> (NSID, CatEntry s v) -> KStat s ()
 catAddEntry cat rid ent =
     updateCat cat rid []
     where
-      updateCat :: Catalogue s -> NSID -> [String] -> KStat s ()
+      updateCat :: Catalogue s v -> NSID -> [String] -> KStat s ()
       -- we've found the correct namespace to insert in
       updateCat c (UnqualifiedID s) _ =
           liftToST $ HT.insert c s ent
@@ -79,7 +78,7 @@ catAddEntry cat rid ent =
                                                 CatNamespace newNsCat)
 
 -- | Update an existing entry, or fail with an IdentifierNotFound error.
-catUpdateEntry :: Catalogue s -> NSID -> CatEntry s -> KStat s ()
+catUpdateEntry :: Catalogue s v -> NSID -> CatEntry s v -> KStat s ()
 catUpdateEntry cat rid ent = do
     found <- findEntry cat rid
     case found of
@@ -90,7 +89,7 @@ catUpdateEntry cat rid ent = do
 -- | An operator for invoking 'catAdd' with resolvable id equal to canonical id.
 -- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
 -- Binds more tightly than |@~|.  Returns @cat@ for convience of chaining.
-(|+~|) :: Catalogue s -> (NSID, Definition) -> KStat s (Catalogue s)
+(|+~|) :: Catalogue s v -> (NSID, Definition) -> KStat s (Catalogue s v)
 c |+~| (sid,def) = catAdd c sid sid def >> return c
 infixl 6 |+~|
 
@@ -98,7 +97,7 @@ infixl 6 |+~|
 -- ids. @cat |++~| (rid,cid,def)@ adds resolvable identifier @rid@ for
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
 -- level as |+~|.  Returns @cat@ for convienence of chaining.
-(|++~|) :: Catalogue s -> (NSID, NSID, Definition) -> KStat s (Catalogue s)
+(|++~|) :: Catalogue s v -> (NSID, NSID, Definition) -> KStat s (Catalogue s v)
 c |++~| (rid, cid, def) = catAdd c rid cid def >> return c
 infixl 6 |++~|
 
@@ -116,7 +115,7 @@ infixl 6 |++~|
 --
 -- Creates a copy of the catalogue, rather than working on an existing
 -- one.
-catalogueWithOnly :: Catalogue s -> [String] -> KStat s (Catalogue s)
+catalogueWithOnly :: Catalogue s v -> [String] -> KStat s (Catalogue s v)
 catalogueWithOnly cat identifiers = do
     newCat <- newCatalogue
     liftToST $ HTC.mapM_ (copyIfMatching newCat) cat
@@ -129,7 +128,7 @@ catalogueWithOnly cat identifiers = do
 -- | Look up an identifier in a catalogue, returning a tuple of the the
 -- canonical identifier and definition for the item found, or an error
 -- otherwise.
-lookupHierarchical :: Catalogue s -> NSID -> KStat s (NSID, DefinitionOrValue)
+lookupHierarchical :: Catalogue s v -> NSID -> KStat s (NSID, DefinitionOr v)
 lookupHierarchical cat sid = do
     ent <- findEntry cat sid
     case ent of
@@ -144,7 +143,7 @@ lookupHierarchical cat sid = do
 -- id and entry details, or Nothing.  May throw an error if an identifier
 -- is expected to resolve to a namespace but instead resolves to a different
 -- object type.
-findEntry :: Catalogue s -> NSID -> KStat s (Maybe (NSID, CatEntry s))
+findEntry :: Catalogue s v -> NSID -> KStat s (Maybe (NSID, CatEntry s v))
 findEntry cat sid@(QualifiedID s s') =  do
     lookupResult <- liftToST $ HT.lookup cat s
     case lookupResult of
@@ -158,13 +157,13 @@ findEntry cat sid@(UnqualifiedID s) = liftToST $ HT.lookup cat s
 -- | Like lookupHierarchical, but don't include the canonical ID in the result,
 -- just the definition. Binds at level (infixl 5), i.e. stronger than
 -- comparisons, but looser than arithmetic.
-(|@~|) :: Catalogue s -> NSID -> KStat s DefinitionOrValue
+(|@~|) :: Catalogue s v -> NSID -> KStat s (DefinitionOr v)
 c |@~| i =  (lookupHierarchical c i) >>= (return . snd)
 infixl 5 |@~|
 
 -- | 'makeNamespace sid cat' creates a new catalogue containing an existing
 -- catalogue as a namespace.
-makeNamespace :: NSID -> Catalogue s -> KStat s (Catalogue s)
+makeNamespace :: NSID -> Catalogue s v -> KStat s (Catalogue s v)
 makeNamespace sid cat = do
     recurse sid []
     where
@@ -177,13 +176,14 @@ makeNamespace sid cat = do
 -- | Map a catalogue to a list of tuples containing the identifier by
 -- which the item may be referenced, the canonical identifier of the item,
 -- and its definition.  Useful for debugging/testing.
-catFlatten :: forall s . Catalogue s -> KStat s [(NSID,NSID,DefinitionOrValue)]
+catFlatten :: forall s v . Catalogue s v ->
+              KStat s [(NSID,NSID,DefinitionOr v)]
 catFlatten cat =
     liftToST $ HT.foldM (processItem []) [] cat
     where
-      processItem :: [String] -> [(NSID,NSID,DefinitionOrValue)] ->
-                     (String, (NSID, CatEntry s)) ->
-                     ST s [(NSID,NSID,DefinitionOrValue)]
+      processItem :: [String] -> [(NSID,NSID,DefinitionOr v)] ->
+                     (String, (NSID, CatEntry s v)) ->
+                     ST s [(NSID,NSID,DefinitionOr v)]
       processItem q accum (k, (i, CatNamespace cat')) =
           HT.foldM (processItem (k:q)) accum cat'
       processItem q accum (k, (i, CatEntry d)) =
@@ -202,7 +202,8 @@ flatRid (rid,_,_) = rid
 
 -- | Create a catalogue from a definition list, given a function that converts
 -- plain strings to qualified ids.
-catalogueForDefinitionList :: (String -> NSID) -> DefList -> KStat s (Catalogue s)
+catalogueForDefinitionList :: (String -> NSID) -> DefList ->
+                              KStat s (Catalogue s v)
 catalogueForDefinitionList makeNsid definitions =
     liftToST $ HTC.fromList
            ((identifyEntry >>>          -- extract the id to an outer tuple
@@ -212,7 +213,7 @@ catalogueForDefinitionList makeNsid definitions =
     where
       identifyEntry (rid, def) = (rid, (rid, def))
 
-catalogueCopyTo :: Catalogue s -> Catalogue s -> KStat s ()
+catalogueCopyTo :: Catalogue s v -> Catalogue s v -> KStat s ()
 catalogueCopyTo dst src = liftToST $ HTC.mapM_ copyToDst src
     where
       copyToDst (k,v) = HT.insert dst k v

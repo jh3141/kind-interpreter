@@ -1,7 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module KindLang.Data.Scope
     (module KindLang.Data.Scope,
-     DefinitionOrValue)          -- reexported from Catalogue
+     DefinitionOrValue,          -- reexported from Catalogue
+     Scope,                      -- reexported from KindLang.Runtime.Data
+     ItemInitializer)            -- reexported from KindLang.Runtime.Data
     where
 
 import Control.Arrow
@@ -14,29 +16,8 @@ import KindLang.Data.Error
 import KindLang.Data.KStat
 import KindLang.Data.Types
 import KindLang.Data.Value
+import KindLang.Runtime.Data
     
--- | Scope associates names with types and values.  It is a nested structure
--- (a scope may have a parent scope, and if it does the definitions in that
--- scope are considered included in the child scope, except where a new
--- definition with the same name is present).
---
--- Scopes are intended for use inside an ST monad execution thread, so receive
--- an 'stt' type to identify the thread (i.e. if using "KStat s n", the scope's
--- parameter should be "s").
-data Scope stt =
-    Scope
-    {
-      scopeParent :: Maybe (Scope stt),
-      scopeCat :: Catalogue stt
-    }
-    deriving (Show)
-
--- | Type of functions that can be used to provide a fully initialized variable
--- or constant instance from a definition.  Note that such a function may
--- necessarily execute user code, and therefore cannot be defined at the
--- low levels where it is required for initialization-on-demand.
-type ItemInitializer s = Scope s -> Definition -> KStat s (TypeDescriptor, Value)
-
 -- | Look up an identifier in a scope, returning its canonical id and
 -- either definition or type and value, or an error otherwise.
 scopeLookup :: Scope s -> NSID -> KStat s (NSID, DefinitionOrValue)
@@ -158,4 +139,3 @@ scopeAddItem sc (sid,td,val) = do
 
 scopeItems :: Scope s -> KStat s [(NSID, NSID, DefinitionOrValue)]
 scopeItems sc = catFlatten $ scopeCat sc
-

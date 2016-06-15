@@ -11,6 +11,7 @@ import KindLang.Data.Error
 import KindLang.Data.Catalogue
 import KindLang.Data.KStat
 import KindLang.Analysis.BuildCatalogue
+import KindLang.Runtime.Data
 import qualified Data.Map as Map
 import Data.Map ((!))
 
@@ -44,7 +45,8 @@ buildAndLookupNS :: (forall s . ModuleLoader s) -> Module -> Visibility -> NSID 
                     Bool -> Either KindError (NSID, DefinitionOrValue)
 buildAndLookupNS l m v s errMode = runToEither $ buildAndLookupM l m v s errMode
 
-catalogueForVisibility :: Visibility -> ModuleCatalogues s -> KStat s (Catalogue s)
+catalogueForVisibility :: Visibility -> ModuleCatalogues s ->
+                          KStat s (Catalogue s Value)
 catalogueForVisibility Public c = return $ moduleCataloguePublic c
 catalogueForVisibility Private c = return $ moduleCataloguePrivate c
 catalogueForVisibility Protected _ =
