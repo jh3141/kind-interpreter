@@ -54,9 +54,10 @@ runTest filename expected =
           resolvedBootstrap <- resolveExpr moduleScope bootstrapExpr
           -- traceShowM resolvedBootstrap
 
-          evalAExpr moduleScope
-                    standardInternalFunctions
-                    resolvedBootstrap
+          kstatSetInternalFunctions standardInternalFunctions
+
+          evalAExpr moduleScope resolvedBootstrap
+                    
       assertEqual "Returned value" expected value
 
 makeTest :: String -> Value -> TestTree

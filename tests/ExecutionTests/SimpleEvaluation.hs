@@ -29,7 +29,8 @@ execTestWithData s v ex =
                          s' <- s
                          f <- resolveExpr s' ex
                          scopeAddItems s' v
-                         evalAExpr s' ifc f)
+                         kstatSetInternalFunctions ifc
+                         evalAExpr s' f)
 
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
@@ -60,7 +61,6 @@ simpleEvaluationTests =
                     newScope <- scopeDefault
                     evalAStatement
                                 newScope
-                                ifc
                                 (AVarDeclStatement
                                  (StmtAnnotation Nothing
                                                  [("d",VariableDefinition

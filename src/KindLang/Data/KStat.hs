@@ -96,5 +96,13 @@ kstatSetInternalFunctions v = kstatInternalFunctions <$> ask >>=
 kstatGetInternalFunctions :: KStat s InternalFunctions
 kstatGetInternalFunctions = kstatInternalFunctions <$> ask >>= kstatReadRef
 
+kstatInternalFunctionLookup :: InternalFunctionName -> KStat s InternalFunctionImp
+kstatInternalFunctionLookup name =
+    (Map.lookup name) <$> kstatGetInternalFunctions >>=
+       maybe (throwError $ InternalError $ "Unknown internal function " ++ name)
+             return
+
+
 nop :: Monad m => a -> m ()
 nop _ = return ()
+

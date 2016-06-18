@@ -25,31 +25,31 @@ scopeAddItemWithDef sc (lid,val,def) =
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)
 
 -- fixme: going to need access to program mutable state, and ability to mutate it!
-evalAExpr :: Scope s -> InternalFunctions -> AExpr -> KStat s Value
-evalAExpr _ _ (AIntLiteral _ val) = return $ makeKindInt val
-evalAExpr _ _ (AStringLiteral _ val) = return $ makeKindString val
-evalAExpr s ifc (AFunctionApplication _ efn eargs) = do
-    fn <- evalAExpr s ifc efn
-    args <- mapM (evalAExpr s ifc) eargs
-    applyFunction s ifc (getKindFunctionRef fn) (aexprType <$> eargs) args
-evalAExpr s ifc (AVarRef ae id) =
-    snd <$> scopeLookupValue s id (initializeItem ifc)
-evalAExpr _ _ expr = throwError $ InternalError
+evalAExpr :: Scope s -> AExpr -> KStat s Value
+evalAExpr _ (AIntLiteral _ val) = return $ makeKindInt val
+evalAExpr _ (AStringLiteral _ val) = return $ makeKindString val
+evalAExpr s (AFunctionApplication _ efn eargs) = do
+    fn <- evalAExpr s efn
+    args <- mapM (evalAExpr s) eargs
+    applyFunction s (getKindFunctionRef fn) (aexprType <$> eargs) args
+evalAExpr s (AVarRef ae id) =
+    snd <$> scopeLookupValue s id initializeItem
+evalAExpr _ expr = throwError $ InternalError
                      ("attempted to evaluate unimplemented expression: " ++
                       show expr)
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
 
-applyFunction :: Scope s -> InternalFunctions -> [FunctionInstance] ->
+applyFunction :: Scope s -> [FunctionInstance] ->
                  [TypeDescriptor] -> [Value] -> KStat s Value
-applyFunction s ifc (inst:[]) _ v = applyFunctionInstance s ifc inst v
-applyFunction s ifc (i:is) vTypes v
+applyFunction s (inst:[]) _ v = applyFunctionInstance s inst v
+applyFunction s (i:is) vTypes v
               | fnInstCompatible i vTypes =
                             do
                               i' <- substituteInferableTypes s i vTypes
-                              applyFunctionInstance s ifc i' v
-              | otherwise = applyFunction s ifc is vTypes v
+                              applyFunctionInstance s i' v
+              | otherwise = applyFunction s is vTypes v
 
 -- fixme this should probably be in another module
 -- fixme the scope here should be the function's outer scope. how do we find that?
@@ -66,62 +66,56 @@ substituteInferableTypes sc (FunctionInstance td@(FunctionType pt rt) f st) at =
       specializeType InferableType a = a
       specializeType p _             = p
 
-applyFunctionInstance :: Scope s -> InternalFunctions ->
-                         FunctionInstance -> [Value] -> KStat s Value
-applyFunctionInstance _ ifc (InternalFunction _ n) vs =
-    maybe (unknownInstance)      -- if Nothing
-          (\f -> return $ f vs)  -- if Just f
-          (Map.lookup n ifc)
-    where
-      unknownInstance = throwError $ InternalError $
-                        "Unknown internal function " ++ n
-applyFunctionInstance s ifc (AFunctionInstance td@(FunctionType formalTypes _)
+applyFunctionInstance :: Scope s -> FunctionInstance -> [Value] -> KStat s Value
+applyFunctionInstance _ (InternalFunction _ n) vs =
+    kstatInternalFunctionLookup n <*> pure vs
+
+applyFunctionInstance s (AFunctionInstance td@(FunctionType formalTypes _)
                                                formal stmt) actual = do
     functionScope <- makeFunctionScope s td formal
     scopeAddItems functionScope (zip3 (UnqualifiedID <$> formal)
                                       formalTypes
                                       actual)
-    evalAStatement functionScope ifc stmt
+    evalAStatement functionScope stmt
 
-applyFunctionInstance _ _ (FunctionInstance _ _ _) _ =
+applyFunctionInstance _ (FunctionInstance _ _ _) _ =
     throwError $ InternalError
                  "Function instances should be resolved before application"
 
 -- fixme on-demand function body type resolution
 
-evalAStatement :: Scope s -> InternalFunctions -> AStatement ->
+evalAStatement :: Scope s -> AStatement ->
                   KStat s Value  -- nb may alter scope
-evalAStatement s ifc (AExpression _ e) =  evalAExpr s ifc e
-evalAStatement s ifc (AVarDeclStatement _ lid td varInit) = do
-    defaultValue <- evaluateVarInit s ifc td varInit
+evalAStatement s (AExpression _ e) =  evalAExpr s e
+evalAStatement s (AVarDeclStatement _ lid td varInit) = do
+    defaultValue <- evaluateVarInit s td varInit
     scopeAddItemWithDef s
                        (lid, defaultValue, VariableDefinition td VarInitNone)
     return KindUnit
-evalAStatement s ifc (AStatementBlock _ stmts) =
-    last <$> mapM (evalAStatement s ifc) stmts
+evalAStatement s (AStatementBlock _ stmts) =
+    last <$> mapM (evalAStatement s) stmts
 
-evaluateVarInit :: Scope s -> InternalFunctions -> TypeDescriptor ->
+evaluateVarInit :: Scope s -> TypeDescriptor ->
                    VariableInitializer -> KStat s Value
-evaluateVarInit s ifc td VarInitNone = defaultValueOfType s ifc td
-evaluateVarInit s ifc td (VarInitAExpr e) = evalAExpr s ifc e
-evaluateVarInit _ _ _ (VarInitExpr _) = throwError $
-                                        InternalError "Unresolved expression in varinit"
+evaluateVarInit s td VarInitNone = defaultValueOfType s td
+evaluateVarInit s  td (VarInitAExpr e) = evalAExpr s e
+evaluateVarInit _ _ (VarInitExpr _) = throwError $
+                                      InternalError "Unresolved expression in varinit"
 -- fixme other init types
 
-defaultValueOfType :: Scope s -> InternalFunctions -> TypeDescriptor ->
+defaultValueOfType :: Scope s -> TypeDescriptor ->
                       KStat s Value
-defaultValueOfType _ _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")) _) =
+defaultValueOfType _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")) _) =
     return $ makeKindInt 0
-defaultValueOfType _ _ t = throwError $ InternalError $
+defaultValueOfType _ t = throwError $ InternalError $
                        "No default value defined for type " ++ show t
 
 -- FIXME shouldn't initialization occur in the scope in which the definition
 -- was written?
-initializeItem :: InternalFunctions -> Scope s -> Definition ->
-                  KStat s (TypeDescriptor, Value)
-initializeItem ifc s (VariableDefinition td varInit) =
-    (td,) <$> evaluateVarInit s ifc td varInit
-initializeItem _ _ (FunctionDefinition insts) =
+initializeItem :: Scope s -> Definition -> KStat s (TypeDescriptor, Value)
+initializeItem s (VariableDefinition td varInit) =
+    (td,) <$> evaluateVarInit s td varInit
+initializeItem _ (FunctionDefinition insts) =
     return $ (makeFunctionType insts, makeKindFunctionRef insts)
 -- fixme what about other definition types?
 
