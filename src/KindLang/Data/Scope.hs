@@ -13,14 +13,20 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
 import KindLang.Data.Error
-import KindLang.Data.KStat
+import KindLang.Data.MStat
 import KindLang.Data.Types
 import KindLang.Data.Value
 import KindLang.Runtime.Data
-    
+
+-- | Type of functions that can be used to provide a fully initialized variable
+-- or constant instance from a definition.  Note that such a function may
+-- necessarily execute user code, and therefore cannot be defined at the
+-- low levels where it is required for initialization-on-demand.
+type ItemInitializer m s = Scope s -> Definition -> m s (TypeDescriptor, Value)
+
 -- | Look up an identifier in a scope, returning its canonical id and
 -- either definition or type and value, or an error otherwise.
-scopeLookup :: Scope s -> NSID -> KStat s (NSID, DefinitionOrValue)
+scopeLookup :: MStat m s => Scope s -> NSID -> m s (NSID, DefinitionOrValue)
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
                (deferToParent s)
@@ -30,24 +36,24 @@ scopeLookup s i =
 
 -- | Begins a chain of operations on a scope that require the use of the KStat
 -- monad.
-scopeUpdate :: Scope s -> KStat s (Scope s)
+scopeUpdate :: MStat m s => Scope s -> m s (Scope s)
 scopeUpdate = return
 
 -- | Adds an item with an unqualified identifier and a definition to a scope.
-(|@+|) :: KStat s (Scope s) -> (String,Definition) -> KStat s (Scope s)
+(|@+|) :: MStat m s => m s (Scope s) -> (String,Definition) -> m s (Scope s)
 scope |@+| (n,d) = scope >>= \ (Scope p cat) ->
                    Scope p <$> cat |+~| (UnqualifiedID n, d)
 infixl 6 |@+|
 
 -- | Add an item to the scope using its canonical identifier as its resolvable
 -- id (a shortcut to the more flexible '(|++|)').
-(|+|) :: KStat s (Scope s) -> (NSID, Definition) -> KStat s (Scope s)
+(|+|) :: MStat m s => m s (Scope s) -> (NSID, Definition) -> m s (Scope s)
 scope |+| identDef = scope >>= \ (Scope p cat) -> Scope p <$> cat |+~| identDef
 infixl 6 |+|
 
 -- | Add an item to the scope with both its resolvable and canonical ids
 -- specified.
-(|++|) :: KStat s (Scope s) -> (NSID, NSID, Definition) -> KStat s (Scope s)
+(|++|) :: MStat m s => m s (Scope s) -> (NSID, NSID, Definition) -> m s (Scope s)
 scope |++| identCanidDef = scope >>= \ (Scope p cat) ->
                            Scope p <$> cat |++~| identCanidDef
 infixl 6 |++|
@@ -56,13 +62,14 @@ infixl 6 |++|
 -- containing the list of arguments for a function whose type is 'td' and whose
 -- argument names are given as 'names'.  If 'td' does not identify a function
 -- type, throws an internal error.
-makeFunctionScope :: Scope s -> TypeDescriptor -> [String] -> KStat s (Scope s)
+makeFunctionScope :: forall m s . MStat m s =>
+                     Scope s -> TypeDescriptor -> [String] -> m s (Scope s)
 makeFunctionScope s (FunctionType types _) names = do
     newCat <- newCatalogue
     foldM addVariableToScope (Scope (Just s) newCat) (zip names types)
     where
       addVariableToScope :: Scope s -> (String,TypeDescriptor) ->
-                            KStat s (Scope s)
+                            m s (Scope s)
       addVariableToScope ss (name,td) =
           scopeUpdate ss |@+| (name, VariableDefinition td VarInitNone)
 makeFunctionScope _ td _ = throwError $ InternalError
@@ -70,12 +77,12 @@ makeFunctionScope _ td _ = throwError $ InternalError
 
 -- | Looks up a type in a catalogue by id and returns a type descriptor for it
 -- where possible.
-resolveType :: Scope s -> NSID -> KStat s TypeDescriptor
+resolveType :: MStat m s => Scope s -> NSID -> m s TypeDescriptor
 resolveType s sid =
     makeResolvedType sid <$> scopeLookup s sid
 
 -- | Utility function for resolving a type from a scope held in the KS monad
-resolveTypeKS :: KStat s (Scope s) -> NSID -> KStat s TypeDescriptor
+resolveTypeKS :: MStat m s => m s (Scope s) -> NSID -> m s TypeDescriptor
 resolveTypeKS kss sid = kss >>= (flip resolveType) sid
 
 -- | Creates a resolved type descriptor refering to an identified type
@@ -92,7 +99,7 @@ makeResolvedType _ (_, Right _) =
 -- from there to this module, but some of its logic clearly belongs there.
 -- consider splitting it so the relevant parts can exist there.
 -- | Look up a type and provide a canonical id for it
-typeLookup :: Scope s -> TypeDescriptor -> KStat s TypeDescriptor
+typeLookup :: MStat m s => Scope s -> TypeDescriptor -> m s TypeDescriptor
 typeLookup s (SimpleType sid) =
     makeResolvedType sid <$> scopeLookup s sid
 typeLookup _ rt@(ResolvedType _ _ _) = return rt
@@ -103,7 +110,8 @@ typeLookup s (FunctionType parameters rtype) = do
 typeLookup _ InferableType = return InferableType
 -- FIXME other type descriptor constructors must be included here!
 
-scopeLookupRef :: Scope s -> NSID -> ItemInitializer s -> KStat s (NSID, STRef s Value)
+scopeLookupRef :: MStat m s => Scope s -> NSID -> ItemInitializer m s ->
+                  m s (NSID, STRef s Value)
 scopeLookupRef sc i initializer = do
     found <- findEntry (scopeCat sc) i
     case found of
@@ -115,13 +123,15 @@ scopeLookupRef sc i initializer = do
       passRequestUp (Just scp) = scopeLookupRef scp i initializer
       passRequestUp Nothing    = throwError $ IdentifierNotFound i
 
-scopeLookupValue :: Scope s -> NSID -> ItemInitializer s -> KStat s (NSID, Value)
+scopeLookupValue :: MStat m s =>
+                    Scope s -> NSID -> ItemInitializer m s -> m s (NSID, Value)
 scopeLookupValue sc i ii = scopeLookupRef sc i ii >>=
                            (runKleisli $ second (Kleisli kstatReadRef))
 
 -- | Initialize a definition to a runtime variable
-initializeRef :: ItemInitializer s -> Scope s -> NSID -> NSID -> Definition ->
-                 KStat s (NSID, STRef s Value)
+initializeRef :: MStat m s =>
+                 ItemInitializer m s -> Scope s -> NSID -> NSID -> Definition ->
+                 m s (NSID, STRef s Value)
 initializeRef initializer sc cid i def = do
     (td, val) <- initializer sc def
     ref <- kstatNewRef val
@@ -129,13 +139,13 @@ initializeRef initializer sc cid i def = do
                    (CatEntryR td ref)
     return (cid, ref)
 
-scopeAddItems :: Scope s -> [(NSID,TypeDescriptor,Value)] -> KStat s ()
+scopeAddItems :: MStat m s => Scope s -> [(NSID,TypeDescriptor,Value)] -> m s ()
 scopeAddItems scope values = mapM_ (scopeAddItem scope) values
 
-scopeAddItem :: Scope s -> (NSID,TypeDescriptor,Value) -> KStat s ()
+scopeAddItem :: MStat m s => Scope s -> (NSID,TypeDescriptor,Value) -> m s ()
 scopeAddItem sc (sid,td,val) = do
     ref <- kstatNewRef val
     catAddEntry (scopeCat sc) sid (sid, CatEntryR td ref)
 
-scopeItems :: Scope s -> KStat s [(NSID, NSID, DefinitionOrValue)]
+scopeItems :: MStat m s => Scope s -> m s [(NSID, NSID, DefinitionOrValue)]
 scopeItems sc = catFlatten $ scopeCat sc

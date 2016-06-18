@@ -5,7 +5,6 @@ import Data.List
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Error
-import KindLang.Data.KStat
 
 -- fixme these functions probably belong in a module for type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->

@@ -5,7 +5,6 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
-import KindLang.Data.KStat
 import KindLang.Data.Types
 
 -- | Scope associates names with types and values.  It is a nested structure
@@ -24,12 +23,6 @@ data Scope stt =
     }
     deriving (Show)
 
--- | Type of functions that can be used to provide a fully initialized variable
--- or constant instance from a definition.  Note that such a function may
--- necessarily execute user code, and therefore cannot be defined at the
--- low levels where it is required for initialization-on-demand.
-type ItemInitializer s = Scope s -> Definition -> KStat s (TypeDescriptor, Value)
-
 -- fixme probably want a lower-level implementation of this, so we can manage
 -- memory ourselves
 data Value =
@@ -40,3 +33,4 @@ data Value =
     deriving (Show, Eq)
 
 type DefinitionOrValue = DefinitionOr Value
+

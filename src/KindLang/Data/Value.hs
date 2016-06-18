@@ -1,10 +1,9 @@
 module KindLang.Data.Value
         (module KindLang.Data.Value,
-         Value) where
+         Value) where                -- rexported
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
-import KindLang.Data.KStat
 import KindLang.Runtime.Data
 
 -- Note that the 'get' functions are incomplete.  This should be fine, as assuming

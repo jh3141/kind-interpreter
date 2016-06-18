@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, FlexibleInstances, MultiParamTypeClasses  #-}
 module KindLang.Data.KStat where
 
 import Control.Monad.Except
@@ -10,20 +10,52 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
 import KindLang.Util.Control
+import KindLang.Data.Value
+import KindLang.Lib.InternalFunctions
+import KindLang.Data.MStat
 
 -- FIXME look into changing maps-stored-in-ST into actual mutable structures
 data KStatRoot s = KStatRoot
     {
       kstatLoadedModules :: STRef s (Map.Map NSID (STRef s Module)),
-      kstatDefinitions :: STRef s (Map.Map NSID Definition)
+      kstatDefinitions :: STRef s (Map.Map NSID Definition),
+      kstatInternalFunctions :: STRef s InternalFunctions
     }
-type KStat s a = ReaderT (KStatRoot s) (ExceptT KindError (ST s)) a
+
+newtype KStat s a =
+    KStat { runKStat :: ReaderT (KStatRoot s) (ExceptT KindError (ST s)) a }
+
+instance MStat KStat s where
+    liftToST = KStat . lift . lift
+    kstatNewRef = liftToST . newSTRef
+    kstatReadRef = liftToST . readSTRef
+    kstatWriteRef r v = liftToST $ writeSTRef r v
+
+instance Functor (KStat s) where
+    fmap f = KStat . fmap f . runKStat
+
+instance Applicative (KStat s) where
+    pure = KStat . pure
+    f <*> a = KStat $ (runKStat f) <*> (runKStat a)
+
+instance Monad (KStat s) where
+    return = KStat . return
+    m >>= f = KStat ((runKStat m) >>= (runKStat . f))
+
+instance MonadError KindError (KStat s) where
+    throwError = KStat . throwError
+    catchError m f = KStat (catchError (runKStat m) (runKStat . f))
+
+instance MonadReader (KStatRoot s) (KStat s) where
+    ask = KStat ask
 
 initKStat :: KStat s a -> ST s (Either KindError a)
 initKStat r = do
     loadedModules <- newSTRef Map.empty
     definitions <- newSTRef Map.empty
-    runExceptT $ runReaderT r (KStatRoot loadedModules definitions)
+    internals <- newSTRef Map.empty
+    runExceptT $ runReaderT (runKStat r)
+                            (KStatRoot loadedModules definitions internals)
 
 runToIO :: (forall s . KStat s a) -> IO a
 runToIO r = either (error . show) return $ runST $ initKStat r
@@ -33,18 +65,6 @@ runToEither r = runST $ initKStat r
 
 expectNoErrors :: String -> (forall s . KStat s a) -> a
 expectNoErrors err r = rightOrFail err $ runToEither r
-
-liftToST :: ST s a -> KStat s a
-liftToST = lift . lift
-           
-kstatNewRef :: a -> KStat s (STRef s a)
-kstatNewRef = liftToST . newSTRef
-
-kstatReadRef :: STRef s a -> KStat s a
-kstatReadRef = liftToST . readSTRef
-
-kstatWriteRef :: STRef s a -> a -> KStat s ()
-kstatWriteRef r v = liftToST $ writeSTRef r v
 
 kstatStoreModule :: Module -> KStat s ()
 kstatStoreModule m =
@@ -68,6 +88,13 @@ kstatFindModule sid = do
     case Map.lookup sid loadedModules of
       Nothing -> return Nothing
       Just mRef -> Just <$> kstatReadRef mRef
+
+kstatSetInternalFunctions :: InternalFunctions -> KStat s ()
+kstatSetInternalFunctions v = kstatInternalFunctions <$> ask >>=
+                              \ ref -> kstatWriteRef ref v
+
+kstatGetInternalFunctions :: KStat s InternalFunctions
+kstatGetInternalFunctions = kstatInternalFunctions <$> ask >>= kstatReadRef
 
 nop :: Monad m => a -> m ()
 nop _ = return ()
