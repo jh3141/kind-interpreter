@@ -34,3 +34,5 @@ data Value =
 
 type DefinitionOrValue = DefinitionOr Value
 
+type ValueOrRef s = Either Value (STRef s Value)
+    

@@ -19,7 +19,7 @@ data KStatRoot s = KStatRoot
     {
       kstatLoadedModules :: STRef s (Map.Map NSID (STRef s Module)),
       kstatDefinitions :: STRef s (Map.Map NSID Definition),
-      kstatInternalFunctions :: STRef s InternalFunctions
+      kstatInternalFunctions :: STRef s (InternalFunctions KStat s)
     }
 
 newtype KStat s a =
@@ -89,14 +89,15 @@ kstatFindModule sid = do
       Nothing -> return Nothing
       Just mRef -> Just <$> kstatReadRef mRef
 
-kstatSetInternalFunctions :: InternalFunctions -> KStat s ()
+kstatSetInternalFunctions :: InternalFunctions KStat s -> KStat s ()
 kstatSetInternalFunctions v = kstatInternalFunctions <$> ask >>=
                               \ ref -> kstatWriteRef ref v
 
-kstatGetInternalFunctions :: KStat s InternalFunctions
+kstatGetInternalFunctions :: KStat s (InternalFunctions KStat s)
 kstatGetInternalFunctions = kstatInternalFunctions <$> ask >>= kstatReadRef
 
-kstatInternalFunctionLookup :: InternalFunctionName -> KStat s InternalFunctionImp
+kstatInternalFunctionLookup :: InternalFunctionName ->
+                               KStat s (InternalFunction KStat s)
 kstatInternalFunctionLookup name =
     (Map.lookup name) <$> kstatGetInternalFunctions >>=
        maybe (throwError $ InternalError $ "Unknown internal function " ++ name)

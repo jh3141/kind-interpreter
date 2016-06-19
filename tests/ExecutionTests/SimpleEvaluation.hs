@@ -91,8 +91,8 @@ testScope = scopeDefault
                               ])
             |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
 
-ifc :: InternalFunctions
-ifc = Map.fromList [("ret42", const $ makeKindInt 42)]
+ifc :: InternalFunctions KStat s
+ifc = Map.fromList [("ret42", const $ return $ Left $ makeKindInt 42)]
 
 idRet42 :: NSID
 idRet42 = listToNSID ["ret42"]

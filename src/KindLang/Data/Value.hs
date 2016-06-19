@@ -1,6 +1,6 @@
 module KindLang.Data.Value
         (module KindLang.Data.Value,
-         Value) where                -- rexported
+         Value, ValueOrRef) where                -- rexported
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST

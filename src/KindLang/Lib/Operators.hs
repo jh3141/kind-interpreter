@@ -9,6 +9,7 @@ import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.Value
 import KindLang.Data.KStat
+import KindLang.Data.MStat
 import KindLang.Data.Scope
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.InternalFunctions
@@ -19,6 +20,10 @@ findBinaryOperator "+" t1 t2 =
     return $ AVarRef
                (ExprAnnotation (FunctionType [t1, t2] t2) [])
                (coreId "(+)")
+findBinaryOperator "=" (Reference t1) t2 =
+    return $ AVarRef
+               (ExprAnnotation (FunctionType [Reference t1, t2] t2) [])
+               (coreId "(=)")
 findBinaryOperator _ _ _ =
     throwError $ InternalError "haven't finished implementing operators"
 -- ditto
@@ -38,12 +43,17 @@ addStandardOperatorsToScope sc =
     scopeUpdate sc
         |++| (coreId "(+)", coreId "(+)", FunctionDefinition [
                 makeInternalFn [rtKindInt, rtKindInt] rtKindInt "(+)II"])
+        |++| (coreId "(=)", coreId "(=)", FunctionDefinition [
+                makeInternalFn [Reference rtKindInt, rtKindInt] rtKindInt "(=)RII"])
 
 -- fixme this should be in its own file, and grab in stuff from elsewhere to!
-standardInternalFunctions :: InternalFunctions
+standardInternalFunctions :: InternalFunctions KStat s
 standardInternalFunctions =
     Map.fromList [
             ("(+)II",
-              \ ((KindInt a):(KindInt b):[]) -> KindInt (a+b))
+              \ [Left (KindInt a),Left (KindInt b)] ->
+                  return $ Left $ KindInt (a+b)),
+            ("(=)RII",
+              \ [Right ref, Left c] -> kstatWriteRef ref c >>
+                                       return (Left c))
     ]
-

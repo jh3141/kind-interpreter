@@ -14,6 +14,7 @@ import KindLang.Data.AST
 import KindLang.Data.Error
 import KindLang.Data.Scope
 import KindLang.Data.KStat
+import KindLang.Data.MStat
 import KindLang.Data.Types
 import KindLang.Locale.ErrorMessages
 import KindLang.Analysis.ResolveTypes
@@ -31,7 +32,8 @@ evalAExpr _ (AStringLiteral _ val) = return $ makeKindString val
 evalAExpr s (AFunctionApplication _ efn eargs) = do
     fn <- evalAExpr s efn
     args <- mapM (evalAExpr s) eargs
-    applyFunction s (getKindFunctionRef fn) (aexprType <$> eargs) args
+    applyFunction s (getKindFunctionRef fn) (aexprType <$> eargs) args >>=
+                  refToValue
 evalAExpr s (AVarRef ae id) =
     snd <$> scopeLookupValue s id initializeItem
 evalAExpr _ expr = throwError $ InternalError
@@ -40,9 +42,12 @@ evalAExpr _ expr = throwError $ InternalError
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
+refToValue :: ValueOrRef s -> KStat s Value
+refToValue (Left v) = return v
+refToValue (Right ref) = kstatReadRef ref
 
 applyFunction :: Scope s -> [FunctionInstance] ->
-                 [TypeDescriptor] -> [Value] -> KStat s Value
+                 [TypeDescriptor] -> [Value] -> KStat s (ValueOrRef s)
 applyFunction s (inst:[]) _ v = applyFunctionInstance s inst v
 applyFunction s (i:is) vTypes v
               | fnInstCompatible i vTypes =
@@ -66,9 +71,10 @@ substituteInferableTypes sc (FunctionInstance td@(FunctionType pt rt) f st) at =
       specializeType InferableType a = a
       specializeType p _             = p
 
-applyFunctionInstance :: Scope s -> FunctionInstance -> [Value] -> KStat s Value
+applyFunctionInstance :: Scope s -> FunctionInstance -> [Value] ->
+                         KStat s (ValueOrRef s)
 applyFunctionInstance _ (InternalFunction _ n) vs =
-    kstatInternalFunctionLookup n <*> pure vs
+    join (kstatInternalFunctionLookup n <*> pure (Left <$> vs))
 
 applyFunctionInstance s (AFunctionInstance td@(FunctionType formalTypes _)
                                                formal stmt) actual = do
@@ -76,7 +82,7 @@ applyFunctionInstance s (AFunctionInstance td@(FunctionType formalTypes _)
     scopeAddItems functionScope (zip3 (UnqualifiedID <$> formal)
                                       formalTypes
                                       actual)
-    evalAStatement functionScope stmt
+    Left <$> evalAStatement functionScope stmt -- fixme how to return refs?
 
 applyFunctionInstance _ (FunctionInstance _ _ _) _ =
     throwError $ InternalError
