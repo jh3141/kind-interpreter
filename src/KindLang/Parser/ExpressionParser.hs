@@ -47,6 +47,8 @@ operatorList =
         OperatorInfo "^^" (LAssoc  30) binOpLed,
         OperatorInfo "||" (LAssoc  30) binOpLed,
 
+        OperatorInfo "="  (LAssoc  20) binOpLed,
+                     
         OperatorInfo ","  (RAssoc  10) binOpLed
     ]
 
