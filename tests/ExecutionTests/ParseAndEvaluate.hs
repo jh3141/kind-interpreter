@@ -21,7 +21,7 @@ import KindLang.Lib.Operators
 import Text.Parsec
 
 expectRight :: Show a => Either a b -> IO b
-expectRight (Left err) = error (show err)
+expectRight (Left err) = error $ "Unexpected failure: " ++ (show err)
 expectRight (Right r)  = return r
 
 bootstrapExpr :: Expr

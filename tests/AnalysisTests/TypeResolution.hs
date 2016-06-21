@@ -91,8 +91,20 @@ typeResolutionTests =
                               BinOp "+" (IntLiteral 1) (IntLiteral 2)) @?=
                  (Right $ AFunctionApplication eaKindInt
                   (AVarRef (ExprAnnotation fnIntIntInt []) (coreId "(+)"))
-                    -- fixme overloads
                   [(AIntLiteral eaKindInt 1), (AIntLiteral eaKindInt 2)]),
+        testCase "resolve binary operator with lvalue" $
+                 (runToEither $ resolveExprKS testScope $
+                              BinOp "=" (VarRef intVar) (IntLiteral 2)) @?=
+                 (Right $ AFunctionApplication eaKindInt
+                  (AVarRef (ExprAnnotation
+                            (FunctionType [Reference rtKindInt, rtKindInt]
+                                          rtKindInt)
+                            [])
+                           (coreId "(=)"))
+                  [(AVarRef (ExprAnnotation (Reference rtKindInt)
+                                            [("CanonicalID", EADId intVar)])
+                            intVar),
+                   (AIntLiteral eaKindInt 2)]),
 
         testCase "resolve prefix operator" $
                  (runToEither $ resolveExprKS testScope $
@@ -257,6 +269,9 @@ privateField :: NSID
 privateField = UnqualifiedID "privateField"
 multiFn :: NSID
 multiFn = listToNSID ["multiFn"]
+intVar :: NSID
+intVar = listToNSID ["intVar"]
+         
           
 testScope :: KStat s (Scope s)
 testScope =
@@ -282,6 +297,7 @@ testScope =
               |+| (mcInst, VariableDefinition rtMethodClass VarInitNone)
               |+| (multiFn, FunctionDefinition [simpleFnInstance,
                                                 simpleFnInstance2])
+              |+| (intVar, VariableDefinition rtKindInt VarInitNone)
 
 def :: Definition
 def = (ClassDefinition [])
