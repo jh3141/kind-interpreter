@@ -25,17 +25,15 @@ scopeAddItemWithDef :: Scope s -> (String,Value,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)
 
--- fixme: going to need access to program mutable state, and ability to mutate it!
-evalAExpr :: Scope s -> AExpr -> KStat s Value
-evalAExpr _ (AIntLiteral _ val) = return $ makeKindInt val
-evalAExpr _ (AStringLiteral _ val) = return $ makeKindString val
+evalAExpr :: Scope s -> AExpr -> KStat s (ValueOrRef s)
+evalAExpr _ (AIntLiteral _ val) = return $ Left $ makeKindInt val
+evalAExpr _ (AStringLiteral _ val) = return $ Left $ makeKindString val
 evalAExpr s (AFunctionApplication _ efn eargs) = do
-    fn <- evalAExpr s efn
+    fn <- evalAExpr s efn >>= refToValue
     args <- mapM (evalAExpr s) eargs
-    applyFunction s (getKindFunctionRef fn) (aexprType <$> eargs) args >>=
-                  refToValue
+    applyFunction s (getKindFunctionRef fn) (aexprType <$> eargs) args
 evalAExpr s (AVarRef ae id) =
-    snd <$> scopeLookupValue s id initializeItem
+    Right <$> snd <$> scopeLookupRef s id initializeItem
 evalAExpr _ expr = throwError $ InternalError
                      ("attempted to evaluate unimplemented expression: " ++
                       show expr)
@@ -47,7 +45,7 @@ refToValue (Left v) = return v
 refToValue (Right ref) = kstatReadRef ref
 
 applyFunction :: Scope s -> [FunctionInstance] ->
-                 [TypeDescriptor] -> [Value] -> KStat s (ValueOrRef s)
+                 [TypeDescriptor] -> [ValueOrRef s] -> KStat s (ValueOrRef s)
 applyFunction s (inst:[]) _ v = applyFunctionInstance s inst v
 applyFunction s (i:is) vTypes v
               | fnInstCompatible i vTypes =
@@ -71,28 +69,38 @@ substituteInferableTypes sc (FunctionInstance td@(FunctionType pt rt) f st) at =
       specializeType InferableType a = a
       specializeType p _             = p
 
-applyFunctionInstance :: Scope s -> FunctionInstance -> [Value] ->
+applyFunctionInstance :: Scope s -> FunctionInstance -> [ValueOrRef s] ->
                          KStat s (ValueOrRef s)
-applyFunctionInstance _ (InternalFunction _ n) vs =
-    join (kstatInternalFunctionLookup n <*> pure (Left <$> vs))
+applyFunctionInstance _ (InternalFunction (FunctionType ts _) n) vs =
+    join (kstatInternalFunctionLookup n <*> dereferenceArgList vs ts)
 
 applyFunctionInstance s (AFunctionInstance td@(FunctionType formalTypes _)
                                                formal stmt) actual = do
     functionScope <- makeFunctionScope s td formal
+    actualValues <- mapM refToValue actual
     scopeAddItems functionScope (zip3 (UnqualifiedID <$> formal)
                                       formalTypes
-                                      actual)
+                                      actualValues) -- fixme ref args
     Left <$> evalAStatement functionScope stmt -- fixme how to return refs?
 
 applyFunctionInstance _ (FunctionInstance _ _ _) _ =
     throwError $ InternalError
                  "Function instances should be resolved before application"
 
+dereferenceArgList :: [ValueOrRef s] -> [TypeDescriptor] ->
+                      KStat s [ValueOrRef s]
+dereferenceArgList vs ts = mapM (uncurry dereferenceIfRequired) (zip vs ts)
+
+dereferenceIfRequired :: ValueOrRef s -> TypeDescriptor -> KStat s (ValueOrRef s)
+dereferenceIfRequired (Left v)  _             = return $ Left v
+dereferenceIfRequired (Right r) (Reference _) = return $ Right r
+dereferenceIfRequired (Right r) _             = Left <$> kstatReadRef r
+
 -- fixme on-demand function body type resolution
 
 evalAStatement :: Scope s -> AStatement ->
                   KStat s Value  -- nb may alter scope
-evalAStatement s (AExpression _ e) =  evalAExpr s e
+evalAStatement s (AExpression _ e) =  evalAExpr s e >>= refToValue
 evalAStatement s (AVarDeclStatement _ lid td varInit) = do
     defaultValue <- evaluateVarInit s td varInit
     scopeAddItemWithDef s
@@ -104,7 +112,7 @@ evalAStatement s (AStatementBlock _ stmts) =
 evaluateVarInit :: Scope s -> TypeDescriptor ->
                    VariableInitializer -> KStat s Value
 evaluateVarInit s td VarInitNone = defaultValueOfType s td
-evaluateVarInit s  td (VarInitAExpr e) = evalAExpr s e
+evaluateVarInit s  td (VarInitAExpr e) = evalAExpr s e >>= refToValue
 evaluateVarInit _ _ (VarInitExpr _) = throwError $
                                       InternalError "Unresolved expression in varinit"
 -- fixme other init types

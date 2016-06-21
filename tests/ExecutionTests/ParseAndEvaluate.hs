@@ -56,7 +56,7 @@ runTest filename expected =
 
           kstatSetInternalFunctions standardInternalFunctions
 
-          evalAExpr moduleScope resolvedBootstrap
+          evalAExpr moduleScope resolvedBootstrap >>= refToValue
                     
       assertEqual "Returned value" expected value
 

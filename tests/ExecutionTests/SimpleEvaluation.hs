@@ -30,7 +30,7 @@ execTestWithData s v ex =
                          f <- resolveExpr s' ex
                          scopeAddItems s' v
                          kstatSetInternalFunctions ifc
-                         evalAExpr s' f)
+                         evalAExpr s' f >>= refToValue)
 
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
