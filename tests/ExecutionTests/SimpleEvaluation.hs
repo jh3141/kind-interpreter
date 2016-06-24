@@ -68,6 +68,9 @@ simpleEvaluationTests =
                                  "d" rtKindInt VarInitNone)
                     ref <- scopeLookupRef newScope (UnqualifiedID "d") undefined
                     return ()) @?= Right ()) :
+        (testCase "Evaluate reference to a class" $
+                  (execTest testScope $ VarRef idMyClass) @?=
+                  KindObject refKindDefaultMetaclass 
         [])
 
 testScope :: KStat s (Scope s)
@@ -90,6 +93,7 @@ testScope = scopeDefault
                                     idA)
                               ])
             |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
+            |@+| ("MyClass", ClassDefinition [])
 
 ifc :: InternalFunctions KStat s
 ifc = Map.fromList [("ret42", const $ return $ Left $ makeKindInt 42)]
@@ -104,3 +108,5 @@ idVar1 :: NSID
 idVar1 = listToNSID ["var1"]
 idA :: NSID
 idA = listToNSID ["a"]
+idMyClass :: NSID
+idMyClass = listToNSID ["MyClass"]
