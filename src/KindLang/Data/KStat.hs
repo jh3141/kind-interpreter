@@ -64,7 +64,9 @@ runToEither :: (forall s . KStat s a) -> Either KindError a
 runToEither r = runST $ initKStat r
 
 expectNoErrors :: String -> (forall s . KStat s a) -> a
-expectNoErrors err r = rightOrFail err $ runToEither r
+expectNoErrors err r = case runToEither r of
+                         Left err' -> error $ err ++ ": " ++ show err'
+                         Right v   -> v
 
 kstatStoreModule :: Module -> KStat s ()
 kstatStoreModule m =

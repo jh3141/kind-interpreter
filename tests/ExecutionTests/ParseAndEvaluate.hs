@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module ExecutionTests.ParseAndEvaluate (parseAndEvaluateTests, runTest) where
 
 import Control.Exception
@@ -30,7 +31,7 @@ bootstrapExpr = (FunctionApplication (VarRef $ UnqualifiedID "test") [])
 failException :: SomeException -> IO ()
 failException e = error $ displayException e
 
-runTest :: String -> Value -> Assertion
+runTest :: String -> (forall s . Value s) -> Assertion
 runTest filename expected =
     do
       source <- readFile ("kindtests/ParseAndEvaluate/" ++ filename ++ ".k")
@@ -40,7 +41,7 @@ runTest filename expected =
       --putStrLn "Parsed module: "
       --print modTree
 
-      value <- runToIO $ do
+      expectNoErrors "unexpected error during execution" $ do
           scope <- (scopeDefault >>= addStandardOperatorsToScope)
           resolvedModule <- resolveModule modTree scope nullModuleLoader
 
@@ -56,11 +57,11 @@ runTest filename expected =
 
           kstatSetInternalFunctions standardInternalFunctions
 
-          evalAExpr moduleScope resolvedBootstrap >>= refToValue
-                    
-      assertEqual "Returned value" expected value
+          value <- evalAExpr moduleScope resolvedBootstrap >>= refToValue
 
-makeTest :: String -> Value -> TestTree
+          return $ assertEqual "Returned value" expected value
+
+makeTest :: String -> (forall s . Value s) -> TestTree
 makeTest f v = testCase f $ runTest f v
 
 parseAndEvaluateTests :: TestTree

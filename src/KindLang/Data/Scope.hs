@@ -22,11 +22,11 @@ import KindLang.Runtime.Data
 -- or constant instance from a definition.  Note that such a function may
 -- necessarily execute user code, and therefore cannot be defined at the
 -- low levels where it is required for initialization-on-demand.
-type ItemInitializer m s = Scope s -> Definition -> m s (TypeDescriptor, Value)
+type ItemInitializer m s = Scope s -> Definition -> m s (TypeDescriptor, Value s)
 
 -- | Look up an identifier in a scope, returning its canonical id and
 -- either definition or type and value, or an error otherwise.
-scopeLookup :: MStat m s => Scope s -> NSID -> m s (NSID, DefinitionOrValue)
+scopeLookup :: MStat m s => Scope s -> NSID -> m s (NSID, DefinitionOrValue s)
 scopeLookup s i =
     catchError (lookupHierarchical (scopeCat s) i)
                (deferToParent s)
@@ -87,7 +87,7 @@ resolveTypeKS kss sid = kss >>= (flip resolveType) sid
 
 -- | Creates a resolved type descriptor refering to an identified type
 -- definition (e.g. a definition returned by 'scopeLookup').
-makeResolvedType :: NSID -> (NSID, DefinitionOrValue) -> TypeDescriptor
+makeResolvedType :: NSID -> (NSID, DefinitionOrValue s) -> TypeDescriptor
 makeResolvedType sid (cid, Left def) = ResolvedType sid cid def
 makeResolvedType _ (_, Right _) =
     error "makeResolvedType should handle values as well as definitions"
@@ -111,7 +111,7 @@ typeLookup _ InferableType = return InferableType
 -- FIXME other type descriptor constructors must be included here!
 
 scopeLookupRef :: MStat m s => Scope s -> NSID -> ItemInitializer m s ->
-                  m s (NSID, STRef s Value)
+                  m s (NSID, ValueRef s)
 scopeLookupRef sc i initializer = do
     found <- findEntry (scopeCat sc) i
     case found of
@@ -124,14 +124,14 @@ scopeLookupRef sc i initializer = do
       passRequestUp Nothing    = throwError $ IdentifierNotFound i
 
 scopeLookupValue :: MStat m s =>
-                    Scope s -> NSID -> ItemInitializer m s -> m s (NSID, Value)
+                    Scope s -> NSID -> ItemInitializer m s -> m s (NSID, Value s)
 scopeLookupValue sc i ii = scopeLookupRef sc i ii >>=
                            (runKleisli $ second (Kleisli kstatReadRef))
 
 -- | Initialize a definition to a runtime variable
 initializeRef :: MStat m s =>
                  ItemInitializer m s -> Scope s -> NSID -> NSID -> Definition ->
-                 m s (NSID, STRef s Value)
+                 m s (NSID, ValueRef s)
 initializeRef initializer sc cid i def = do
     (td, val) <- initializer sc def
     ref <- kstatNewRef val
@@ -139,13 +139,13 @@ initializeRef initializer sc cid i def = do
                    (CatEntryR td ref)
     return (cid, ref)
 
-scopeAddItems :: MStat m s => Scope s -> [(NSID,TypeDescriptor,Value)] -> m s ()
+scopeAddItems :: MStat m s => Scope s -> [(NSID,TypeDescriptor,Value s)] -> m s ()
 scopeAddItems scope values = mapM_ (scopeAddItem scope) values
 
-scopeAddItem :: MStat m s => Scope s -> (NSID,TypeDescriptor,Value) -> m s ()
+scopeAddItem :: MStat m s => Scope s -> (NSID,TypeDescriptor,Value s) -> m s ()
 scopeAddItem sc (sid,td,val) = do
     ref <- kstatNewRef val
     catAddEntry (scopeCat sc) sid (sid, CatEntryR td ref)
 
-scopeItems :: MStat m s => Scope s -> m s [(NSID, NSID, DefinitionOrValue)]
+scopeItems :: MStat m s => Scope s -> m s [(NSID, NSID, DefinitionOrValue s)]
 scopeItems sc = catFlatten $ scopeCat sc

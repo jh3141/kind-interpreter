@@ -19,7 +19,7 @@ nullLoader :: ModuleLoader s
 nullLoader sid = throwError $ InvalidImport sid "Could not find module"
 
 buildAndLookupM :: ModuleLoader s -> Module -> Visibility -> NSID ->
-                   Bool -> KStat s (NSID, DefinitionOrValue)
+                   Bool -> KStat s (NSID, DefinitionOrValue s)
 buildAndLookupM l m v s errMode = do
     cats <- buildCatalogues l m
     cat <- catalogueForVisibility v cats
@@ -35,35 +35,42 @@ buildAndLookupM l m v s errMode = do
       optionallyAnnotateError False _ e = throwError e
 
 buildAndLookup :: (forall s . ModuleLoader s) -> Module -> Visibility -> String ->
-                  (NSID, DefinitionOrValue)
+                  (NSID, Maybe Definition)
 buildAndLookup l m v s =
     case buildAndLookupNS l m v (UnqualifiedID s) True of
          Left err -> error $ "Unexpected error " ++ show err
          Right def -> def
 
 buildAndLookupNS :: (forall s . ModuleLoader s) -> Module -> Visibility -> NSID ->
-                    Bool -> Either KindError (NSID, DefinitionOrValue)
-buildAndLookupNS l m v s errMode = runToEither $ buildAndLookupM l m v s errMode
+                    Bool -> Either KindError (NSID, Maybe Definition)
+buildAndLookupNS l m v s errMode = runToEither $
+                                   buildAndLookupM l m v s errMode >>= getDef
+                                   where
+                                     getDef (a,Left d) = return (a, Just d)
+                                     getDef (a, Right _) = return (a, Nothing)
 
 catalogueForVisibility :: Visibility -> ModuleCatalogues s ->
-                          KStat s (Catalogue s Value)
+                          KStat s (Catalogue s (Value s))
 catalogueForVisibility Public c = return $ moduleCataloguePublic c
 catalogueForVisibility Private c = return $ moduleCataloguePrivate c
 catalogueForVisibility Protected _ =
     throwError $ InternalError "modules don't have protected catalogues"
 
 buildToFlatList :: (forall s . ModuleLoader s) -> Module -> Visibility ->
-                   [(NSID, NSID, DefinitionOrValue)]
+                   [(NSID, NSID, Maybe Definition)]
 buildToFlatList l m v = expectNoErrors "unexpected error" $
                           buildCatalogues l m >>= catalogueForVisibility v
                                               >>= catFlatten
+                                              >>= return . map removeValues
+                        where
+                          removeValues (a,b,Left d) = (a,b,Just d)
+                          removeValues (a,b,Right _) = (a,b,Nothing)
 
-flatListLookup :: [(NSID, NSID, DefinitionOrValue)] -> NSID ->
-                  Maybe (NSID, DefinitionOrValue)
-flatListLookup l k = lookup k $ (extractFirst <$> l)
-
-extractFirst :: (a,b,c) -> (a,(b,c))
-extractFirst (a,b,c) = (a,(b,c))
+flatListLookup :: [(NSID, NSID, Maybe Definition)] -> NSID ->
+                  Maybe (NSID, Maybe Definition)
+flatListLookup l k = lookup k $ (makeDefListItem <$> l)
+                     where
+                       makeDefListItem (a,b,c) = (a,(b,c))
 
 buildAndReturnError :: (forall s . ModuleLoader s) -> Module -> Maybe KindError
 buildAndReturnError l m = expectNoErrors "unexpected error" $
@@ -83,17 +90,17 @@ catalogueTests =
                    (Module Nothing []
                         [("MyClass", ClassDefinition[])])
                    Public "MyClass") @?=
-                 (UnqualifiedID "MyClass", Left $ ClassDefinition []),
+                 (UnqualifiedID "MyClass", Just $ ClassDefinition []),
         testCase "Catalogue contains module function definition" $
                  (buildAndLookup
                    nullLoader
                    (Module Nothing []
                         [("myFunction", FunctionDefinition [])])
                    Public "myFunction") @?=
-                 (UnqualifiedID "myFunction", Left $ FunctionDefinition []),
+                 (UnqualifiedID "myFunction", Just $ FunctionDefinition []),
         testCase "Catalogue items qualified when module has name" $
                  (buildAndLookup nullLoader myModule Public "MyClass") @?=
-                 (myClassSID, Left $ ClassDefinition []),
+                 (myClassSID, Just $ ClassDefinition []),
         testCase "Error importing unknown module" $
                  (buildAndReturnError nullLoader myModuleWithImports) @?=
                  (Just $ InvalidImport myModuleId "Could not find module"),
@@ -101,12 +108,12 @@ catalogueTests =
                  (buildAndLookup
                     (loaderForModule myModuleId myModule)
                     myModuleWithImports Private "MyClass") @?=
-                 (myClassSID, Left $ ClassDefinition []),
+                 (myClassSID, Just $ ClassDefinition []),
         testCase "Imported module with filter contains included item" $
                  (buildAndLookup
                     (loaderForModule myModuleId myModule)
                     myModuleWithFilteredImports Private "MyClass") @?=
-                 (myClassSID, Left $ ClassDefinition []),
+                 (myClassSID, Just $ ClassDefinition []),
         testCase "Item filtered from import not in map" $
                  (flatListLookup (buildToFlatList
                                     (loaderForModule myModuleId myModule)
@@ -118,19 +125,19 @@ catalogueTests =
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedImports
                     Private myClassSID True) @?=
-                 Right (myClassSID, Left $ ClassDefinition []),
+                 Right (myClassSID, Just $ ClassDefinition []),
         testCase "Import qualified with renaming" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithRenamedImports
                     Private (QualifiedID "I" $ UnqualifiedID "MyClass") True)
-                 @?= Right (myClassSID, Left $ ClassDefinition []),
+                 @?= Right (myClassSID, Just $ ClassDefinition []),
         testCase "Qualified filtered imports includes requested item" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)
                     myModuleWithQualifiedFilteredImports
                     Private myClassSID True) @?=
-                 Right (myClassSID, Left $ ClassDefinition []),
+                 Right (myClassSID, Just $ ClassDefinition []),
         testCase "Qualified filtered imports excludes unrequested item" $
                  (buildAndLookupNS
                     (loaderForModule myModuleId myModule)

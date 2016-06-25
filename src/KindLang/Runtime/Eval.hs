@@ -21,7 +21,7 @@ import KindLang.Analysis.ResolveTypes
 import KindLang.Lib.InternalFunctions
 import KindLang.Runtime.Data
 
-scopeAddItemWithDef :: Scope s -> (String,Value,Definition) -> KStat s ()
+scopeAddItemWithDef :: Scope s -> (String,Value s,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
     scopeAddItem sc (UnqualifiedID lid, definitionToType def, val)
 
@@ -40,7 +40,7 @@ evalAExpr _ expr = throwError $ InternalError
 -- fixme would it be more efficient to use starrays and references into them than
 -- individal strefs for each defined variable?
 
-refToValue :: ValueOrRef s -> KStat s Value
+refToValue :: ValueOrRef s -> KStat s (Value s)
 refToValue (Left v) = return v
 refToValue (Right ref) = kstatReadRef ref
 
@@ -99,7 +99,7 @@ dereferenceIfRequired (Right r) _             = Left <$> kstatReadRef r
 -- fixme on-demand function body type resolution
 
 evalAStatement :: Scope s -> AStatement ->
-                  KStat s Value  -- nb may alter scope
+                  KStat s (Value s)  -- nb may alter scope
 evalAStatement s (AExpression _ e) =  evalAExpr s e >>= refToValue
 evalAStatement s (AVarDeclStatement _ lid td varInit) = do
     defaultValue <- evaluateVarInit s td varInit
@@ -110,7 +110,7 @@ evalAStatement s (AStatementBlock _ stmts) =
     last <$> mapM (evalAStatement s) stmts
 
 evaluateVarInit :: Scope s -> TypeDescriptor ->
-                   VariableInitializer -> KStat s Value
+                   VariableInitializer -> KStat s (Value s)
 evaluateVarInit s td VarInitNone = defaultValueOfType s td
 evaluateVarInit s  td (VarInitAExpr e) = evalAExpr s e >>= refToValue
 evaluateVarInit _ _ (VarInitExpr _) = throwError $
@@ -118,7 +118,7 @@ evaluateVarInit _ _ (VarInitExpr _) = throwError $
 -- fixme other init types
 
 defaultValueOfType :: Scope s -> TypeDescriptor ->
-                      KStat s Value
+                      KStat s (Value s)
 defaultValueOfType _ (ResolvedType _ (QualifiedID "kind" (UnqualifiedID "int")) _) =
     return $ makeKindInt 0
 defaultValueOfType _ t = throwError $ InternalError $
@@ -126,7 +126,7 @@ defaultValueOfType _ t = throwError $ InternalError $
 
 -- FIXME shouldn't initialization occur in the scope in which the definition
 -- was written?
-initializeItem :: Scope s -> Definition -> KStat s (TypeDescriptor, Value)
+initializeItem :: Scope s -> Definition -> KStat s (TypeDescriptor, Value s)
 initializeItem s (VariableDefinition td varInit) =
     (td,) <$> evaluateVarInit s td varInit
 initializeItem _ (FunctionDefinition insts) =
@@ -139,7 +139,7 @@ instantiateScopeDefinitions :: Scope s -> KStat s ()
 instantiateScopeDefinitions sc =
     scopeItems sc >>= mapM_ (instantiateDefinition sc)
 
-instantiateDefinition :: Scope s -> (NSID, NSID, DefinitionOrValue) ->
+instantiateDefinition :: Scope s -> (NSID, NSID, DefinitionOrValue s) ->
                          KStat s ()
 instantiateDefinition s (rid, cid, Left def) =
     case makeDefinitionValue def of
@@ -148,7 +148,7 @@ instantiateDefinition s (rid, cid, Left def) =
                   return ()
 instantiateDefinition s (rid, nsid, _) = return ()
 
-makeDefinitionValue :: Definition -> Maybe (TypeDescriptor,Value)
+makeDefinitionValue :: Definition -> Maybe (TypeDescriptor,Value s)
 makeDefinitionValue (FunctionDefinition (inst:[])) =
     Just (fnInstanceType inst, makeKindFunctionRef [inst]) -- fixme overloads
 makeDefinitionValue (ClassDefinition members) = Nothing

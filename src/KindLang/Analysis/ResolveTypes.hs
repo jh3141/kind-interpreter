@@ -159,7 +159,7 @@ crefAnnotation cid t = (ExprAnnotation t [("CanonicalID", EADId cid)])
 -- refers to the object defined with the definition.  The definition
 -- must be fully resolved and must refer to an object that has a
 -- referencable value.  Returns an annotation or an error on failure.
-identDefToExprAnnotation :: (NSID,DefinitionOrValue) -> KStat s ExprAnnotation
+identDefToExprAnnotation :: (NSID,DefinitionOrValue s) -> KStat s ExprAnnotation
 identDefToExprAnnotation (cid, Left (VariableDefinition (Reference t) x)) =
     identDefToExprAnnotation (cid, Left $ VariableDefinition t x)
 identDefToExprAnnotation (cid, Left (VariableDefinition rt _))

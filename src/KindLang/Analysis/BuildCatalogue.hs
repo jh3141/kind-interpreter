@@ -12,18 +12,21 @@ import KindLang.Data.Catalogue
 import KindLang.Data.Scope
 import KindLang.Runtime.Data
 import qualified Data.Map as Map
+    
+-- | An alias for catalogues containing values 
+type ValueCat s = Catalogue s (Value s)
 
 -- | A type for functions that are able to load the public catalogue from a
 -- module with a specified id.
-type ModuleLoader s = NSID -> KStat s (Catalogue s Value)
+type ModuleLoader s = NSID -> KStat s (ValueCat s)
 
 -- | Defines the catalogues (i.e. maps of symbols to definitions) produced by a
 -- module; one provides the public API of the module, while another provides
 -- those definitions that are private to the module (including the public APIs
 -- of any modules that are imported to the module).
 data ModuleCatalogues s = ModuleCatalogues {
-      moduleCataloguePublic :: Catalogue s Value,
-      moduleCataloguePrivate :: Catalogue s Value
+      moduleCataloguePublic :: ValueCat s,
+      moduleCataloguePrivate :: ValueCat s
       } deriving (Show)
 
 -- | Generates the catalogues for a module, using the specified module loader
@@ -43,7 +46,7 @@ buildCatalogues loader m = do
 
 -- | Loads all modules imported in a list of import statements and adds them
 -- to the specified catalogue, returning () or an error.
-importModules :: ModuleLoader s -> [ModuleImport] -> Catalogue s Value ->
+importModules :: ModuleLoader s -> [ModuleImport] -> ValueCat s ->
                  KStat s ()
 
 importModules loader imports target =
@@ -52,7 +55,7 @@ importModules loader imports target =
 -- | Produces the required catalogue of changes for a given module import
 -- statement.  Note that this may not be exactly the same as the module's
 -- export list, e.g. if a module is only partially imported.
-importModule :: ModuleLoader s -> ModuleImport -> KStat s (Catalogue s Value)
+importModule :: ModuleLoader s -> ModuleImport -> KStat s (ValueCat s)
 importModule loader (UnqualifiedModuleImport sid True) = loader sid
 importModule loader (UnqualifiedModuleImport sid False) = loadItem loader sid
 importModule loader (QualifiedModuleImport sid True reqid) = do
@@ -65,7 +68,7 @@ importModule loader (QualifiedModuleImport sid False reqid) = do
 
 
 -- | load a single item from the module identified by its qualified id
-loadItem :: ModuleLoader s -> NSID -> KStat s (Catalogue s Value)
+loadItem :: ModuleLoader s -> NSID -> KStat s (ValueCat s)
 loadItem loader sid =
     case qualifierOf sid of
       Just msid -> loader msid >>=
@@ -96,5 +99,5 @@ buildScope ldr s m pre = buildCatalogues ldr m >>=
                          makeModuleScope s pre
 
 -- | A module loader implementation that fails if any module is requested
-nullModuleLoader :: NSID -> KStat s (Catalogue s Value)
+nullModuleLoader :: NSID -> KStat s (ValueCat s)
 nullModuleLoader _ = throwError $ InternalError "module loading not available"

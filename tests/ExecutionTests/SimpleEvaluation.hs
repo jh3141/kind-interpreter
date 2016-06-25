@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
 import Control.Monad.Except
@@ -17,45 +17,51 @@ import KindLang.Analysis.ResolveTypes
 import KindLang.Data.KStat
 
 -- evaluate expression resolved against scope and extract from error wrapper
-execTest :: (forall s . KStat s (Scope s)) -> Expr -> Value
-execTest s ex = execTestWithData s [] ex
+execTest :: (forall s . KStat s (Scope s)) -> Expr -> (forall s . Value s)
+         -> Assertion
+execTest s ex expected = execTestWithData s [] ex expected
 
-execTestWithData :: (forall s . KStat s (Scope s)) -> [(NSID,TypeDescriptor,Value)] -> Expr -> Value
-execTestWithData s v ex =
+execTestWithData :: (forall s . KStat s (Scope s)) ->
+                    (forall s . [(NSID,TypeDescriptor,Value s)]) -> Expr ->
+                    (forall s . Value s) -> Assertion
+execTestWithData s v ex expected =
     either
       (\e -> error (show e)) -- if there's an error
       id                     -- otherwise
-      (runToEither $ do
-                         s' <- s
-                         f <- resolveExpr s' ex
-                         scopeAddItems s' v
-                         kstatSetInternalFunctions ifc
-                         evalAExpr s' f >>= refToValue)
+      (runToEither executeTest)
+
+    where
+      executeTest = do
+        s' <- s
+        f <- resolveExpr s' ex
+        scopeAddItems s' v
+        kstatSetInternalFunctions ifc
+        val <- evalAExpr s' f >>= refToValue
+        return (val @?= expected)
 
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
     testGroup "Simple evaluation" (
         (testCase "Evaluate an integer literal" $
-                  (getKindInt (execTest testScope $ IntLiteral 13)) @?= 13) :
+                  (execTest testScope (IntLiteral 13) (makeKindInt 13))) :
         (testCase "Evaluate no-args internal function" $
-                  (getKindInt (execTest testScope $
-                    FunctionApplication (VarRef idRet42) []))
-                  @?= 42) :
+                  (execTest testScope
+                            (FunctionApplication (VarRef idRet42) [])
+                            (makeKindInt 42))) :
         (testCase "Evaluate function with kind definition" $
-                  (getKindInt (execTest testScope $
-                     FunctionApplication (VarRef idRet43) []))
-                  @?= 43) :
+                  (execTest testScope 
+                            (FunctionApplication (VarRef idRet43) [])
+                            (makeKindInt 43))) :
         (testCase "Evaluate variable reference" $
-                  (getKindInt (execTestWithData
-                                testScope
-                                [(idVar1, rtKindInt, makeKindInt 99)] $
-                     VarRef idVar1))
-                  @?= 99) :
+                  (execTestWithData testScope
+                                    [(idVar1, rtKindInt, makeKindInt 99)]
+                                    (VarRef idVar1)
+                                    (makeKindInt 99))) :
         (testCase "Evaluate function with arguments" $
-                  (getKindInt (execTest testScope $
-                     FunctionApplication (VarRef idIdentity)
-                                         [IntLiteral 86]))
-                  @?= 86) :
+                  (execTest testScope 
+                            (FunctionApplication (VarRef idIdentity)
+                                                 [IntLiteral 86])
+                            (makeKindInt 86))) :
         (testCase "Variable definition statement" $
                   (runToEither $ do
                     newScope <- scopeDefault
