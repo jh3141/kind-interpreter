@@ -19,20 +19,21 @@ data Scope stt =
     Scope
     {
       scopeParent :: Maybe (Scope stt),
-      scopeCat :: Catalogue stt Value
+      scopeCat :: Catalogue stt (Value stt)
     }
     deriving (Show)
 
 -- fixme probably want a lower-level implementation of this, so we can manage
 -- memory ourselves
-data Value =
+data Value s =
     KindUnit |
     KindInt Int |
     KindString String | -- nb temporary to allow some of our tests to work
-    KindFunctionRef [FunctionInstance]
-    deriving (Show, Eq)
+    KindFunctionRef [FunctionInstance] |
+    KindRef (STRef s (Value s))
+    deriving (Eq)
 
-type DefinitionOrValue = DefinitionOr Value
+type DefinitionOrValue s = DefinitionOr (Value s)
 
-type ValueOrRef s = Either Value (STRef s Value)
+type ValueOrRef s = Either (Value s) (STRef s (Value s))
     
