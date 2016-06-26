@@ -1,6 +1,7 @@
 module KindLang.Runtime.Data where
 
 import Data.STRef
+import Data.Array.ST
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
@@ -30,10 +31,13 @@ data Value s =
     KindInt Int |
     KindString String | -- nb temporary to allow some of our tests to work
     KindFunctionRef [FunctionInstance] |
-    KindRef (STRef s (Value s))
+    KindRef (STRef s (Value s)) |
+    KindObject {
+      kobjMetaclass :: STRef s (Value s),
+      kobjSlots     :: STArray s Int (Value s)
+    }
     deriving (Eq)
 
 type DefinitionOrValue s = DefinitionOr (Value s)
 
 type ValueOrRef s = Either (Value s) (STRef s (Value s))
-    

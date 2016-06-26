@@ -143,9 +143,12 @@ scopeAddItems :: MStat m s => Scope s -> [(NSID,TypeDescriptor,Value s)] -> m s 
 scopeAddItems scope values = mapM_ (scopeAddItem scope) values
 
 scopeAddItem :: MStat m s => Scope s -> (NSID,TypeDescriptor,Value s) -> m s ()
-scopeAddItem sc (sid,td,val) = do
-    ref <- kstatNewRef val
-    catAddEntry (scopeCat sc) sid (sid, CatEntryR td ref)
+scopeAddItem sc (sid,td,val) = kstatNewRef val >>= scopeAddItemRef sc sid td 
+
+scopeAddItemRef :: MStat m s => Scope s -> NSID -> TypeDescriptor ->
+                   STRef s (Value s) -> m s ()
+scopeAddItemRef sc sid td ref = catAddEntry (scopeCat sc) sid
+                                            (sid, CatEntryR td ref)
 
 scopeItems :: MStat m s => Scope s -> m s [(NSID, NSID, DefinitionOrValue s)]
 scopeItems sc = catFlatten $ scopeCat sc

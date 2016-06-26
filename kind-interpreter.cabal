@@ -20,7 +20,8 @@ library
                     parsec >= 3.1 && <4,
                     containers >= 0.5.6.2 && < 0.6,
                     mtl >= 2,
-                    hashtables >= 1.2 && < 2
+                    hashtables >= 1.2 && < 2,
+                    array >= 0.5 && < 1
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser
                     KindLang.Data.AST
@@ -46,6 +47,7 @@ library
                     KindLang.Util.Control
                     KindLang.Runtime.Eval
                     KindLang.Runtime.Data
+                    KindLang.Runtime.Metaclass
                     KindLang.Data.MStat
 
 executable runkind
@@ -67,8 +69,11 @@ test-suite kind-tests
                    kind-interpreter,
                    containers >= 0.5.6.2 && < 0.6,
                    mtl >= 2,
-                   STMonadTrans >= 0.3,
-                   hashtables >= 1.2 && < 2
+                   hashtables >= 1.2 && < 2,
+                   array >= 0.5 && < 1,
+                   rematch >= 0.2.1,
+                   tasty-hunit-rematch >= 0.1
+
   other-modules:   ParserTests.Module
                    ParserTests.Util
                    ParserTests.CombinatorTests

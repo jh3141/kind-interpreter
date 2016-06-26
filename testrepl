@@ -1,1 +1,1 @@
-cabal repl --ghc-options='-package tasty -package tasty-hunit -itests'
+cabal repl --ghc-options='-package tasty -package tasty-hunit -package rematch-0.2.1.0 -package tasty-hunit-rematch -itests'
