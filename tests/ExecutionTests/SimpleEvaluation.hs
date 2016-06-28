@@ -3,6 +3,7 @@ module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
 import Control.Monad.Except
 import qualified Data.Map as Map
+import Data.STRef
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Rematch.TastyHUnit
@@ -19,15 +20,22 @@ import KindLang.Runtime.Metaclass
 import KindLang.Analysis.ResolveTypes
 import KindLang.Data.KStat
 
+-- fixme this may want to be in a module of matchers somewhere
+isSameRef :: STRef s a -> Matcher (STRef s a)
+isSameRef expected = Matcher (\ actual -> actual == expected)
+                             "has specified reference"
+                             (const "did not match specified reference")
+
 -- evaluate expression resolved against scope and extract from error wrapper
 execTest :: (forall s . KStat s (Scope s)) -> Expr ->
-            (forall s . Value s -> KStat s Assertion) ->
+            (forall s . Value s -> Scope s -> KStat s Assertion) ->
             Assertion
 execTest s ex assertion = execTestWithData s [] ex assertion
 
 execTestWithData :: (forall s . KStat s (Scope s)) ->
                     (forall s . [(NSID,TypeDescriptor,Value s)]) -> Expr ->
-                    (forall s . Value s -> KStat s Assertion) -> Assertion
+                    (forall s . Value s -> Scope s -> KStat s Assertion) ->
+                    Assertion
 execTestWithData s v ex assertion =
     either
       (\e -> error (show e)) -- if there's an error
@@ -40,11 +48,12 @@ execTestWithData s v ex assertion =
         f <- resolveExpr s' ex
         scopeAddItems s' v
         kstatSetInternalFunctions ifc
-        evalAExpr s' f >>= refToValue >>= assertion
+        v <- evalAExpr s' f >>= refToValue
+        assertion v s'
 
 
-assertEqualM :: Monad m => v -> v -> m Assertion
-assertEqualM expected actual = return (actual @?= expected)
+assertEqualM :: (Monad m, Eq v, Show v) => v -> v -> a -> m Assertion
+assertEqualM expected actual _ = return (actual @?= expected)
 
 simpleEvaluationTests :: TestTree
 simpleEvaluationTests =
@@ -64,7 +73,7 @@ simpleEvaluationTests =
                   (execTestWithData testScope
                                     [(idVar1, rtKindInt, makeKindInt 99)]
                                     (VarRef idVar1)
-                                    (return $ makeKindInt 99))) :
+                                    (assertEqualM $ makeKindInt 99))) :
         (testCase "Evaluate function with arguments" $
                   (execTest testScope 
                             (FunctionApplication (VarRef idIdentity)
@@ -85,9 +94,10 @@ simpleEvaluationTests =
         (testCase "Evaluate reference to a class" $
                   (execTest testScope
                             (VarRef idMyClass) 
-                            (\ (KindObject rMetaclass rSlots) -> do
-                               defaultMeta <- getKindDefaultMetaclass testScope
-                               return $ expect rMetaclass (is defaultMeta))
+                            (\ (KindObject rMetaclass rSlots) ts -> do
+                               defaultMeta <- getKindDefaultMetaclass ts
+                               return $ expect rMetaclass
+                                               (isSameRef defaultMeta))
                   )) :
         [])
 
