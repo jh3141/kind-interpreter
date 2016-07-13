@@ -7,6 +7,7 @@ import Data.Foldable
 
 import qualified Data.Map as Map
 import Data.STRef
+import Data.Array.ST
 import Control.Monad.Except
 import KindLang.Data.BasicTypes
 import KindLang.Data.Value
@@ -20,6 +21,7 @@ import KindLang.Locale.ErrorMessages
 import KindLang.Analysis.ResolveTypes
 import KindLang.Lib.InternalFunctions
 import KindLang.Runtime.Data
+import KindLang.Runtime.Metaclass
 
 scopeAddItemWithDef :: Scope s -> (String,Value s,Definition) -> KStat s ()
 scopeAddItemWithDef sc (lid,val,def) = 
@@ -131,6 +133,10 @@ initializeItem s (VariableDefinition td varInit) =
     (td,) <$> evaluateVarInit s td varInit
 initializeItem _ (FunctionDefinition insts) =
     return $ (makeFunctionType insts, makeKindFunctionRef insts)
+initializeItem s (ClassDefinition _) = do
+    metaClassRef <- getKindDefaultMetaclass s
+    members <- liftToST $ newArray (0, 0) KindUnit
+    return (rtDefaultMetaclass, KindObject metaClassRef members)
 -- fixme what about other definition types?
 
 -- | Force definition of a variable/constant for any appropriate items in
