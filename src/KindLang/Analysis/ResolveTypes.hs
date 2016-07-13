@@ -171,6 +171,13 @@ identDefToExprAnnotation (cid, Left (FunctionDefinition [])) =
     throwError $ InternalError (nsidString cid ++ " contains no instances")
 identDefToExprAnnotation (cid, Left (FunctionDefinition fnInstances)) =
     return $ crefAnnotation cid (makeFunctionType fnInstances)
+identDefToExprAnnotation (cid, Left d@(ClassDefinition _)) =
+    return $ crefAnnotation cid (ResolvedType metaClassType metaClassType d)
+    where
+      metaClassType = listToNSID ["kind", "DefaultMetaclass"]
+      -- fixme - some classes will have different metaclass types.
+    -- fixme - 'd' is not the right definition here, should be the definition of
+    -- the metaclass, but I don't know how to find that.
 identDefToExprAnnotation (cid, Left def) =
     throwError $ TypeError cid ("referenced as a variable but is a " ++
                           (definitionTypeName def))
