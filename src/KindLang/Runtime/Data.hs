@@ -2,6 +2,7 @@ module KindLang.Runtime.Data where
 
 import Data.STRef
 import Data.Array.ST
+import Data.Dynamic
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
@@ -24,6 +25,12 @@ data Scope stt =
     }
     deriving (Show)
 
+-- Dynamic objects aren't normally comparable.  We want to do the best we can
+-- to make them comparable.  Unfortunately, all we can really do is check
+-- they're the same type.
+instance Eq Dynamic where
+    d1 == d2  =  (dynTypeRep d1) == (dynTypeRep d2)
+
 -- fixme probably want a lower-level implementation of this, so we can manage
 -- memory ourselves
 data Value s =
@@ -35,9 +42,11 @@ data Value s =
     KindObject {
       kobjMetaclass :: STRef s (Value s),
       kobjSlots     :: STArray s Int (Value s)
-    }
+    } |
+    KindBox Dynamic
     deriving (Eq)
 
 type DefinitionOrValue s = DefinitionOr (Value s)
 
 type ValueOrRef s = Either (Value s) (STRef s (Value s))
+

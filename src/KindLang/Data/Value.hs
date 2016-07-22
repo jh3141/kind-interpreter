@@ -3,6 +3,8 @@ module KindLang.Data.Value
          Value(..), ValueOrRef) where                -- rexported
 
 import Data.STRef
+import Data.Dynamic
+import Data.Typeable
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Runtime.Data
@@ -27,9 +29,17 @@ makeKindFunctionRef a = KindFunctionRef a
 makeKindString :: String -> Value s
 makeKindString val = KindString val
 
+makeKindBox :: Typeable a => a -> Value s
+makeKindBox v = KindBox $ toDyn v
+
+extractKindBox :: Typeable a => Value s -> Maybe a
+extractKindBox (KindBox d) = fromDynamic d
+extractKindBox _ = Nothing
+
 instance Show (Value s) where
     show KindUnit = "(unit)"
     show (KindInt v) = show v
     show (KindString s) = show s
     show (KindFunctionRef insts) = "(fn " ++ show insts ++ ")"
     show (KindRef _) = "(reference)"
+    show (KindBox b) = "(box: " ++ show b ++ ")"
