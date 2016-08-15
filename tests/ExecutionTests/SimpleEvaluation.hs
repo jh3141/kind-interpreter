@@ -4,12 +4,15 @@ module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 import Control.Monad.Except
 import qualified Data.Map as Map
 import Data.STRef
+import Data.Array.ST
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Rematch.TastyHUnit
 import Control.Rematch
+import Control.Monad.ST
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes
+import KindLang.Data.MStat
 import KindLang.Data.Scope
 import KindLang.Data.Value
 import KindLang.Data.Catalogue
@@ -94,12 +97,24 @@ simpleEvaluationTests =
         (testCase "Evaluate reference to a class" $
                   (execTest testScope
                             (VarRef idMyClass) 
-                            (\ (KindObject rMetaclass rSlots) ts -> do
+                            (\ (KindObject rMetaclass _) ts -> do
                                defaultMeta <- getKindDefaultMetaclass ts
                                return $ expect rMetaclass
                                                (isSameRef defaultMeta))
                   )) :
+        (testCase "Class has a reference to its definition" $
+                  (execTest testScope
+                            (VarRef idMyClass) 
+                            (\ (KindObject _ rSlots) ts -> do
+                               definition <- liftToST $ readArray rSlots 0
+                               return $ definition @?= makeKindBox myClassDef)
+                  )) :
         [])
+
+myClassDef :: Definition
+myClassDef = ClassDefinition [
+              ClassMember "x" Public (VariableDefinition rtKindInt VarInitNone)
+             ]
 
 testScope :: KStat s (Scope s)
 testScope = scopeDefault
@@ -121,7 +136,7 @@ testScope = scopeDefault
                                     idA)
                               ])
             |@+| ("var1", VariableDefinition rtKindInt VarInitNone)
-            |@+| ("MyClass", ClassDefinition [])
+            |@+| ("MyClass", myClassDef)
 
 ifc :: InternalFunctions KStat s
 ifc = Map.fromList [("ret42", const $ return $ Left $ makeKindInt 42)]
