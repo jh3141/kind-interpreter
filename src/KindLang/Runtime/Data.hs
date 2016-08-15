@@ -1,8 +1,11 @@
+{-# LANGUAGE ConstraintKinds, TypeOperators, DataKinds #-}
 module KindLang.Runtime.Data where
 
 import Data.STRef
 import Data.Array.ST
-import Data.Dynamic
+import Data.MultiConstrainedDynamic
+import Data.Type.HasClass
+import Data.Type.HasClassPreludeInstances
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
@@ -25,11 +28,10 @@ data Scope stt =
     }
     deriving (Show)
 
--- Dynamic objects aren't normally comparable.  We want to do the best we can
--- to make them comparable.  Unfortunately, all we can really do is check
--- they're the same type.
-instance Eq Dynamic where
-    d1 == d2  =  (dynTypeRep d1) == (dynTypeRep d2)
+-- these are the type classes we want to maintain knowledge of when
+-- we store an object dynamically. note that all values must have appropriate
+-- instances of HasClass.
+type BoxClasses = [ Show, Ord, Eq, Read ]
 
 -- fixme probably want a lower-level implementation of this, so we can manage
 -- memory ourselves
@@ -43,7 +45,7 @@ data Value s =
       kobjMetaclass :: STRef s (Value s),
       kobjSlots     :: STArray s Int (Value s)
     } |
-    KindBox Dynamic
+    KindBox (MCDynamic BoxClasses)
     deriving (Eq)
 
 type DefinitionOrValue s = DefinitionOr (Value s)

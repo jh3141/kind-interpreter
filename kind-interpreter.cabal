@@ -21,7 +21,8 @@ library
                     containers >= 0.5.6.2 && < 0.6,
                     mtl >= 2,
                     hashtables >= 1.2 && < 2,
-                    array >= 0.5 && < 1
+                    array >= 0.5 && < 1,
+                    constrained-dynamic >= 0.1 && < 1
   ghc-options:      -Wall -fno-warn-unused-do-bind
   exposed-modules:  KindLang.Parser.ModuleParser
                     KindLang.Data.AST
@@ -71,6 +72,7 @@ test-suite kind-tests
                    mtl >= 2,
                    hashtables >= 1.2 && < 2,
                    array >= 0.5 && < 1,
+                   constrained-dynamic >= 0.1 && < 1,
                    rematch >= 0.2.1,
                    tasty-hunit-rematch >= 0.1
 

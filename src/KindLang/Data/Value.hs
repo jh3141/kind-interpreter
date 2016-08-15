@@ -1,10 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
 module KindLang.Data.Value
         (module KindLang.Data.Value,
          Value(..), ValueOrRef) where                -- rexported
 
 import Data.STRef
-import Data.Dynamic
+import Data.MultiConstrainedDynamic
 import Data.Typeable
+import Data.Type.LTDict
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Runtime.Data
@@ -29,7 +31,7 @@ makeKindFunctionRef a = KindFunctionRef a
 makeKindString :: String -> Value s
 makeKindString val = KindString val
 
-makeKindBox :: Typeable a => a -> Value s
+makeKindBox :: (Typeable a, LTDictBuilder LTDict BoxClasses a)  => a -> Value s
 makeKindBox v = KindBox $ toDyn v
 
 extractKindBox :: Typeable a => Value s -> Maybe a
