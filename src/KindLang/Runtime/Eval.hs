@@ -133,9 +133,11 @@ initializeItem s (VariableDefinition td varInit) =
     (td,) <$> evaluateVarInit s td varInit
 initializeItem _ (FunctionDefinition insts) =
     return $ (makeFunctionType insts, makeKindFunctionRef insts)
-initializeItem s (ClassDefinition _) = do
+initializeItem s def@(ClassDefinition _) = do
     metaClassRef <- getKindDefaultMetaclass s
-    members <- liftToST $ newArray (0, 0) KindUnit
+    members <- liftToST $ newListArray (0, 0) [
+       makeKindBox def
+       ]
     return (rtDefaultMetaclass, KindObject metaClassRef members)
 -- fixme what about other definition types?
 

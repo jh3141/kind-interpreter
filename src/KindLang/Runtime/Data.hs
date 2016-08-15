@@ -10,6 +10,7 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.AST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
+import KindLang.Data.HasClassInstances
 import KindLang.Data.Types
 
 -- | Scope associates names with types and values.  It is a nested structure
