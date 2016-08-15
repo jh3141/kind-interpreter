@@ -1,7 +1,6 @@
 {-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module ExecutionTests.SimpleEvaluation (simpleEvaluationTests) where
 
-import Control.Monad.Except
 import qualified Data.Map as Map
 import Data.STRef
 import Data.Array.ST
@@ -9,13 +8,11 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Rematch.TastyHUnit
 import Control.Rematch
-import Control.Monad.ST
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes
 import KindLang.Data.MStat
 import KindLang.Data.Scope
 import KindLang.Data.Value
-import KindLang.Data.Catalogue
 import KindLang.Lib.CoreTypes
 import KindLang.Lib.InternalFunctions
 import KindLang.Runtime.Eval
