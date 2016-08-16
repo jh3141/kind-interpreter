@@ -106,11 +106,28 @@ simpleEvaluationTests =
                                definition <- liftToST $ readArray rSlots 0
                                return $ definition @?= makeKindBox myClassDef)
                   )) :
+        (testCase "Class.new returns new object whose metaclass is the class" $
+                  (execTest testScope
+                            (OMethod (VarRef idMyClass) (listToNSID ["new"]) [])
+                            (\ (KindObject rMetaclass _) ts -> do
+                               (KindObject rMetameta rSlots) <-
+                                   kstatReadRef rMetaclass
+                               definition <- liftToST $ readArray rSlots 0
+                               defaultMeta <- getKindDefaultMetaclass ts
+                               return $ expect (rMetameta, definition) $
+                                      (isSameRef defaultMeta `on` (fst, "first"))
+                                      `andAlso` ((is $ makeKindBox myClassDef)
+                                                        `on` (snd, "second")))
+                  )) :
         [])
 
 myClassDef :: Definition
 myClassDef = ClassDefinition [
-              ClassMember "x" Public (VariableDefinition rtKindInt VarInitNone)
+              ClassMember "x" Public (FunctionDefinition [
+               AFunctionInstance
+                (FunctionType [] rtKindInt) []
+                (AExpression saKindInt $ AIntLiteral eaKindInt 44)
+              ])
              ]
 
 testScope :: KStat s (Scope s)
