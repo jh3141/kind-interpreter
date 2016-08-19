@@ -40,6 +40,7 @@ library
                     KindLang.Parser.ExpressionParser
                     KindLang.Parser.State
                     KindLang.Parser.StatementParser
+                    KindLang.Analysis.GenerateMetaclasses
                     KindLang.Analysis.ResolveTypes
                     KindLang.Analysis.BuildCatalogue
                     KindLang.Lib.CoreTypes
@@ -85,6 +86,7 @@ test-suite kind-tests
                    ParserTests.Statement
                    AnalysisTests.Catalogue
                    AnalysisTests.TypeResolution
+                   AnalysisTests.MetaclassGeneration
                    TypeTests.NSID
                    TypeTests.Catalogue
                    ExecutionTests.SimpleEvaluation
