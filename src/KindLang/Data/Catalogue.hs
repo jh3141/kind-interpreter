@@ -11,6 +11,7 @@ import Control.Arrow
 import Data.STRef
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
+import KindLang.Data.AnnotatedAST
 import KindLang.Data.AST
 import KindLang.Data.MStat
 import qualified KindLang.Locale.ErrorMessages as ErrorMessages
@@ -20,11 +21,11 @@ import qualified KindLang.Locale.ErrorMessages as ErrorMessages
 type Catalogue s v = HT.HashTable s String (NSID, CatEntry s v)
 
 -- | An encapsulation of what information can be stored about an identifier
--- in a catalogue, i.e. either a definition or its type and value.
-type DefinitionOr v = Either Definition (TypeDescriptor,v)
+-- in a catalogue, i.e. either an annotated definition or its type and value.
+type DefinitionOr v = Either ADefinition (ATypeDescriptor,v)
 
-data CatEntry s v = CatEntry Definition |
-                    CatEntryR TypeDescriptor (STRef s v) |
+data CatEntry s v = CatEntry ADefinition |
+                    CatEntryR ATypeDescriptor (STRef s v) |
                     CatNamespace (Catalogue s v)
 
 -- | An empty catalogue.
@@ -39,10 +40,10 @@ newCatalogueWith k cid ent = do
     liftToST $ HT.insert cat k (cid,ent)
     return cat
 
-makeCatEntry :: Definition -> CatEntry s v
+makeCatEntry :: ADefinition -> CatEntry s v
 makeCatEntry = CatEntry
 
-makeCatEntryR :: MStat m s => TypeDescriptor -> v -> m s (CatEntry s v)
+makeCatEntryR :: MStat m s => ATypeDescriptor -> v -> m s (CatEntry s v)
 makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
 
 -- | @catAdd c rid cid def@ adds a new item for definition @def@ with the
@@ -51,7 +52,7 @@ makeCatEntryR td v = CatEntryR td <$> (liftToST $ newSTRef v)
 --
 -- May throw a NotNamespace error if an attempt is made to insert an item into
 -- a namespace but the namespace already exists as a non-namespace definition.
-catAdd :: MStat m s => Catalogue s v -> NSID -> NSID -> Definition -> m s ()
+catAdd :: MStat m s => Catalogue s v -> NSID -> NSID -> ADefinition -> m s ()
 catAdd cat rid cid def = catAddEntry cat rid (cid,makeCatEntry def)
 
 catAddEntry :: forall m s v . MStat m s =>
@@ -91,7 +92,7 @@ catUpdateEntry cat rid ent = do
 -- @cat |+~| (sid,def)@ adds identifier @sid@ with defintion @def@ to @cat@.
 -- Binds more tightly than |@~|.  Returns @cat@ for convience of chaining.
 (|+~|) :: MStat m s =>
-          Catalogue s v -> (NSID, Definition) -> m s (Catalogue s v)
+          Catalogue s v -> (NSID, ADefinition) -> m s (Catalogue s v)
 c |+~| (sid,def) = catAdd c sid sid def >> return c
 infixl 6 |+~|
 
@@ -100,7 +101,7 @@ infixl 6 |+~|
 -- canonical id @cid@ and definition @def@ to catalogue @cat@. Binds at same
 -- level as |+~|.  Returns @cat@ for convienence of chaining.
 (|++~|) :: MStat m s =>
-           Catalogue s v -> (NSID, NSID, Definition) -> m s (Catalogue s v)
+           Catalogue s v -> (NSID, NSID, ADefinition) -> m s (Catalogue s v)
 c |++~| (rid, cid, def) = catAdd c rid cid def >> return c
 infixl 6 |++~|
 
@@ -208,7 +209,7 @@ flatRid (rid,_,_) = rid
 
 -- | Create a catalogue from a definition list, given a function that converts
 -- plain strings to qualified ids.
-catalogueForDefinitionList :: MStat m s => (String -> NSID) -> DefList ->
+catalogueForDefinitionList :: MStat m s => (String -> NSID) -> ADefList ->
                               m s (Catalogue s v)
 catalogueForDefinitionList makeNsid definitions =
     liftToST $ HTC.fromList

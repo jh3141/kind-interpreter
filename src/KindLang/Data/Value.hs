@@ -4,7 +4,7 @@ module KindLang.Data.Value
 
 import Data.STRef
 import KindLang.Data.BasicTypes
-import KindLang.Data.AST
+import KindLang.Data.AnnotatedAST
 import KindLang.Runtime.Data
 
 type ValueRef s = STRef s (Value s)
@@ -18,10 +18,10 @@ getKindInt (KindInt a) = a
 makeKindInt :: Int -> Value s
 makeKindInt a = KindInt a
 
-getKindFunctionRef :: Value s -> [FunctionInstance]
+getKindFunctionRef :: Value s -> [AFunctionInstance]
 getKindFunctionRef (KindFunctionRef a) = a
 
-makeKindFunctionRef :: [FunctionInstance] -> Value s
+makeKindFunctionRef :: [AFunctionInstance] -> Value s
 makeKindFunctionRef a = KindFunctionRef a
 
 makeKindString :: String -> Value s

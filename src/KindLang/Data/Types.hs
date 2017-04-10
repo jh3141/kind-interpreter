@@ -47,7 +47,6 @@ typeCompatible x y = x == y   -- fixme - subtypes?
 -- fixme document this
 typeName :: TypeDescriptor -> String
 typeName (SimpleType sid) = nsidString sid
-typeName (ResolvedType _ sid _) = nsidString sid
 typeName (FunctionType args rtype) = "(" ++ (intercalate "," (typeName <$> args))
                                      ++ ")->" ++ (typeName rtype)
 typeName (ForAllTypes names preds td) = "[" ++ (intercalate "," names) ++ "]" ++

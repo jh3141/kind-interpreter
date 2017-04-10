@@ -3,6 +3,7 @@ module KindLang.Lib.CoreTypes where
 import KindLang.Data.BasicTypes
 import KindLang.Data.Catalogue
 import KindLang.Data.AST
+import KindLang.Data.AnnotatedAST
 import KindLang.Data.KStat
 import KindLang.Data.Scope((|++|),resolveTypeKS)
 import KindLang.Runtime.Data

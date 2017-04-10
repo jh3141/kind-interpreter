@@ -15,6 +15,7 @@ data NSID =
 
 type Identified o = (NSID, o)
 type IdentMap o = Map.Map String (Identified o)
+type InternalFunctionName = String
     
 qualifiedBy :: NSID -> NSID -> NSID
 i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
@@ -45,6 +46,7 @@ nsidString = foldl1 (\ a b -> a ++ "::" ++ b) . nsidToList
 instance Show NSID where
     show s = "(NSID " ++ show (nsidString s) ++ ")"
 
+    
 ----------------------------------------------------------------------------
 -- various utility types
 ----------------------------------------------------------------------------

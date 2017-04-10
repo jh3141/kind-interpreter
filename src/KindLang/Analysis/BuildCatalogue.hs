@@ -4,6 +4,7 @@ import Debug.Trace
 import Data.Maybe
 import Control.Monad.Except
 import KindLang.Data.AST
+import KindLang.Data.AnnotatedAST
 import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.KStat

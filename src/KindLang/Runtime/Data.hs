@@ -2,7 +2,7 @@ module KindLang.Runtime.Data where
 
 import Data.STRef
 import KindLang.Data.BasicTypes
-import KindLang.Data.AST
+import KindLang.Data.AnnotatedAST
 import KindLang.Data.Catalogue
 import KindLang.Data.Error
 import KindLang.Data.Types
@@ -29,7 +29,7 @@ data Value s =
     KindUnit |
     KindInt Int |
     KindString String | -- nb temporary to allow some of our tests to work
-    KindFunctionRef [FunctionInstance] |
+    KindFunctionRef [AFunctionInstance] |
     KindRef (STRef s (Value s))
     deriving (Eq)
 

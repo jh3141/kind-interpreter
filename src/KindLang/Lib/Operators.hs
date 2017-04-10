@@ -6,6 +6,7 @@ import Data.List
 
 import KindLang.Data.BasicTypes
 import KindLang.Data.AST
+import KindLang.Data.AnnotatedAST
 import KindLang.Data.Error
 import KindLang.Data.Value
 import KindLang.Data.KStat
@@ -35,15 +36,15 @@ findPrefixOperator _ _ =
 
 
 makeInternalFn :: [TypeDescriptor] -> TypeDescriptor -> InternalFunctionName ->
-                  FunctionInstance
-makeInternalFn a r n = InternalFunction (FunctionType a r) n
+                  AFunctionInstance
+makeInternalFn a r n = AInternalFunction (FunctionType a r) n
 
 addStandardOperatorsToScope :: Scope s -> KStat s (Scope s)
 addStandardOperatorsToScope sc =
     scopeUpdate sc
-        |++| (coreId "(+)", coreId "(+)", FunctionDefinition [
+        |++| (coreId "(+)", coreId "(+)", AFunctionDefinition [
                 makeInternalFn [rtKindInt, rtKindInt] rtKindInt "(+)II"])
-        |++| (coreId "(=)", coreId "(=)", FunctionDefinition [
+        |++| (coreId "(=)", coreId "(=)", AFunctionDefinition [
                 makeInternalFn [Reference rtKindInt, rtKindInt] rtKindInt "(=)RII"])
 
 -- fixme this should be in its own file, and grab in stuff from elsewhere to!

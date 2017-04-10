@@ -1,5 +1,7 @@
 module KindLang.Locale.ErrorMessages where
 
+import KindLang.Data.BasicTypes
+    
 incompatibleReturn :: String
 incompatibleReturn =
     "Type returned by function body incompatible with declared type"
@@ -20,3 +22,7 @@ insertedIntoNonNamespace :: Show a => a -> String
 insertedIntoNonNamespace  rid =
     "attempted to insert item into non-namespace definition of catalogue " ++
     (show rid)
+
+cannotCreateRawASTForInternalFunction :: InternalFunctionName -> String
+cannotCreateRawASTForInternalFunction n = "cannot create raw AST for internal function '" ++ n ++ "'"
+                                          
