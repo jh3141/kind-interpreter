@@ -42,11 +42,11 @@ functionParserTests =
                   (FunctionType [] InferableType) [] (StatementBlock [])),
         testCase "Body" $
                  (fnInstanceBody $ parseFn "a(b){b;}") @?=
-                 (Left $ Expression $ VarRef idb),
+                 (Expression $ VarRef idb),
         testCase "Body with two expressions" $
                  (fnInstanceBody $ parseFn "a(b,c){b;c;}") @?=
-                 (Left $ StatementBlock [Expression $ VarRef idb,
-                                         Expression $ VarRef idc]),
+                 (StatementBlock [Expression $ VarRef idb,
+                                  Expression $ VarRef idc]),
         testCase "Function with multiple instances" $
                  (parseFnM "a(b){b;},(b,c){b+c;} , (b,c,d){b+c+d;}") @?=
                  [FunctionInstance (FunctionType [InferableType] InferableType)

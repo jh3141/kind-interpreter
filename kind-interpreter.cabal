@@ -25,27 +25,17 @@ library
   exposed-modules:  KindLang.Parser.ModuleParser
                     KindLang.Data.AST
                     KindLang.Data.BasicTypes
-                    KindLang.Data.Catalogue
                     KindLang.Data.Error
                     KindLang.Data.KStat
-                    KindLang.Data.Scope
                     KindLang.Data.Types
-                    KindLang.Data.Value
                     KindLang.Internal
                     KindLang.Locale.ErrorMessages
                     KindLang.Parser.BasicTokens
                     KindLang.Parser.ExpressionParser
                     KindLang.Parser.State
                     KindLang.Parser.StatementParser
-                    KindLang.Analysis.ResolveTypes
-                    KindLang.Analysis.BuildCatalogue
-                    KindLang.Lib.CoreTypes
-                    KindLang.Lib.Operators
-                    KindLang.Lib.InternalFunctions
                     KindLang.Parser.Combinators
                     KindLang.Util.Control
-                    KindLang.Runtime.Eval
-                    KindLang.Runtime.Data
                     KindLang.Data.MStat
 
 executable runkind
@@ -75,11 +65,6 @@ test-suite kind-tests
                    ParserTests.Function
                    ParserTests.Expression
                    ParserTests.Statement
-                   AnalysisTests.Catalogue
-                   AnalysisTests.TypeResolution
                    TypeTests.NSID
-                   TypeTests.Catalogue
-                   ExecutionTests.SimpleEvaluation
-                   ExecutionTests.ParseAndEvaluate
                    
                                                                         

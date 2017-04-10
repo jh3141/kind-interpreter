@@ -20,7 +20,6 @@ type InternalFunctionName = String
     
 data FunctionInstance =
      FunctionInstance TypeDescriptor [String] Statement |
-     AFunctionInstance TypeDescriptor [String] AStatement |
      InternalFunction TypeDescriptor InternalFunctionName
      deriving (Show, Eq)
               
@@ -63,7 +62,6 @@ data TypePredicate =
      deriving (Show, Eq)
                    
 data Expr =
-     Annotated AExpr |
      IntLiteral Int |
      StringLiteral String |
      VarRef NSID |
@@ -74,48 +72,16 @@ data Expr =
      OMethod Expr NSID [Expr]
      deriving (Show, Eq)
 
-data AExpr =
-     AIntLiteral ExprAnnotation Int |
-     AStringLiteral ExprAnnotation String |
-     AVarRef ExprAnnotation NSID |
-     AORef ExprAnnotation AExpr NSID |
-     -- operators are transformed to function/method applications during
-     -- type annotation so do not appear here.
-     AFunctionApplication ExprAnnotation AExpr [AExpr] |
-     AOMethod ExprAnnotation AExpr TypeDescriptor NSID [AExpr]
-     deriving (Show, Eq)
-
-data ExprAnnotation =
-     ExprAnnotation TypeDescriptor [(String,AnnotationData)]
-     deriving (Show, Eq)
-
-data AnnotationData =
-     EADOptionTrue |
-     EADId NSID
-     deriving (Show, Eq)
-              
 data Statement =
      Expression Expr |
      VarDeclStatement String TypeDescriptor VariableInitializer |
      StatementBlock [Statement]
      deriving (Show, Eq)
 
-data AStatement =
-     AExpression StmtAnnotation AExpr |
-     AVarDeclStatement StmtAnnotation String TypeDescriptor VariableInitializer |
-     AStatementBlock StmtAnnotation [AStatement]
-     deriving (Show, Eq)
-
-data StmtAnnotation =
-     StmtAnnotation (Maybe TypeDescriptor) DefList [(String,AnnotationData)]
-     deriving (Show, Eq)
-              
 data VariableInitializer =
      VarInitNone |
      VarInitExpr Expr |
-     VarInitAExpr AExpr |
-     VarInitConstruct [Expr] |
-     VarInitAConstruct [AExpr]
+     VarInitConstruct [Expr]
      deriving (Show, Eq)
 
 
@@ -135,26 +101,6 @@ definitionTypeName (Namespace _) = "namespace"
 definitionTypeName (InternalTypeDefinition) = "internal-type"
 definitionTypeName (InternalObject _) = "internal-object"
 
-aexprAnnotation :: AExpr -> ExprAnnotation
-aexprAnnotation (AIntLiteral a _) = a
-aexprAnnotation (AStringLiteral a _) = a
-aexprAnnotation (AVarRef a _) = a
-aexprAnnotation (AORef a _ _) = a
-aexprAnnotation (AFunctionApplication a _ _) = a
-aexprAnnotation (AOMethod a _ _ _ _) = a
-
-exprAnnotationType :: ExprAnnotation -> TypeDescriptor
-exprAnnotationType (ExprAnnotation t _) = t
-
-aexprType :: AExpr -> TypeDescriptor
-aexprType = exprAnnotationType . aexprAnnotation
-
-exprAnnotationCanonicalID :: ExprAnnotation -> Maybe NSID
-exprAnnotationCanonicalID (ExprAnnotation _ a) =
-    case lookup "CanonicalID" a of
-      Just (EADId sid) -> Just sid
-      _                -> Nothing
-
 classMemberName :: ClassMember -> String
 classMemberName (ClassMember name _ _) = name
 
@@ -169,35 +115,18 @@ statementListToStatement :: [Statement] -> Statement
 statementListToStatement (s:[]) = s
 statementListToStatement ss = StatementBlock ss
 
-astmtAnnotation :: AStatement -> StmtAnnotation
-astmtAnnotation (AExpression a _) = a
-astmtAnnotation (AVarDeclStatement a _ _ _) = a
-astmtAnnotation (AStatementBlock a _) = a
-
-stmtAnnotationType :: StmtAnnotation -> Maybe TypeDescriptor
-stmtAnnotationType (StmtAnnotation t _ _) = t
-
-astmtType :: AStatement -> Maybe TypeDescriptor
-astmtType = stmtAnnotationType . astmtAnnotation
-
 nullStatement :: Statement
 nullStatement = StatementBlock []
-nullAStatement :: AStatement
-nullAStatement = AStatementBlock (StmtAnnotation Nothing [] []) []
 
-fnInstanceBody :: FunctionInstance -> Either Statement AStatement
-fnInstanceBody (FunctionInstance _ _ b) = Left b
-fnInstanceBody (AFunctionInstance _ _ ab) = Right ab
-fnInstanceBody (InternalFunction _ _) = Right $ nullAStatement
+fnInstanceBody :: FunctionInstance -> Statement
+fnInstanceBody (FunctionInstance _ _ b) = b
 
 fnInstanceType :: FunctionInstance -> TypeDescriptor
 fnInstanceType (FunctionInstance td _ _) = td
-fnInstanceType (AFunctionInstance td _ _) = td
 fnInstanceType (InternalFunction td _) = td
 
 fnInstanceArgs :: FunctionInstance -> [String]
 fnInstanceArgs (FunctionInstance _ a _) = a
-fnInstanceArgs (AFunctionInstance _ a _) = a
 fnInstanceArgs (InternalFunction td _) = map (const "") (functionTypeArgs td)
 
 functionTypeReturn :: TypeDescriptor -> TypeDescriptor
@@ -207,32 +136,4 @@ functionTypeReturn n = n -- maybe should be an error?
 functionTypeArgs :: TypeDescriptor -> [TypeDescriptor]
 functionTypeArgs (FunctionType r _) = r
 functionTypeArgs _ = []
-
-stripFnInstanceAnnotations :: FunctionInstance -> FunctionInstance
-stripFnInstanceAnnotations (AFunctionInstance td f s) = FunctionInstance td f $ stripStatementAnnotations s
-stripFnInstanceAnnotations other = other
-
-stripStatementAnnotations :: AStatement -> Statement
-stripStatementAnnotations (AExpression _ ae) =
-    Expression $ stripExprAnnotations ae
-stripStatementAnnotations (AVarDeclStatement _ n td vinit) =
-    VarDeclStatement n td $ stripVarInitAnnotations vinit
-stripStatementAnnotations (AStatementBlock _ astmts) =
-    StatementBlock $ map stripStatementAnnotations astmts
-
-stripExprAnnotations :: AExpr -> Expr
-stripExprAnnotations (AIntLiteral _ i) = IntLiteral i
-stripExprAnnotations (AStringLiteral _ s) = StringLiteral s
-stripExprAnnotations (AVarRef _ i) = VarRef i
-stripExprAnnotations (AORef _ ae i) = ORef (stripExprAnnotations ae) i
-stripExprAnnotations (AFunctionApplication _ ae aes) =
-    FunctionApplication (stripExprAnnotations ae) $ map stripExprAnnotations aes
-stripExprAnnotations (AOMethod _ ae _ i aes) =
-    OMethod (stripExprAnnotations ae) i $ map stripExprAnnotations aes
-
-stripVarInitAnnotations :: VariableInitializer -> VariableInitializer
-stripVarInitAnnotations (VarInitAExpr ae) = VarInitExpr $ stripExprAnnotations ae
-stripVarInitAnnotations (VarInitAConstruct aes) =
-    VarInitConstruct $ map stripExprAnnotations aes
-stripVarInitAnnotations o = o
 

@@ -10,16 +10,13 @@ import KindLang.Data.BasicTypes
 import KindLang.Data.Error
 import KindLang.Data.AST
 import KindLang.Util.Control
-import KindLang.Data.Value
-import KindLang.Lib.InternalFunctions
 import KindLang.Data.MStat
 
 -- FIXME look into changing maps-stored-in-ST into actual mutable structures
 data KStatRoot s = KStatRoot
     {
       kstatLoadedModules :: STRef s (Map.Map NSID (STRef s Module)),
-      kstatDefinitions :: STRef s (Map.Map NSID Definition),
-      kstatInternalFunctions :: STRef s (InternalFunctions KStat s)
+      kstatDefinitions :: STRef s (Map.Map NSID Definition)
     }
 
 newtype KStat s a =
@@ -53,9 +50,8 @@ initKStat :: KStat s a -> ST s (Either KindError a)
 initKStat r = do
     loadedModules <- newSTRef Map.empty
     definitions <- newSTRef Map.empty
-    internals <- newSTRef Map.empty
     runExceptT $ runReaderT (runKStat r)
-                            (KStatRoot loadedModules definitions internals)
+                            (KStatRoot loadedModules definitions)
 
 runToIO :: (forall s . KStat s a) -> IO a
 runToIO r = either (error . show) return $ runST $ initKStat r
@@ -90,21 +86,6 @@ kstatFindModule sid = do
     case Map.lookup sid loadedModules of
       Nothing -> return Nothing
       Just mRef -> Just <$> kstatReadRef mRef
-
-kstatSetInternalFunctions :: InternalFunctions KStat s -> KStat s ()
-kstatSetInternalFunctions v = kstatInternalFunctions <$> ask >>=
-                              \ ref -> kstatWriteRef ref v
-
-kstatGetInternalFunctions :: KStat s (InternalFunctions KStat s)
-kstatGetInternalFunctions = kstatInternalFunctions <$> ask >>= kstatReadRef
-
-kstatInternalFunctionLookup :: InternalFunctionName ->
-                               KStat s (InternalFunction KStat s)
-kstatInternalFunctionLookup name =
-    (Map.lookup name) <$> kstatGetInternalFunctions >>=
-       maybe (throwError $ InternalError $ "Unknown internal function " ++ name)
-             return
-
 
 nop :: Monad m => a -> m ()
 nop _ = return ()

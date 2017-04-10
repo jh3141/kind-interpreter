@@ -6,12 +6,7 @@ import ParserTests.CombinatorTests
 import ParserTests.Function
 import ParserTests.Expression
 import ParserTests.Statement
-import AnalysisTests.Catalogue
-import AnalysisTests.TypeResolution
 import TypeTests.NSID
-import TypeTests.Catalogue
-import ExecutionTests.SimpleEvaluation
-import ExecutionTests.ParseAndEvaluate
     
 main :: IO ()
 main = defaultMain tests
@@ -25,17 +20,8 @@ tests = testGroup "Tests" [
                    expressionParserTests :
                    statementParserTests :
                    [],
-         testGroup "Analysis" $
-                   catalogueTests :
-                   typeResolutionTests :
-                   [],
          testGroup "Type tests" $
                    scopedIDTests :
-                   catalogueTypeTests :
-                   [],
-         testGroup "Execution" $
-                   simpleEvaluationTests :
-                   parseAndEvaluateTests :
                    []
         ]
 
