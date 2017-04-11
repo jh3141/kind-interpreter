@@ -1,26 +1,32 @@
+{-# LANGUAGE RankNTypes #-}
+
 module ParserTests.Util where
 
 import Test.Tasty.HUnit
 import Text.Parsec
 import Control.Arrow
 import Data.List
+
+import KindLang.Data.KStat
     
-parseString :: Parsec String () r -> String -> r
+parseString :: (forall s . ParsecT String () (KStat s) r) -> String -> r
 parseString parser toParse =
     either (show >>> error) id $
-           parse (parser <* eof) "test" toParse
+           either (show >>> error) id $ runToEither $
+                  runParserT (parser <* eof) () "test" toParse
 
     
-expectParseError :: Show r => Parsec String () r -> String -> String -> Assertion
+expectParseError :: Show r => (forall s . ParsecT String () (KStat s) r) -> String -> String -> Assertion
 expectParseError parser toParse expectedErrorText =
-    case (parse (parser <* eof) "test" toParse) of
-     Left err -> assertBool
-                   ("Expected error " ++
-                     (show expectedErrorText) ++ " but got " ++
-                     (show err))
-                   (expectedErrorText `isSubsequenceOf` show err)
-     Right res ->
-        assertFailure ("Expected error, but received result: " ++ (show res))
+    case (runToEither $ runParserT (parser <* eof) () "test" toParse) of
+     Left err -> assertFailure ("Expected parse error, but received execution error: " ++ (show err))
+     Right (Left err) -> assertBool
+                           ("Expected error " ++
+                            (show expectedErrorText) ++ " but got " ++
+                            (show err))
+                           (expectedErrorText `isSubsequenceOf` show err)
+     Right (Right res) ->
+        assertFailure ("Expected parse error, but received result: " ++ (show res))
       
 
                   

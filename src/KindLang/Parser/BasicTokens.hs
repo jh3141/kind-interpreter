@@ -6,6 +6,7 @@ import KindLang.Parser.State
 import Control.Monad
 import KindLang.Util.Control
 import KindLang.Data.AST
+import KindLang.Data.Types
 import KindLang.Data.BasicTypes
     
 -- common separator characters
@@ -36,11 +37,11 @@ operator_  = (many1 $ oneOf "!$%^&*-+=~#<>:@\\|") <|>
              string "."
 
 intLiteral_ :: Parser Expr
-intLiteral_ = IntLiteral . read <$> many1 digit  
+intLiteral_ = newNodeP IntLiteral <*> (read <$> many1 digit)
 
 -- fixme escapes, etc.
 stringLiteral_ :: Parser Expr
-stringLiteral_ = StringLiteral <$> (char '"' *> manyTill anyChar (char '"'))
+stringLiteral_ = newNodeP StringLiteral <*> (char '"' *> manyTill anyChar (char '"'))
                  
 -- fixme - this should be in its own module
 typeDescriptor_ :: Parser TypeDescriptor

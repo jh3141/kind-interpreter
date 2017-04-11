@@ -5,6 +5,8 @@ import Test.Tasty.HUnit
 import KindLang.Parser.ModuleParser    
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes   
+import KindLang.Data.KStat
+import KindLang.Data.Types
     
 import ParserTests.Util
     
@@ -27,12 +29,12 @@ moduleParserTests =
                                  [] [],
         testCase "import declaration parsed" $
                  parseMod "import id1::id2;" @?=
-                          Module Nothing [UnqualifiedModuleImport
+                          Module Nothing [UnqualifiedModuleImport (ASTNodeInfo 1)
                                               (QualifiedID "id1" $
                                                UnqualifiedID "id2") False] [],
         testCase "whole-namespace import declaration parsed" $
                  parseMod "import id1::*;" @?=
-                          Module Nothing [UnqualifiedModuleImport
+                          Module Nothing [UnqualifiedModuleImport (ASTNodeInfo 1)
                                               (UnqualifiedID "id1") True] [],
 
         -- fixme:
@@ -51,41 +53,41 @@ moduleParserTests =
         testCase "module name and several import lines" $
                  parseMod "module a;\nimport b::*;import c::*;" @?=
                           Module (Just $ UnqualifiedID "a")
-                                 [UnqualifiedModuleImport
+                                 [UnqualifiedModuleImport (ASTNodeInfo 1)
                                       (UnqualifiedID "b") True,
-                                  UnqualifiedModuleImport
+                                  UnqualifiedModuleImport (ASTNodeInfo 2)
                                       (UnqualifiedID "c") True] [],
         testCase "variable declaration" $
                  parseMod "varname : T;" @?=
                           Module Nothing []
                                  [("varname",
-                                   VariableDefinition
+                                   VariableDefinition (ASTNodeInfo 1)
                                        (SimpleType $ UnqualifiedID "T")
                                        VarInitNone)],
         testCase "variable declaration with initialiser" $
                  parseMod "varname : T = a;" @?=
                           Module Nothing []
                                  [("varname",
-                                   VariableDefinition
+                                   VariableDefinition (ASTNodeInfo 2)
                                      (SimpleType $ UnqualifiedID "T")
-                                     (VarInitExpr $ VarRef (UnqualifiedID "a")))],
+                                     (VarInitExpr $ VarRef (ASTNodeInfo 1) (UnqualifiedID "a")))],
         testCase "variable declaration with constructor" $
                  parseMod "varname : T(a,b);" @?=
                           Module Nothing []
                                  [("varname",
-                                   VariableDefinition
+                                   VariableDefinition (ASTNodeInfo 4)
                                      (SimpleType $ UnqualifiedID "T")
                                      (VarInitConstruct [
-                                       VarRef $ UnqualifiedID "a",
-                                       VarRef $ UnqualifiedID "b"]))],
+                                       VarRef (ASTNodeInfo 1) $ UnqualifiedID "a",
+                                       VarRef (ASTNodeInfo 3) $ UnqualifiedID "b"]))],
         testCase "function declaration" $
                  parseMod "testFunction(){}" @?=
                           Module Nothing []
                                  [("testFunction",
-                                   FunctionDefinition [
-                                    FunctionInstance
+                                   FunctionDefinition (ASTNodeInfo 1) [
+                                    FunctionInstance (ASTNodeInfo 2)
                                       (FunctionType [] InferableType)
-                                      [] (StatementBlock [])])],
+                                      [] (StatementBlock (ASTNodeInfo 8) [])])],
 
         testCase "End-of-line comments stripped" $
                  parseMod "// comment\nmodule MyName;// another" @?=

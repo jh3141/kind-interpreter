@@ -2,9 +2,30 @@ module KindLang.Data.Types where
 
 import Data.Foldable
 import Data.List
+import Data.Maybe
 import KindLang.Data.BasicTypes
-import KindLang.Data.AST
-import KindLang.Data.Error
+
+data TypeDescriptor =
+     SimpleType NSID |
+     InferableType |
+     ResolvedType {  -- fixme - shouldn't this be part of the annotations, not part of the type?
+         resolvedTypeRID :: NSID,
+         resolvedTypeCanonicalID :: NSID
+     } |
+     FunctionType [TypeDescriptor] TypeDescriptor |
+     ForAllTypes [String] [TypePredicate] TypeDescriptor |
+     TypeVariable String |
+     SumType [TypeDescriptor] |
+     TupleType [TypeDescriptor] |
+     RecordType NSID [TypeDescriptor] |
+     Reference TypeDescriptor
+     deriving (Show, Eq)
+
+data TypePredicate =
+     NotType TypePredicate |
+     TypesEqual TypeDescriptor TypeDescriptor
+     deriving (Show, Eq)
+                   
 
 -- fixme these functions probably belong in a module for type expressions
 generateSubstitution :: TypeDescriptor -> TypeDescriptor ->
@@ -47,7 +68,7 @@ typeCompatible x y = x == y   -- fixme - subtypes?
 -- fixme document this
 typeName :: TypeDescriptor -> String
 typeName (SimpleType sid) = nsidString sid
-typeName (ResolvedType _ sid _) = nsidString sid
+typeName (ResolvedType _ sid) = nsidString sid
 typeName (FunctionType args rtype) = "(" ++ (intercalate "," (typeName <$> args))
                                      ++ ")->" ++ (typeName rtype)
 typeName (ForAllTypes names preds td) = "[" ++ (intercalate "," names) ++ "]" ++
@@ -72,21 +93,13 @@ getAlternativeTypes t = [t]
 prependAlternatives :: [a] -> [a] -> [[a]]
 prependAlternatives x l = map (\z -> z : l) x
 
-definitionToType :: Definition -> TypeDescriptor
-definitionToType (ClassDefinition members) = undefined -- FIXME metaclass!
-definitionToType (FunctionDefinition (inst:[])) = fnInstanceType inst
-definitionToType (FunctionDefinition _) = undefined    -- FIXME overloading!
-definitionToType (VariableDefinition td _) = td
-definitionToType (Namespace _) = error "Namespaces do not have types"
-definitionToType (InternalObject td) = td
+maybeOrInferable :: Maybe TypeDescriptor -> TypeDescriptor
+maybeOrInferable = fromMaybe InferableType
 
 typeResolved :: TypeDescriptor -> Bool
 typeResolved (SimpleType _) = False
 typeResolved (Reference td) = typeResolved td
 typeResolved _              = True
-
-fnInstCompatible :: FunctionInstance -> [TypeDescriptor] -> Bool
-fnInstCompatible = fnTypeCompatible . fnInstanceType
 
 fnTypeCompatible :: TypeDescriptor -> [TypeDescriptor] -> Bool
 fnTypeCompatible (FunctionType argTypes _) paramTypes =
@@ -96,3 +109,8 @@ fnTypeCompatible (FunctionType argTypes _) paramTypes =
       checkAll _ [] = False
       checkAll [] _ = False
       checkAll (a:as) (b:bs) = typeCompatible a b && checkAll as bs
+
+functionTypeArgs :: TypeDescriptor -> [TypeDescriptor]
+functionTypeArgs (FunctionType r _) = r
+functionTypeArgs _ = []
+

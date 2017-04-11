@@ -16,7 +16,8 @@ import KindLang.Data.MStat
 data KStatRoot s = KStatRoot
     {
       kstatLoadedModules :: STRef s (Map.Map NSID (STRef s Module)),
-      kstatDefinitions :: STRef s (Map.Map NSID Definition)
+      kstatDefinitions :: STRef s (Map.Map NSID Definition),
+      kstatNextId :: STRef s Integer
     }
 
 newtype KStat s a =
@@ -27,6 +28,11 @@ instance MStat KStat s where
     kstatNewRef = liftToST . newSTRef
     kstatReadRef = liftToST . readSTRef
     kstatWriteRef r v = liftToST $ writeSTRef r v
+    kstatUniqueId = do
+      ref <- kstatNextId <$> ask
+      nextId <- kstatReadRef ref
+      kstatWriteRef ref (nextId + 1)
+      return nextId
 
 instance Functor (KStat s) where
     fmap f = KStat . fmap f . runKStat
@@ -50,8 +56,9 @@ initKStat :: KStat s a -> ST s (Either KindError a)
 initKStat r = do
     loadedModules <- newSTRef Map.empty
     definitions <- newSTRef Map.empty
+    nextId <- newSTRef (1::Integer)
     runExceptT $ runReaderT (runKStat r)
-                            (KStatRoot loadedModules definitions)
+                            (KStatRoot loadedModules definitions nextId)
 
 runToIO :: (forall s . KStat s a) -> IO a
 runToIO r = either (error . show) return $ runST $ initKStat r

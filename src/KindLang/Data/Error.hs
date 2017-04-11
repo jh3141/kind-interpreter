@@ -2,7 +2,7 @@
 module KindLang.Data.Error where
 
 import KindLang.Data.BasicTypes
-import KindLang.Data.AST
+import KindLang.Data.Types
 import KindLang.Util.Control
 import Control.Monad.Except
 

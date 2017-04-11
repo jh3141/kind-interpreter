@@ -1,13 +1,19 @@
 module KindLang.Data.AST where
 
-import Data.Maybe
 import KindLang.Data.BasicTypes
+import KindLang.Data.MStat
+import KindLang.Data.Types
+import KindLang.Util.Control
 
+data ASTNodeInfo = ASTNodeInfo {
+      nodeId :: Integer
+    } deriving (Show, Eq)
+                 
 type DefList = [(String,Definition)]
-    
+
 data ModuleImport = 
-     UnqualifiedModuleImport NSID Bool |
-     QualifiedModuleImport NSID Bool (Maybe NSID)
+     UnqualifiedModuleImport ASTNodeInfo NSID Bool |
+     QualifiedModuleImport ASTNodeInfo NSID Bool (Maybe NSID)
      deriving (Show, Eq)
      
 data Module = Module {
@@ -19,63 +25,39 @@ data Module = Module {
 type InternalFunctionName = String
     
 data FunctionInstance =
-     FunctionInstance TypeDescriptor [String] Statement |
-     InternalFunction TypeDescriptor InternalFunctionName
+     FunctionInstance ASTNodeInfo TypeDescriptor [String] Statement |
+     InternalFunction ASTNodeInfo TypeDescriptor InternalFunctionName
      deriving (Show, Eq)
               
 data Definition =
-     ClassDefinition [ClassMember] |
-     FunctionDefinition [FunctionInstance] |
-     VariableDefinition TypeDescriptor VariableInitializer |
-     Namespace (IdentMap Definition) |
+     ClassDefinition ASTNodeInfo [ClassMember] |
+     FunctionDefinition ASTNodeInfo [FunctionInstance] |
+     VariableDefinition ASTNodeInfo TypeDescriptor VariableInitializer |
+     Namespace ASTNodeInfo (IdentMap Definition) |
      InternalTypeDefinition | -- fixme make this go away
      InternalObject TypeDescriptor {- fixme add execution stub -}
      deriving (Show, Eq)
+              
 type IdentDefinition = Identified Definition
     
 data ClassMember = ClassMember String Visibility Definition
      deriving (Show, Eq)
 
-data Visibility = Public | Protected | Private
-     deriving (Show, Eq)
-              
-data TypeDescriptor =
-     SimpleType NSID |
-     InferableType |
-     ResolvedType {
-         resolvedTypeRID :: NSID,
-         resolvedTypeCanonicalID :: NSID,
-         resolvedTypeDefinition :: Definition
-     } |
-     FunctionType [TypeDescriptor] TypeDescriptor |
-     ForAllTypes [String] [TypePredicate] TypeDescriptor |
-     TypeVariable String |
-     SumType [TypeDescriptor] |
-     TupleType [TypeDescriptor] |
-     RecordType NSID [TypeDescriptor] |
-     Reference TypeDescriptor
-     deriving (Show, Eq)
-
-data TypePredicate =
-     NotType TypePredicate |
-     TypesEqual TypeDescriptor TypeDescriptor
-     deriving (Show, Eq)
-                   
 data Expr =
-     IntLiteral Int |
-     StringLiteral String |
-     VarRef NSID |
-     ORef Expr NSID |
-     BinOp String Expr Expr |
-     PrefixOp String Expr |
-     FunctionApplication Expr [Expr] |
-     OMethod Expr NSID [Expr]
+     IntLiteral ASTNodeInfo Int |
+     StringLiteral ASTNodeInfo String |
+     VarRef ASTNodeInfo NSID |
+     ORef ASTNodeInfo Expr NSID |
+     BinOp ASTNodeInfo String Expr Expr |
+     PrefixOp ASTNodeInfo String Expr |
+     FunctionApplication ASTNodeInfo Expr [Expr] |
+     OMethod ASTNodeInfo Expr NSID [Expr]
      deriving (Show, Eq)
 
 data Statement =
-     Expression Expr |
-     VarDeclStatement String TypeDescriptor VariableInitializer |
-     StatementBlock [Statement]
+     Expression ASTNodeInfo Expr |
+     VarDeclStatement ASTNodeInfo String TypeDescriptor VariableInitializer |
+     StatementBlock ASTNodeInfo [Statement]
      deriving (Show, Eq)
 
 data VariableInitializer =
@@ -86,18 +68,15 @@ data VariableInitializer =
 
 
 -- functions for common manipulations of the AST
-maybeOrInferable :: Maybe TypeDescriptor -> TypeDescriptor
-maybeOrInferable = fromMaybe InferableType
-
 fnDefInstances :: Definition -> [FunctionInstance]
-fnDefInstances (FunctionDefinition i) = i
+fnDefInstances (FunctionDefinition _ i) = i
 fnDefInstances _ = []
 
 definitionTypeName :: Definition -> String
-definitionTypeName (ClassDefinition _) = "class"
-definitionTypeName (FunctionDefinition _) = "function"
-definitionTypeName (VariableDefinition _ _) = "variable"
-definitionTypeName (Namespace _) = "namespace"
+definitionTypeName (ClassDefinition _ _) = "class"
+definitionTypeName (FunctionDefinition _ _) = "function"
+definitionTypeName (VariableDefinition _ _ _) = "variable"
+definitionTypeName (Namespace _ _) = "namespace"
 definitionTypeName (InternalTypeDefinition) = "internal-type"
 definitionTypeName (InternalObject _) = "internal-object"
 
@@ -105,35 +84,53 @@ classMemberName :: ClassMember -> String
 classMemberName (ClassMember name _ _) = name
 
 namespaceCatalogue :: Definition -> IdentMap Definition
-namespaceCatalogue (Namespace cat) = cat
+namespaceCatalogue (Namespace _ cat) = cat
 namespaceCatalogue t = error ("not a namespace: " ++ definitionTypeName t)
 
+-- | Initialize an AST node, automatically generating an appropriate ASTNodeInfo
+-- structure for it.  If the specified node constructor requires arguments, they
+-- may be supplied using the '$#' operator defined in "KindLang.Util.Control".
+newNode :: MStat m s => (ASTNodeInfo -> c) -> m s c
+newNode constructor = (constructor . ASTNodeInfo) <$> kstatUniqueId
+                       
 -- | Convert a statement list to a single statement. Empty lists become
 -- a statement block, as do lists with multiple statements, but lists with
 -- just one statement are unwrapped.
-statementListToStatement :: [Statement] -> Statement
-statementListToStatement (s:[]) = s
-statementListToStatement ss = StatementBlock ss
+statementListToStatement :: MStat m s => [Statement] -> m s Statement
+statementListToStatement (s:[]) = return s
+statementListToStatement ss = newNode StatementBlock $# ss
 
-nullStatement :: Statement
-nullStatement = StatementBlock []
+nullStatement :: MStat m s => m s Statement
+nullStatement = newNode StatementBlock $# []
 
 fnInstanceBody :: FunctionInstance -> Statement
-fnInstanceBody (FunctionInstance _ _ b) = b
-
+fnInstanceBody (FunctionInstance _ _ _ b) = b
+fnInstanceBody (InternalFunction _ _ _) = error "Internal functions do not have bodies"
+                                          
 fnInstanceType :: FunctionInstance -> TypeDescriptor
-fnInstanceType (FunctionInstance td _ _) = td
-fnInstanceType (InternalFunction td _) = td
+fnInstanceType (FunctionInstance _ td _ _) = td
+fnInstanceType (InternalFunction _ td _) = td
 
 fnInstanceArgs :: FunctionInstance -> [String]
-fnInstanceArgs (FunctionInstance _ a _) = a
-fnInstanceArgs (InternalFunction td _) = map (const "") (functionTypeArgs td)
+fnInstanceArgs (FunctionInstance _ _ a _) = a
+fnInstanceArgs (InternalFunction _ td _) = map (const "") (functionTypeArgs td)
 
-functionTypeReturn :: TypeDescriptor -> TypeDescriptor
-functionTypeReturn (FunctionType _ r) = r
-functionTypeReturn n = n -- maybe should be an error?
+fnInstCompatible :: FunctionInstance -> [TypeDescriptor] -> Bool
+fnInstCompatible = fnTypeCompatible . fnInstanceType
 
-functionTypeArgs :: TypeDescriptor -> [TypeDescriptor]
-functionTypeArgs (FunctionType r _) = r
-functionTypeArgs _ = []
+
+-- this function operations on type descriptors, but is defined here rather than Types.hs in order to
+-- prevent circular dependency issues.
+                                         
+functionTypeReturn :: MStat m s => TypeDescriptor -> m s TypeDescriptor
+functionTypeReturn (FunctionType _ r) = return r
+functionTypeReturn t                  = internalError $ "Expected function type, got " ++ show t
+
+definitionToType :: Definition -> TypeDescriptor
+definitionToType (ClassDefinition _ members) = undefined -- FIXME metaclass!
+definitionToType (FunctionDefinition _ (inst:[])) = fnInstanceType inst
+definitionToType (FunctionDefinition _ _) = undefined    -- FIXME overloading!
+definitionToType (VariableDefinition _ td _) = td
+definitionToType (Namespace _ _) = error "Namespaces do not have types"
+definitionToType (InternalObject td) = td
 

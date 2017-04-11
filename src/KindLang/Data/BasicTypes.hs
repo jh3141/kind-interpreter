@@ -15,7 +15,11 @@ data NSID =
 
 type Identified o = (NSID, o)
 type IdentMap o = Map.Map String (Identified o)
-    
+
+data Visibility = Public | Protected | Private
+     deriving (Show, Eq)
+              
+
 qualifiedBy :: NSID -> NSID -> NSID
 i `qualifiedBy` (UnqualifiedID s) = QualifiedID s i
 i `qualifiedBy` (QualifiedID s s') = QualifiedID s (i `qualifiedBy` s')

@@ -21,3 +21,11 @@ rightOrFail :: String -> Either a b -> b
 rightOrFail _ (Right r) = r
 rightOrFail e _         = error e
                           
+-- | apply a value to a function wrapped in a functor
+-- (shamelessly copied from synthesizer-core/Synthesizer.ApplicativeUtility,
+-- which is GPL licensed and (C) Henning Thielemann <haskell@henning-thielemann.de>)
+
+{-# INLINE ($#) #-}
+($#) :: (Functor f) => f (a -> b) -> a -> f b
+($#) f x = fmap ($x) f
+           

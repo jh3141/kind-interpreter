@@ -1,17 +1,22 @@
+{-# LANGUAGE RankNTypes #-}
 module KindLang.Parser.ModuleParser where
 
 import Text.Parsec
 import Control.Monad
+import Control.Monad.Trans
+import Control.Applicative ((<**>))
 import Data.Maybe
 import Data.Either
 
 import KindLang.Data.AST
 import KindLang.Data.BasicTypes
+import KindLang.Data.Types
 import KindLang.Parser.Combinators
 import KindLang.Parser.BasicTokens
 import KindLang.Parser.State
 import KindLang.Parser.StatementParser
-
+import KindLang.Util.Control
+    
 module_ :: Parser Module
 module_ = 
     do
@@ -29,7 +34,7 @@ import_ = do
     x <- withws scopedID_
     wildcard <- optionMaybe $ string "::" >> withws (char '*')
     withtws semicolon
-    return $ UnqualifiedModuleImport x (isJust wildcard)
+    newNodeP UnqualifiedModuleImport $# x $# (isJust wildcard)
 
 
 type DeclarationP = Parser (String,Definition)
@@ -45,9 +50,10 @@ classDeclaration_ = do
     withtws $ string "class"
     ident <- withtws identifier_
     body <- braced
-            (many $ fmap (declarationToClassMember Public)
+            (many $ declarationToClassMember Public <$>
                          (withtws declaration_))
-    return (ident, ClassDefinition body)
+    definition <- newNodeP ClassDefinition $# body
+    return (ident, definition)
 
            
 declarationToClassMember :: Visibility -> (String,Definition) -> ClassMember
@@ -59,30 +65,30 @@ variableDeclaration_ = do
     withtws colon
     typeName <- withtws typeDescriptor_
     initopt <- variableInitializer_
-    
+    definition <- newNodeP VariableDefinition $# typeName $# initopt
     semicolon
-    return (ident, VariableDefinition typeName initopt)
+    return (ident, definition)
 
 
 functionDeclaration_ :: DeclarationP
 functionDeclaration_ =
     withtws identifier_ <&>
-            (FunctionDefinition <$>
+            (newNodeP FunctionDefinition <*>
              (withtws functionInstance_ `sepBy1` withtws comma))
     
 functionInstance_ :: Parser FunctionInstance            
 functionInstance_ =
-    liftM3 makeFunctionInstance
+    newNodeP makeFunctionInstance <*>
            (withtws $ bracketed
-                    (withtws parameterDeclaration_ `sepBy` withtws comma))
+                    (withtws parameterDeclaration_ `sepBy` withtws comma)) <*>
            (maybeOrInferable <$> optionMaybe
-                                 (withtws colon >> withtws typeDescriptor_))
-           (statementListToStatement <$> (braced $ many $ withtws stmt_))
+                                 (withtws colon >> withtws typeDescriptor_)) <*>
+           ((braced $ many $ withtws stmt_) >>= (lift . statementListToStatement))
     where
-      makeFunctionInstance :: [(String,TypeDescriptor)] -> TypeDescriptor -> 
+      makeFunctionInstance :: ASTNodeInfo -> [(String,TypeDescriptor)] -> TypeDescriptor -> 
                               Statement -> FunctionInstance
-      makeFunctionInstance params retType body =
-          FunctionInstance (FunctionType (snd <$> params) retType)
+      makeFunctionInstance info params retType body =
+          FunctionInstance info (FunctionType (snd <$> params) retType)
                            (fst <$> params)
                            body
            

@@ -1,21 +1,29 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes, ImpredicativeTypes, LiberalTypeSynonyms #-}
+
 module KindLang.Parser.ExpressionParser where
 
+import Control.Monad.Trans
 import Text.Parsec
     
 import KindLang.Data.AST
+import KindLang.Util.Control
 import KindLang.Parser.Combinators
 import KindLang.Parser.BasicTokens
 import KindLang.Parser.State
 import Text.Parsec.PrattParser
 
 type ExprP = Parser Expr
+type ExprPS s = ParserS s Expr
+    
+type LeftDenotationExpr s = LeftDenotation String ParseState (ParseMonad s) Expr String
+type OperatorInfoExpr s = OperatorInfo String ParseState (ParseMonad s) Expr String
     
 expr_ :: ExprP
 expr_ = buildPrattParser
           operatorList prefixOperatorList whitespace_ operator_ term_
 
-operatorList :: [OperatorInfo String ParseState ParseMonad Expr String]
+operatorList :: forall s . [OperatorInfoExpr s]
 operatorList =
     [
         OperatorInfo "->" (RAssoc 150) reverseFunctionApplicationLed,
@@ -52,29 +60,27 @@ operatorList =
         OperatorInfo ","  (RAssoc  10) binOpLed
     ]
 
-binOpLed :: LeftDenotation String ParseState ParseMonad Expr String
-binOpLed (OperatorInfo name prec _) lhs pp = BinOp name lhs <$> pp prec
+binOpLed :: forall s . LeftDenotationExpr s
+binOpLed (OperatorInfo name prec _) lhs pp = (newNodeP BinOp) $# name $# lhs <*> pp prec
 
-reverseFunctionApplicationLed :: LeftDenotation
-                                 String ParseState ParseMonad Expr String
+reverseFunctionApplicationLed :: forall s . LeftDenotationExpr s
 reverseFunctionApplicationLed (OperatorInfo _ prec _) lhs pp =
-    (\ rhs -> mkFusedFunction rhs [lhs]) <$> pp prec
+     pp prec >>= \ rhs -> lift $ mkFusedFunction rhs [lhs]
                                          
-functionApplicationLed :: LeftDenotation
-                          String ParseState ParseMonad Expr String
+functionApplicationLed :: forall s . LeftDenotationExpr s
 functionApplicationLed _ lhs pp =
-    mkFusedFunction lhs <$>
-             ((withtws (pp (LAssoc 10)) `sepBy` withtws comma) <*
-              withtws (char ')'))
+    ((withtws (pp (LAssoc 10)) `sepBy` withtws comma) <* withtws (char ')')) >>=
+      \ rhs -> lift $ mkFusedFunction lhs rhs
 
-mkFusedFunction :: Expr -> [Expr] -> Expr
-mkFusedFunction (ORef obj sid) exprs = OMethod obj sid exprs
-mkFusedFunction fn exprs = FunctionApplication fn exprs
 
-orefLed :: LeftDenotation String ParseState ParseMonad Expr String
-orefLed _ lhs _ = ORef lhs <$> scopedID_
+mkFusedFunction :: forall s . Expr -> [Expr] -> ParseMonad s Expr
+mkFusedFunction (ORef ni obj sid) exprs = return $ OMethod ni obj sid exprs
+mkFusedFunction fn exprs = newNode FunctionApplication $# fn $# exprs
+
+orefLed :: forall s . LeftDenotationExpr s
+orefLed _ lhs _ = newNodeP ORef $# lhs <*> scopedID_
                    
-prefixOperatorList :: [PrefixOperatorInfo String ParseState ParseMonad Expr String]
+prefixOperatorList :: forall s . [PrefixOperatorInfo String ParseState (ParseMonad s) Expr String]
 prefixOperatorList =
     [
         SimplePrefixOperator "-" prefixOpBinder,
@@ -82,18 +88,18 @@ prefixOperatorList =
         SimplePrefixOperator "!" prefixOpBinder
     ]
 
-prefixOpBinder :: PrefixBinder String ParseState ParseMonad Expr String
-prefixOpBinder (SimplePrefixOperator name _) rhs = PrefixOp name rhs
+prefixOpBinder :: forall s . PrefixBinder String ParseState (ParseMonad s) Expr String
+prefixOpBinder (SimplePrefixOperator name _) rhs = PrefixOp (ASTNodeInfo (-1)) name rhs   -- fixme should have a real node id
 prefixOpBinder _ _ = error "binder should only be called on simple prefix operators"
     
-term_ :: PrecedenceParser String ParseState ParseMonad Expr -> ExprP
+term_ :: forall s . PrecedenceParser String ParseState (ParseMonad s) Expr -> ExprPS s
 term_ parseSub = varRef_ <|>
                  (bracketed $ parseSub (LAssoc 0)) <|>
                  intLiteral_ <|>
                  stringLiteral_
 
 varRef_ :: ExprP
-varRef_ = fmap VarRef scopedID_
+varRef_ = newNodeP VarRef <*> scopedID_
 
     
 
