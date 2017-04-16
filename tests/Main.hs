@@ -3,7 +3,7 @@ module Main where
 import Test.Tasty
 import ParserTests.Module
 import ParserTests.CombinatorTests
---import ParserTests.Function
+import ParserTests.Function
 --import ParserTests.Expression
 --import ParserTests.Statement
 import TypeTests.NSID
@@ -16,7 +16,7 @@ tests = testGroup "Tests" [
          testGroup "Parser" $
                    moduleParserTests :
                    parserCombinatorTests :
-                   --functionParserTests :
+                   functionParserTests :
                    --expressionParserTests :
                    --statementParserTests :
                    [],
