@@ -89,7 +89,7 @@ prefixOperatorList =
     ]
 
 prefixOpBinder :: forall s . PrefixBinder String ParseState (ParseMonad s) Expr String
-prefixOpBinder (SimplePrefixOperator name _) rhs = PrefixOp (ASTNodeInfo (-1)) name rhs   -- fixme should have a real node id
+prefixOpBinder (SimplePrefixOperator name _) rhs = newNode PrefixOp $# name $# rhs
 prefixOpBinder _ _ = error "binder should only be called on simple prefix operators"
     
 term_ :: forall s . PrecedenceParser String ParseState (ParseMonad s) Expr -> ExprPS s

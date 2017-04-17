@@ -30,7 +30,7 @@ expressionParserTests =
                            (VarRef (ASTNodeInfo 8) $ UnqualifiedID "c"),
         testCase "prefix operators" $
                  parseExpr "! - ~4" @?=
-                 PrefixOp (ASTNodeInfo 1) "!" (PrefixOp (ASTNodeInfo 2) "-" (PrefixOp (ASTNodeInfo 3) "~" (IntLiteral (ASTNodeInfo 4) 4))),
+                 PrefixOp (ASTNodeInfo 5) "!" (PrefixOp (ASTNodeInfo 4) "-" (PrefixOp (ASTNodeInfo 3) "~" (IntLiteral (ASTNodeInfo 2) 4))),
         testCase "function application" $
                  parseExpr "fname (1)" @?=
                  FunctionApplication (ASTNodeInfo 4)
